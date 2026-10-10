@@ -49,6 +49,23 @@ use App\Http\Controllers\Admin\VirtualController;
 use App\Http\Controllers\Admin\BukubesarController;
 use App\Http\Controllers\Admin\GpsKendaraanHistoryController;
 use App\Http\Controllers\Admin\PajakController;
+
+// ── Serve Temp Files Route (with authentication) ────────────
+Route::get('/storage/{path}', function ($path) {
+    // Only authenticated users can access temp files
+    if (!auth()->check()) {
+        abort(403, 'Unauthorized');
+    }
+    
+    $fullPath = storage_path('app/public/' . $path);
+    
+    if (!file_exists($fullPath)) {
+        abort(404);
+    }
+    
+    return response()->file($fullPath);
+})->where('path', '.*')->middleware('auth');
+
 use App\Http\Controllers\Admin\PajakHistoryController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StnkController;
@@ -203,6 +220,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('keuangan.export.pdf');
   Route::get('/keuangan/export/excel', [KeuanganController::class, 'exportExcel'])
     ->name('keuangan.export.excel');
+  Route::get('/keuangan/{id}/detail', [KeuanganController::class, 'getDetail'])
+    ->name('keuangan.detail');
     
   Route::get(
     'gps-kendaraan/export/pdf',

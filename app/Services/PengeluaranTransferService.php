@@ -721,6 +721,11 @@ class PengeluaranTransferService
                 'persetujuan'     => 'Disetujui',
             ]);
 
+            // ⚙️ Update status kendaraan jadi "service" saat incident diapprove
+            if ($kendaraan) {
+                $kendaraan->update(['status_kendaraan' => 'service']);
+            }
+
             // Hanya update parts dengan persetujuan 'Pending' dari PO terkait.
             // Parts dari PO lain yang belum diapprove tidak disentuh.
             $poTerkait = \App\Models\PurchaseOrder::where('pembayaran_id', $pembayaran->id)->first();
@@ -733,18 +738,33 @@ class PengeluaranTransferService
             // ── Jika tidak ada pending parts, insert baru dari source_data ──
             // Ini menangani kasus pertama kali approve PO (parts belum ada di DB)
             if ($pendingParts->isEmpty() && !empty($parts)) {
+                $tempFiles = $sourceData['temp_files'] ?? [];
+                $tempPartFiles = $tempFiles['parts'] ?? [];
+                
                 foreach ($parts as $idx => $partData) {
                     $originalIdx = !empty($approvedIndices) ? ($approvedIndices[$idx] ?? $idx) : $idx;
+                    
+                    // Bukti bayar dari approval
                     $buktiPayload = isset($buktiBayarMap[$originalIdx])
                         ? [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]]
                         : null;
+                    
+                    // Lampiran dari temp_files (bukti upload saat create incident)
+                    $lampiranFromTemp = $tempPartFiles[$originalIdx]['bukti'] ?? [];
+                    $lampiranPayload = [];
+                    foreach ($lampiranFromTemp as $file) {
+                        $lampiranPayload[] = [
+                            'path' => $file['path'] ?? '',
+                            'name' => $file['original_name'] ?? $file['stored_name'] ?? basename($file['path'] ?? ''),
+                        ];
+                    }
 
                     \App\Models\ServiceIncidentPart::create([
                         'service_incident_id' => $incident->id,
                         'purchase_order_id'   => $poTerkait?->id,
+                        'kendaraan_id'        => $kendaraanId,
                         'nama_part'           => $partData['nama_part'] ?? null,
                         'category_id'         => $partData['category_id'] ?? null,
-                        'kondisi'             => $partData['kondisi'] ?? 'Baik',
                         'supplier_id'         => $partData['supplier_id'] ?? null,
                         'nama_bank'           => $partData['nama_bank'] ?? null,
                         'no_rekening'         => $partData['no_rekening'] ?? null,
@@ -753,7 +773,8 @@ class PengeluaranTransferService
                         'persetujuan'         => 'Disetujui',
                         'status'              => 'aktif',
                         'bukti_bayar'         => $buktiPayload,
-                        'lampiran'            => $partData['lampiran'] ?? null,
+                        'bukti'               => !empty($lampiranPayload) ? $lampiranPayload : null,
+                        'tgl_pasang'          => $sourceData['tanggal_service'] ?? now()->toDateString(),
                     ]);
                 }
 
@@ -816,9 +837,9 @@ class PengeluaranTransferService
                 $merkKendaraan  = $kendaraanForFinance->merk  ?? '-';
 
                 $this->createKeuanganRecord('INC', $existingPart->id, $biaya,
-                    'Service Incident: ' . $namaKategori . ' - ' . $merkKendaraan . ' ' . $nopolKendaraan);
+                    'Service Insiden: ' . $namaKategori . ' ' . $merkKendaraan . ' ' . $nopolKendaraan);
                 $this->createBukubesarRecord('INC', $existingPart->id, $biaya,
-                    'Beban Service Incident: ' . $namaKategori . ' - ' . $merkKendaraan . ' ' . $nopolKendaraan,
+                    'Beban Service Incident: ' . $namaKategori . ' ' . $merkKendaraan . ' ' . $nopolKendaraan,
                     'Auto-posting: Service incident ' . $namaKategori . ' ' . $nopolKendaraan . ' via pembayaran #' . $pembayaran->id);
             });
         } else {
@@ -2051,7 +2072,7 @@ class PengeluaranTransferService
     /**
      * Create Keuangan record
      */
-    protected function createKeuanganRecord(string $type, int $id, float $amount, string $description): void
+    protected function createKeuanganRecord(string $type, int $id, float $amount, string $description, ?string $divisi = null): void
     {
         $lastSaldo = (float) DB::table('keuangans')
             ->lockForUpdate()
@@ -2060,11 +2081,20 @@ class PengeluaranTransferService
         
         $kodeJurnal = $type . '-' . $id . '-' . now()->timestamp;
         
+        // Map type ke source_type yang sesuai
+        $sourceTypeMap = [
+            'SA'  => 'service_asuransi_kejadian',
+            'INC' => 'service_incident_part',
+            'GPS' => 'gps_kendaraan',
+        ];
+        
         Keuangan::create([
             'tanggal'     => now(),
             'reference'   => $kodeJurnal,
+            'source_type' => $sourceTypeMap[$type] ?? $type,
+            'source_id'   => $id,
             'user_id'     => auth()->id(),
-            'divisi'      => auth()->user() ? ucfirst(auth()->user()->role) : 'Keuangan',
+            'divisi'      => $divisi ?? (auth()->user() ? ucfirst(auth()->user()->role) : 'Keuangan'),
             'kategori'    => 'Pengeluaran',
             'metode'      => 'Cash',
             'keterangan'  => $description,

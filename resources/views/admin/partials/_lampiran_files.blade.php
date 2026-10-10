@@ -116,7 +116,13 @@
                                 $ext      = strtolower($file['extension'] ?? pathinfo($file['original_name'] ?? $file['stored_name'] ?? '', PATHINFO_EXTENSION));
                                 $name     = $file['original_name'] ?? $file['stored_name'] ?? 'file';
                                 $path     = $file['path'] ?? null;
-                                $url      = $path ? \Illuminate\Support\Facades\Storage::disk('public')->url($path) : null;
+                                // Temp files di storage/app/public → Storage::url()
+                                // Final files di public/ → asset()
+                                $url      = $path 
+                                    ? (str_starts_with($path, 'purchase_order/') || str_starts_with($path, 'service_') || str_starts_with($path, 'pembayaran/')
+                                        ? \Storage::disk('public')->url($path)
+                                        : asset($path))
+                                    : null;
                                 $isImage  = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
                                 $isPdf    = $ext === 'pdf';
                                 $isVideo  = in_array($ext, ['mp4', 'mov', 'avi']);
@@ -161,7 +167,13 @@
                                 $ext      = strtolower($file['extension'] ?? pathinfo($file['original_name'] ?? $file['stored_name'] ?? '', PATHINFO_EXTENSION));
                                 $name     = $file['original_name'] ?? $file['stored_name'] ?? 'file';
                                 $path     = $file['path'] ?? null;
-                                $url      = $path ? \Illuminate\Support\Facades\Storage::disk('public')->url($path) : null;
+                                // Temp files di storage/app/public → Storage::url()
+                                // Final files di public/ → asset()
+                                $url      = $path 
+                                    ? (str_starts_with($path, 'purchase_order/') || str_starts_with($path, 'service_') || str_starts_with($path, 'pembayaran/')
+                                        ? \Storage::disk('public')->url($path)
+                                        : asset($path))
+                                    : null;
                                 $isImage  = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
                                 $isPdf    = $ext === 'pdf';
                                 $isVideo  = in_array($ext, ['mp4', 'mov', 'avi']);
@@ -201,7 +213,13 @@
                     $ext      = strtolower($file['extension'] ?? pathinfo($file['original_name'] ?? $file['stored_name'] ?? '', PATHINFO_EXTENSION));
                     $name     = $file['original_name'] ?? $file['stored_name'] ?? 'file';
                     $path     = $file['path'] ?? null;
-                    $url      = $path ? \Illuminate\Support\Facades\Storage::disk('public')->url($path) : null;
+                    // Temp files di storage/app/public → Storage::url()
+                    // Final files di public/ → asset()
+                    $url      = $path 
+                        ? (str_starts_with($path, 'purchase_order/') || str_starts_with($path, 'service_') || str_starts_with($path, 'pembayaran/')
+                            ? \Storage::disk('public')->url($path)
+                            : asset($path))
+                        : null;
                     $isImage  = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
                     $isPdf    = $ext === 'pdf';
                     $isVideo  = in_array($ext, ['mp4', 'mov', 'avi']);
@@ -228,3 +246,5 @@
         <p class="text-xs text-gray-400 italic">Tidak ada lampiran</p>
     @endif
 @endif
+
+

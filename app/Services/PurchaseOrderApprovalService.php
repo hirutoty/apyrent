@@ -381,9 +381,18 @@ class PurchaseOrderApprovalService
                 unset($newData['gps_record_ids']);
             }
 
-            // Update PO dengan data baru
+            // ── Preserve locked_approved_idx dari partial approval sebelumnya ──────────
+            // Saat PO partial approved → resubmit, locked_approved_idx harus tetap ada
+            // agar items yang sudah approved tidak muncul lagi di approval modal berikutnya.
+            $oldSourceData = $po->source_data ?? [];
+            $preservedFields = [
+                'locked_approved_idx' => $oldSourceData['locked_approved_idx'] ?? [],
+                // item_decisions di-clear karena cycle approval baru dimulai
+            ];
+
+            // Update PO dengan data baru + preserve locked items
             $po->update([
-                'source_data' => array_merge($newData, ['temp_files' => $uploadedFiles]),
+                'source_data' => array_merge($newData, ['temp_files' => $uploadedFiles], $preservedFields),
                 'vendor' => $vendor,
                 'total_barang' => $totalItems,
                 'total_harga' => $nominal,
@@ -518,7 +527,7 @@ class PurchaseOrderApprovalService
             'kir'               => floatval($data['biaya'] ?? 0),
             'stnk'              => floatval($data['biaya'] ?? 0),
             'service_part'      => collect($data['parts'] ?? [])->sum(fn($p) => floatval($p['biaya'] ?? 0)),
-            'service_asuransi'  => floatval($data['biaya'] ?? 0),
+            'service_asuransi'  => collect($data['kejadians'] ?? [])->sum(fn($k) => floatval($k['biaya'] ?? 0)),
             'service_incident'  => floatval($data['total_biaya_override'] ?? 0) > 0
                                     ? floatval($data['total_biaya_override'])
                                     : collect($data['parts'] ?? [])->sum(fn($p) => floatval($p['biaya'] ?? 0)),

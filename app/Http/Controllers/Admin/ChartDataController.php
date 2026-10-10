@@ -2241,14 +2241,15 @@ class ChartDataController extends Controller
                 'format'      => 'currency',
             ],
             'line' => [
-                'title'       => 'Trend Nominal Pembayaran',
+                'title'       => 'Tren Pembayaran',
                 'groupBy'     => 'month',
-                'valueColumn' => 'nominal',
-                'aggregation' => 'sum',
+                'valueColumn' => 'id',  // Changed from 'nominal' to 'id' for count
+                'aggregation' => 'count',  // Changed from 'sum' to 'count'
                 'dateColumn'  => 'tanggal',
                 'limit'       => 12,
-                'label'       => 'Nominal',
+                'label'       => 'Total PR',  // Changed from 'Nominal' to 'Total PR'
                 'color'       => '#8b5cf6',
+                'format'      => 'number',  // Changed from 'currency' to 'number'
             ],
             'stats' => [
                 [
@@ -3357,10 +3358,34 @@ class ChartDataController extends Controller
             'dateColumn' => 'tanggal_po',
             'pie' => [
                 'title'       => 'Distribusi Status PO',
-                'groupBy'     => 'status',
+                'groupBy'     => 'custom',  // Use custom calculation untuk handle partial approval/rejection
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
-                'labels'      => [],
+                'customData'  => [
+                    // Pending: PO dengan status Pending (tidak include partial approved items yang sudah locked)
+                    [
+                        'label' => 'Pending',
+                        'where' => ['status' => 'Pending'],
+                        'color' => '#f59e0b',
+                    ],
+                    // Disetujui: PO dengan status Disetujui OR PO Pending dengan locked approved items
+                    [
+                        'label' => 'Disetujui',
+                        'where' => [
+                            '__raw' => "(status = 'Disetujui' OR (status = 'Pending' AND JSON_LENGTH(JSON_EXTRACT(source_data, '$.locked_approved_idx')) > 0))",
+                        ],
+                        'color' => '#10b981',
+                    ],
+                    // Ditolak: PO dengan status Ditolak OR PO Disetujui dengan rejected items (partial reject)
+                    [
+                        'label' => 'Ditolak',
+                        'where' => [
+                            '__raw' => "(status = 'Ditolak' OR (status = 'Disetujui' AND JSON_SEARCH(JSON_EXTRACT(source_data, '$.item_decisions[*].action'), 'one', 'rejected') IS NOT NULL))",
+                        ],
+                        'color' => '#ef4444',
+                    ],
+                ],
+                'labels'      => ['Pending', 'Disetujui', 'Ditolak'],
                 'colors'      => ['#f59e0b', '#10b981', '#ef4444'],
             ],
             'bar' => [

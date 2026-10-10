@@ -16,12 +16,20 @@ class ServiceAsuransiController extends Controller
     {
         // Tampilkan hanya yang sudah melewati PO (bukan Pending di PO)
         // Sama dengan logika GpsKendaraanController::index()
+        // PERBAIKAN: Data lama (persetujuan = NULL) juga ditampilkan sebagai "Disetujui" (approved by default)
         $query = ServiceAsuransi::with(['kendaraan', 'jenisAsuransi', 'kejadians', 'pembayaran.approvals', 'pembayaran.latestApproval'])
-            ->whereNotNull('persetujuan')
-            ->where('persetujuan', '!=', 'Pending')
             ->where(function ($q) {
-                $q->whereNotIn('persetujuan', ['Ditolak', 'Ditolak Pembayaran'])
-                  ->orWhereNotNull('pembayaran_id'); // Ditolak di Pembayaran → tampilkan
+                // Data baru: sudah melewati PO (bukan Pending)
+                $q->where(function ($q2) {
+                    $q2->whereNotNull('persetujuan')
+                       ->where('persetujuan', '!=', 'Pending')
+                       ->where(function ($q3) {
+                           $q3->whereNotIn('persetujuan', ['Ditolak', 'Ditolak Pembayaran'])
+                              ->orWhereNotNull('pembayaran_id'); // Ditolak di Pembayaran → tampilkan
+                       });
+                })
+                // Data lama: persetujuan NULL (langsung approved tanpa PO)
+                ->orWhereNull('persetujuan');
             })
             ->latest();
 

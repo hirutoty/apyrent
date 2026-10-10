@@ -355,9 +355,11 @@
                                         </div>
                                     </td>
                                     <td class="px-4 py-3.5 text-sm text-gray-700">{{ $k->kategori }}</td>
-                                    <td class="px-4 py-3.5 text-sm text-gray-500 max-w-[180px]
-  truncate">
-                                        {{ $k->keterangan }}</td>
+                                    <td class="px-4 py-3.5">
+                                        <div class="text-sm text-gray-700 leading-relaxed max-w-md">
+                                            {{ $k->keterangan }}
+                                        </div>
+                                    </td>
                                     <td class="px-4 py-3.5">
                                         @if ($k->pemasukan > 0)
                                             <span class="text-sm font-semibold text-green-600">Rp

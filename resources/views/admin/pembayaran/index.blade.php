@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 @section('title', 'Pembayaran')
 @section('content')
 
@@ -961,7 +961,7 @@
                                                     <div class="px-4 pb-3 flex flex-wrap gap-2 border-t border-blue-100 pt-2">
                                                         <p class="w-full text-[10px] font-semibold text-gray-400 uppercase mb-0.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>
                                                         @foreach($pajakLampiran as $plf)
-                                                            @php $plfUrl = $plf['public_url'] ?? (isset($plf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($plf['path']) : null); @endphp
+                                                            @php $plfUrl = $plf['public_url'] ?? (isset($plf['path']) ? asset($plf['path']) : null); @endphp
                                                             @if($plfUrl)
                                                                 <a href="{{ $plfUrl }}" target="_blank"
                                                                     class="text-xs text-blue-600 hover:underline truncate max-w-[200px]"
@@ -994,7 +994,7 @@
                                                     <div class="px-4 pb-3 flex flex-wrap gap-2 border-t border-purple-100 pt-2">
                                                         <p class="w-full text-[10px] font-semibold text-gray-400 uppercase mb-0.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>
                                                         @foreach($asrLampiran as $alf)
-                                                            @php $alfUrl = $alf['public_url'] ?? (isset($alf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($alf['path']) : null); @endphp
+                                                            @php $alfUrl = $alf['public_url'] ?? (isset($alf['path']) ? asset($alf['path']) : null); @endphp
                                                             @if($alfUrl)<a href="{{ $alfUrl }}" target="_blank" class="text-xs text-blue-600 hover:underline truncate max-w-[200px]" title="{{ $alf['original_name']??'' }}">{{ $alf['original_name']??'file' }}</a>@endif
                                                         @endforeach
                                                     </div>
@@ -1022,7 +1022,7 @@
                                                     <div class="px-4 pb-3 flex flex-wrap gap-2 border-t border-teal-100 pt-2">
                                                         <p class="w-full text-[10px] font-semibold text-gray-400 uppercase mb-0.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>
                                                         @foreach($kirLampiran as $klf)
-                                                            @php $klfUrl = $klf['public_url'] ?? (isset($klf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($klf['path']) : null); @endphp
+                                                            @php $klfUrl = $klf['public_url'] ?? (isset($klf['path']) ? asset($klf['path']) : null); @endphp
                                                             @if($klfUrl)<a href="{{ $klfUrl }}" target="_blank" class="text-xs text-blue-600 hover:underline truncate max-w-[200px]" title="{{ $klf['original_name']??'' }}">{{ $klf['original_name']??'file' }}</a>@endif
                                                         @endforeach
                                                     </div>
@@ -1049,7 +1049,7 @@
                                                     <div class="px-4 pb-3 flex flex-wrap gap-2 border-t border-indigo-100 pt-2">
                                                         <p class="w-full text-[10px] font-semibold text-gray-400 uppercase mb-0.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>
                                                         @foreach($stnkLampiran as $slf)
-                                                            @php $slfUrl = $slf['public_url'] ?? (isset($slf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($slf['path']) : null); @endphp
+                                                            @php $slfUrl = $slf['public_url'] ?? (isset($slf['path']) ? asset($slf['path']) : null); @endphp
                                                             @if($slfUrl)<a href="{{ $slfUrl }}" target="_blank" class="text-xs text-blue-600 hover:underline truncate max-w-[200px]" title="{{ $slf['original_name']??'' }}">{{ $slf['original_name']??'file' }}</a>@endif
                                                         @endforeach
                                                     </div>
@@ -1130,7 +1130,7 @@
                                                                     @if(!empty($gpsLamp))
                                                                         <div class="flex flex-col gap-0.5">
                                                                         @foreach($gpsLamp as $gf)
-                                                                            @php $gfUrl = isset($gf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($gf['path']) : null; @endphp
+                                                                            @php $gfUrl = isset($gf['path']) ? asset($gf['path']) : null; @endphp
                                                                             @if($gfUrl)
                                                                                 <a href="{{ $gfUrl }}" target="_blank"
                                                                                     class="text-[11px] text-blue-600 hover:underline truncate max-w-[120px]"
@@ -1546,7 +1546,7 @@
                                                                     $lfExt  = strtolower($lf['extension'] ?? pathinfo($lfPath, PATHINFO_EXTENSION));
                                                                     $lfIsImg = in_array($lfExt, ['jpg','jpeg','png','webp','gif']);
                                                                     $lfIcon  = $lfIsImg ? 'fa-image text-blue-400' : ($lfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
-                                                                    $lfUrl   = $lfPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($lfPath) : null;
+                                                                    $lfUrl   = $lfPath ? asset($lfPath) : null;
                                                                 @endphp
                                                                 @if($lfUrl)
                                                                     <a href="{{ $lfUrl }}" target="_blank"
@@ -1573,7 +1573,7 @@
                                                         @php
                                                             $sbPath = $saBukti['path'] ?? '';
                                                             $sbName = $saBukti['original_name'] ?? basename($sbPath);
-                                                            $sbUrl  = $sbPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($sbPath) : null;
+                                                            $sbUrl  = $sbPath ? asset($sbPath) : null;
                                                         @endphp
                                                         @if($sbUrl)
                                                         <div class="mb-3">
@@ -1615,7 +1615,7 @@
                                                                                 <div class="flex flex-wrap gap-0.5 justify-center">
                                                                                 @foreach($saKjLamp as $kjf)
                                                                                     @php
-                                                                                        $kjfUrl  = isset($kjf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($kjf['path']) : null;
+                                                                                        $kjfUrl  = isset($kjf['path']) ? asset($kjf['path']) : null;
                                                                                         $kjfExt  = strtolower($kjf['extension'] ?? pathinfo($kjf['path'] ?? '', PATHINFO_EXTENSION));
                                                                                         $kjfIcon = in_array($kjfExt, ['jpg','jpeg','png','gif']) ? 'fa-image text-blue-400' : ($kjfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
                                                                                     @endphp
@@ -2422,16 +2422,22 @@
             </div>
 
             {{-- Footer --}}
-            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0 rounded-b-2xl">
-                <button type="button" onclick="closeResubmitRejectedModal()"
-                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors">
-                    Batal
-                </button>
-                <button type="submit" id="rrm-submit-btn"
-                    class="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-colors shadow-sm">
-                    <i class="fa fa-paper-plane text-xs"></i>
-                    Ajukan Ulang
-                </button>
+            <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0 rounded-b-2xl">
+                <div class="flex-1">
+                    <p class="text-xs text-gray-500 font-medium">Total yang akan diajukan</p>
+                    <p id="rrm-total-display" class="text-lg font-bold text-amber-600">Rp 0</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="closeResubmitRejectedModal()"
+                        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit" id="rrm-submit-btn"
+                        class="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-colors shadow-sm">
+                        <i class="fa fa-paper-plane text-xs"></i>
+                        Ajukan Ulang
+                    </button>
+                </div>
             </div>
         </form>
 
@@ -2445,6 +2451,12 @@ window.__rrmSuppliers = @json($suppliers->map(fn($s) => ['id' => $s->id, 'nama' 
 
 @push('scripts')
 <script>
+// ══════════════════════════════════════════════════════════════
+// ISOLATE PEMBAYARAN PAGE SCRIPTS TO PREVENT GLOBAL CONFLICTS
+// ══════════════════════════════════════════════════════════════
+(function() {
+'use strict';
+
 // ── DATA PENDING (untuk modal bulk) ──────────────────────────
 const ALL_PENDING = {!! json_encode($allPendingJson) !!};
 
@@ -3047,6 +3059,18 @@ function closeDeleteModal() {
 document.getElementById('deleteModal')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeDeleteModal(); });
 
 // ── POPUP ALERT ───────────────────────────────────────────────
+// ── Alert Close Function (Global) ─────────────────────────────
+window.closeAlert = function() {
+    const overlay = document.getElementById('alertOverlay');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        overlay.style.pointerEvents = 'none';
+        const box = document.getElementById('alertBox');
+        if (box) box.style.transform = 'translateY(-16px)';
+    }
+};
+
+// ── Alert Auto-Show ───────────────────────────────────────────
 (function() {
     const overlay = document.getElementById('alertOverlay');
     const box     = document.getElementById('alertBox');
@@ -3054,8 +3078,6 @@ document.getElementById('deleteModal')?.addEventListener('click', e => { if (e.t
     setTimeout(() => { overlay.style.opacity='1'; overlay.style.pointerEvents='auto'; box.style.transform='translateY(0)'; }, 80);
     const timer = setTimeout(closeAlert, 4500);
     overlay.addEventListener('click', e => { if (e.target === overlay) closeAlert(); });
-    function closeAlert() { clearTimeout(timer); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
-    window.closeAlert = closeAlert;
 })();
 
 // ── APPROVAL MODAL (component) ────────────────────────────────
@@ -3065,6 +3087,22 @@ function openApprovalModal(id) {
 function openRejectModal(id) {
     window.dispatchEvent(new CustomEvent('open-approval-modal', { detail: { id, action: 'reject' } }));
 }
+
+// ── RESUBMIT REJECTED MODAL (Stub - will be populated later) ──
+window.openResubmitRejectedModal = function(id) {
+    console.warn('openResubmitRejectedModal called but not yet initialized. Retrying...');
+    setTimeout(() => {
+        if (window._openResubmitRejectedModalReal) {
+            window._openResubmitRejectedModalReal(id);
+        } else {
+            alert('Modal resubmit belum siap. Silakan refresh halaman.');
+        }
+    }, 100);
+};
+window.closeResubmitRejectedModal = function() {};
+window.openPerItemApprovalModal = function(id) {
+    console.warn('openPerItemApprovalModal called but not yet initialized.');
+};
 
 // ── CHARTS ────────────────────────────────────────────────────
 const pembayaranChartManager = new ChartManager();
@@ -3388,6 +3426,7 @@ function openResubmitRejectedModal(pembayaranId) {
                         <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp)</label>
                         <input type="number" name="items[${i}][biaya]" value="${item.biaya}"
                             min="0" required
+                            onchange="updateRRMTotal()" oninput="updateRRMTotal()"
                             class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
                     </div>
                     <div>
@@ -3405,6 +3444,7 @@ function openResubmitRejectedModal(pembayaranId) {
                     <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp)</label>
                     <input type="number" name="items[${i}][biaya]" value="${item.biaya}"
                         min="0" required
+                        onchange="updateRRMTotal()" oninput="updateRRMTotal()"
                         class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
                 </div>`;
             }
@@ -3455,12 +3495,24 @@ function openResubmitRejectedModal(pembayaranId) {
         // Tampilkan form, sembunyikan loading
         document.getElementById('rrm-loading').classList.add('hidden');
         document.getElementById('rrm-form').classList.remove('hidden');
+        
+        // Hitung dan tampilkan total dari items yang di-return (hanya item rejected)
+        updateRRMTotal();
     })
     .catch(function(err) {
         document.getElementById('rrm-loading').classList.add('hidden');
         document.getElementById('rrm-error-msg').textContent = err.message || 'Terjadi kesalahan.';
         document.getElementById('rrm-error').classList.remove('hidden');
     });
+}
+
+function updateRRMTotal() {
+    // Hitung total dari input biaya yang ada di form
+    let total = 0;
+    document.querySelectorAll('#rrm-items-container input[name$="[biaya]"]').forEach(function(inp) {
+        total += parseInt(inp.value) || 0;
+    });
+    document.getElementById('rrm-total-display').textContent = 'Rp ' + total.toLocaleString('id-ID');
 }
 
 function closeResubmitRejectedModal() {
@@ -3484,6 +3536,59 @@ function _escHtml(str) {
 function _escAttr(str) {
     return String(str).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+
+// ══════════════════════════════════════════════════════════════
+// EXPOSE FUNCTIONS TO GLOBAL SCOPE (for inline onclick handlers)
+// ══════════════════════════════════════════════════════════════
+window.toggleGroup = toggleGroup;
+window.toggleRowExpand = toggleRowExpand;
+window.toggleGroupCheck = toggleGroupCheck;
+window.openBulkApproveModal = openBulkApproveModal;
+window.closeBulkApproveModal = closeBulkApproveModal;
+window.toggleApproveAll = toggleApproveAll;
+window.updateApproveCount = updateApproveCount;
+window.submitBulkApprove = submitBulkApprove;
+window.openBulkRejectModal = openBulkRejectModal;
+window.closeBulkRejectModal = closeBulkRejectModal;
+window.toggleRejectAll = toggleRejectAll;
+window.syncRejectAllAlasan = syncRejectAllAlasan;
+window.updateRejectCount = updateRejectCount;
+window.submitBulkReject = submitBulkReject;
+window.openSingleApproveModal = openSingleApproveModal;
+window.closeSingleApproveModal = closeSingleApproveModal;
+window.openSingleRejectModal = openSingleRejectModal;
+window.closeSingleRejectModal = closeSingleRejectModal;
+window.openApproveServiceModal = openApproveServiceModal;
+window.closeApproveServiceModal = closeApproveServiceModal;
+window.openTolakModal = openTolakModal;
+window.closeTolakModal = closeTolakModal;
+window.openDetailModal = openDetailModal;
+window.closeDetailModal = closeDetailModal;
+window.triggerDelete = triggerDelete;
+window.closeDeleteModal = closeDeleteModal;
+window.closeAlert = closeAlert;
+window.openApprovalModal = openApprovalModal;
+window.openRejectModal = openRejectModal;
+window.openAjukanUlangSAModal = openAjukanUlangSAModal;
+window.closeAjukanUlangSAModal = closeAjukanUlangSAModal;
+window.addSaKejadian = addSaKejadian;
+window.removeSaKejadian = removeSaKejadian;
+window.updateSaTotalBiaya = updateSaTotalBiaya;
+window.submitAjukanUlangSA = submitAjukanUlangSA;
+window._openResubmitRejectedModalReal = openResubmitRejectedModal;
+window.openResubmitRejectedModal = openResubmitRejectedModal;
+window.closeResubmitRejectedModal = closeResubmitRejectedModal;
+window.updateRRMTotal = updateRRMTotal;
+window.openPerItemApprovalModal = openPerItemApprovalModal;
+window.closePerItemApprovalModal = closePerItemApprovalModal;
+window.setPiaDecision = setPiaDecision;
+window.updatePiaBuktiLabel = updatePiaBuktiLabel;
+window.submitPerItemApproval = submitPerItemApproval;
+
+// ══════════════════════════════════════════════════════════════
+// END OF ISOLATED PEMBAYARAN SCRIPTS
+// ══════════════════════════════════════════════════════════════
+})(); // End IIFE
 </script>
 @endpush
 
@@ -3763,3 +3868,7 @@ function _escH(str) {
 </script>
 
 @endsection
+
+
+
+

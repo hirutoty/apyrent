@@ -1171,12 +1171,13 @@ function approvalModal() {
                     return sum;
                 }, 0);
             }
-            // Jika belum ada keputusan sama sekali, tampilkan nominal_display (sudah dikurangi rejected sebelumnya)
-            if (this.decidedCount() === 0) {
-                return Number(this.data?.nominal_display ?? this.data?.nominal ?? 0);
-            }
             if (srcType === 'service_part' || srcType === 'service_incident') {
                 const parts = this.sourceData?.parts || [];
+                // Jika belum ada keputusan: sum semua parts yang tampil (sudah terfilter di server)
+                if (this.decidedCount() === 0) {
+                    return parts.reduce((sum, p) => sum + Number(p?.biaya || 0), 0);
+                }
+                // Jika sudah ada keputusan: sum hanya yang di-approve
                 return this.itemDecisions.reduce((sum, d, idx) => {
                     if (d.action === 'approved') sum += Number(parts[idx]?.biaya || 0);
                     return sum;
@@ -1184,12 +1185,17 @@ function approvalModal() {
             }
             if (srcType === 'service_asuransi') {
                 const kejadians = this.sourceData?.kejadians || [];
+                // Jika belum ada keputusan: sum semua kejadian yang tampil (sudah terfilter di server)
+                if (this.decidedCount() === 0) {
+                    return kejadians.reduce((sum, k) => sum + Number(k?.biaya || 0), 0);
+                }
+                // Jika sudah ada keputusan: sum hanya yang di-approve
                 return this.itemDecisions.reduce((sum, d, idx) => {
                     if (d.action === 'approved') sum += Number(kejadians[idx]?.biaya || 0);
                     return sum;
                 }, 0);
             }
-            // Non per-item: tampilkan nominal_display
+            // Non per-item: tampilkan nominal_display (sudah dikurangi rejected sebelumnya)
             return Number(this.data?.nominal_display ?? this.data?.nominal ?? 0);
         },
 

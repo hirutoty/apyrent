@@ -48,6 +48,7 @@
             </div>
             <h2 class="text-2xl font-bold text-yellow-600">{{ $totalPending }}</h2>
             <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalPending, 0, ',', '.') }}</p>
+            <p class="text-[10px] text-gray-300 mt-0.5">item menunggu persetujuan</p>
         </div>
         <div class="bg-white rounded-2xl border border-emerald-100 p-5">
             <div class="flex items-center gap-2 mb-2">
@@ -58,6 +59,7 @@
             </div>
             <h2 class="text-2xl font-bold text-emerald-600">{{ $totalApproved }}</h2>
             <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalApproved, 0, ',', '.') }}</p>
+            <p class="text-[10px] text-gray-300 mt-0.5">item disetujui</p>
         </div>
         <div class="bg-white rounded-2xl border border-red-100 p-5">
             <div class="flex items-center gap-2 mb-2">
@@ -68,6 +70,7 @@
             </div>
             <h2 class="text-2xl font-bold text-red-600">{{ $totalRejected }}</h2>
             <p class="text-xs text-gray-400 mt-1">Rp {{ number_format($nominalRejected, 0, ',', '.') }}</p>
+            <p class="text-[10px] text-gray-300 mt-0.5">item ditolak</p>
         </div>
     </div>
 
@@ -787,10 +790,26 @@
                                                     // Service Incident/Part — PO Disetujui tanpa item_decisions (approve pertama kali):
                                                     // Jumlahkan semua parts karena semua dianggap approved
                                                     $_poNomShow = collect($_poParts2)->sum(fn($p) => $p['biaya'] ?? 0);
+                                                } elseif (in_array($po->source_type, ['service_part','service_incident']) && $po->status === 'Pending' && !empty($_poParts2) && empty($_poDec2)) {
+                                                    // Service Incident/Part — PO Pending baru dibuat (belum ada item_decisions):
+                                                    // Jumlahkan semua parts
+                                                    $_poNomShow = collect($_poParts2)->sum(fn($p) => $p['biaya'] ?? 0);
                                                 } elseif (in_array($po->source_type, ['gps', 'gps_perpanjang']) && $po->status === 'Disetujui' && !empty($_poGpsI2)) {
                                                     // GPS — PO Disetujui tanpa item_decisions (approve pertama kali):
                                                     // Jumlahkan semua GPS items karena semua dianggap approved
                                                     $_poNomShow = collect($_poGpsI2)->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                } elseif (in_array($po->source_type, ['gps', 'gps_perpanjang']) && $po->status === 'Pending' && !empty($_poGpsI2) && empty($_poDec2) && empty($po->source_data['locked_approved_idx'] ?? [])) {
+                                                    // GPS — PO Pending baru dibuat (belum ada item_decisions dan locked):
+                                                    // Jumlahkan semua GPS items
+                                                    $_poNomShow = collect($_poGpsI2)->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                } elseif ($po->source_type === 'service_asuransi' && $po->status === 'Pending' && !empty($_poKejad2) && empty($_poDec2) && empty($po->source_data['locked_approved_idx'] ?? [])) {
+                                                    // Service Asuransi — PO Pending baru dibuat (belum ada item_decisions dan locked):
+                                                    // Jumlahkan semua kejadian
+                                                    $_poNomShow = collect($_poKejad2)->sum(fn($k) => $k['biaya'] ?? 0);
+                                                } elseif ($po->source_type === 'service_asuransi' && $po->status === 'Disetujui' && !empty($_poKejad2) && empty($_poDec2)) {
+                                                    // Service Asuransi — PO Disetujui tanpa item_decisions (approve pertama kali):
+                                                    // Jumlahkan semua kejadian karena semua dianggap approved
+                                                    $_poNomShow = collect($_poKejad2)->sum(fn($k) => $k['biaya'] ?? 0);
                                                 } else {
                                                     $_poNomShow = $po->total_harga ?? 0;
                                                 }
@@ -948,11 +967,11 @@
                                                     if ($po->status === 'Disetujui' && $hasRejectedInDec) {
                                                         // Ada item yang ditolak — filter ketat: hanya approved + locked
                                                         $parts = collect($allParts)
-                                                            ->filter(fn($p, $i) =>
-                                                                ($partDecMap[$i]['action'] ?? '') === 'approved'
-                                                                || in_array($i, $lockedPartIdx)
+                                                            ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i])) // Simpan index asli dulu
+                                                            ->filter(fn($p) =>
+                                                                ($partDecMap[(int)$p['_orig_idx']]['action'] ?? '') === 'approved'
+                                                                || in_array($p['_orig_idx'], $lockedPartIdx)
                                                             )
-                                                            ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
                                                             ->values()->all();
                                                     } elseif ($po->status === 'Disetujui') {
                                                         // Fully approved (tidak ada rejected) — tampilkan semua
@@ -961,16 +980,37 @@
                                                             ->values()->all();
                                                     } else {
                                                         $parts = collect($allParts)
-                                                            ->filter(fn($p, $i) =>
-                                                                ($partDecMap[$i]['action'] ?? '') === 'approved'
-                                                                || in_array($i, $lockedPartIdx)
+                                                            ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i])) // Simpan index asli dulu
+                                                            ->filter(fn($p) =>
+                                                                ($partDecMap[(int)$p['_orig_idx']]['action'] ?? '') === 'approved'
+                                                                || in_array($p['_orig_idx'], $lockedPartIdx)
                                                             )
-                                                            ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
                                                             ->values()->all();
                                                     }
                                                 } elseif ($statusFilter === 'Ditolak') {
-                                                    $parts = collect($allParts)
-                                                        ->filter(fn($p, $i) => ($partDecMap[$i]['action'] ?? '') !== 'approved' && $partDecMap->has($i))
+                                                    // Tab Ditolak: hanya tampilkan item yang explicitly rejected
+                                                    // FALLBACK: Jika parts di source_data tidak lengkap, rebuild dari item_decisions
+                                                    
+                                                    // Rebuild parts dari decisions jika part rejected tidak ada di allParts
+                                                    $rebuiltParts = [];
+                                                    foreach ($rawDecisions as $dec) {
+                                                        if (($dec['action'] ?? '') === 'rejected') {
+                                                            $idx = (int)($dec['idx'] ?? -1);
+                                                            // Ambil dari allParts jika ada (preserve ALL fields termasuk bank), atau rebuild minimal dari decision
+                                                            if (isset($allParts[$idx])) {
+                                                                $rebuiltParts[$idx] = $allParts[$idx]; // Preserve semua data asli
+                                                            } else {
+                                                                $rebuiltParts[$idx] = [
+                                                                    'nama_part' => $dec['nama_part'] ?? 'N/A',
+                                                                    'category_nama' => $dec['category'] ?? '-',
+                                                                    'biaya' => 0,
+                                                                    '_from_decision' => true,
+                                                                ];
+                                                            }
+                                                        }
+                                                    }
+                                                    
+                                                    $parts = collect($rebuiltParts)
                                                         ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
                                                         ->values()->all();
                                                 } else {
@@ -981,19 +1021,50 @@
                                             } elseif (!empty($sourceData['locked_approved_idx'] ?? [])) {
                                                 // PO Pending setelah resubmit partial: item_decisions dikosongkan,
                                                 // locked_approved_idx menandai item yang sudah approved sebelumnya.
+                                                // FALLBACK FIX: Filter hanya idx yang benar-benar approved (bukan rejected)
                                                 $lockedPartIdx = array_map('intval', $sourceData['locked_approved_idx']);
+                                                
+                                                // Jika ada item_decisions lama, cross-check locked_approved_idx dengan decisions
+                                                // untuk memastikan tidak ada idx rejected yang masuk sebagai locked
+                                                if (!empty($rawDecisions)) {
+                                                    $decMap = collect($rawDecisions)->keyBy('idx');
+                                                    $lockedPartIdx = array_values(array_filter(
+                                                        $lockedPartIdx,
+                                                        fn($idx) => ($decMap[$idx]['action'] ?? 'approved') === 'approved'
+                                                    ));
+                                                }
+                                                
                                                 if ($statusFilter === 'Disetujui') {
                                                     // Tab Disetujui: hanya tampilkan item yang locked/approved
                                                     $parts = collect($allParts)
-                                                        ->filter(fn($p, $i) => in_array($i, $lockedPartIdx))
                                                         ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
+                                                        ->filter(fn($p) => in_array($p['_orig_idx'], $lockedPartIdx))
                                                         ->values()->all();
                                                 } elseif ($statusFilter === 'Pending') {
                                                     // Tab Pending: hanya tampilkan item yang BELUM locked (sedang pending)
                                                     $parts = collect($allParts)
-                                                        ->filter(fn($p, $i) => !in_array($i, $lockedPartIdx))
                                                         ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
+                                                        ->filter(fn($p) => !in_array($p['_orig_idx'], $lockedPartIdx))
                                                         ->values()->all();
+                                                } elseif ($statusFilter === 'Ditolak') {
+                                                    // Tab Ditolak: tampilkan item yang TIDAK locked DAN ada di decisions sebagai rejected
+                                                    // ATAU jika tidak ada decisions, ambil semua yang tidak locked
+                                                    if (!empty($rawDecisions)) {
+                                                        $decMap = collect($rawDecisions)->keyBy('idx');
+                                                        $parts = collect($allParts)
+                                                            ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
+                                                            ->filter(fn($p) => 
+                                                                !in_array($p['_orig_idx'], $lockedPartIdx) 
+                                                                && ($decMap[$p['_orig_idx']]['action'] ?? '') === 'rejected'
+                                                            )
+                                                            ->values()->all();
+                                                    } else {
+                                                        // Tidak ada decisions — asumsi semua yang tidak locked adalah rejected
+                                                        $parts = collect($allParts)
+                                                            ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
+                                                            ->filter(fn($p) => !in_array($p['_orig_idx'], $lockedPartIdx))
+                                                            ->values()->all();
+                                                    }
                                                 } else {
                                                     $parts = collect($allParts)
                                                         ->map(fn($p, $i) => array_merge($p, ['_orig_idx' => $i]))
@@ -1124,43 +1195,7 @@
                                                     </div>
                                                     @endif
                                                 </div>
-                                                {{-- Lampiran per-part (bukti dari form incident/service part) --}}
-                                                @php
-                                                    $siAllLampiran = [];
-                                                    foreach (($sourceData['temp_files']['parts'] ?? []) as $pIdx2 => $pFiles) {
-                                                        foreach (($pFiles['bukti'] ?? []) as $pf) {
-                                                            $partName = $parts[$pIdx2]['nama_part'] ?? 'Part '.($pIdx2+1);
-                                                            $siAllLampiran[] = array_merge($pf, ['_part' => $partName]);
-                                                        }
-                                                    }
-                                                    // Lampiran umum
-                                                    foreach (($sourceData['temp_files']['attachments'] ?? []) as $af) {
-                                                        $siAllLampiran[] = $af;
-                                                    }
-                                                @endphp
-                                                @if(!empty($siAllLampiran))
-                                                <div class="mb-3 flex flex-wrap gap-1.5">
-                                                    @foreach($siAllLampiran as $lf)
-                                                        @php
-                                                            $lfPath  = $lf['path'] ?? '';
-                                                            $lfName  = $lf['original_name'] ?? basename($lfPath);
-                                                            $lfExt   = strtolower($lf['extension'] ?? pathinfo($lfPath, PATHINFO_EXTENSION));
-                                                            $lfIsImg = in_array($lfExt, ['jpg','jpeg','png','webp','gif']);
-                                                            $lfColor = $isServiceIncident ? 'red' : 'orange';
-                                                            $lfIcon  = $lfIsImg ? 'fa-image text-' . $lfColor . '-400' : ($lfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
-                                                            $lfUrl   = $lfPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($lfPath) : null;
-                                                        @endphp
-                                                        @if($lfUrl)
-                                                            <a href="{{ $lfUrl }}" target="_blank"
-                                                                class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-white border border-{{ $lfColor }}-200 text-{{ $lfColor }}-600 hover:bg-{{ $lfColor }}-50 rounded-lg truncate max-w-[160px]"
-                                                                title="{{ $lfName }}{{ isset($lf['_part']) ? ' ('.$lf['_part'].')' : '' }}">
-                                                                <i class="fa {{ $lfIcon }} text-[9px]"></i>
-                                                                <span class="truncate">{{ Str::limit($lfName, 20) }}</span>
-                                                            </a>
-                                                        @endif
-                                                    @endforeach
-                                                </div>
-                                                @endif
+                                                {{-- Lampiran section dihapus untuk service_incident/service_part karena sudah ada per-part di tabel --}}
                                                 {{-- Tabel parts --}}
                                                 <div class="bg-white rounded-xl border border-{{ $expandColor }}-100 overflow-hidden">
                                                     <table class="w-full text-xs">
@@ -1169,19 +1204,19 @@
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Part</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kategori</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kondisi</th>
                                                                 @if($isServiceIncident)
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Supplier</th>
                                                                 @endif
                                                                 @if(!$isServiceIncident)
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kondisi</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Service</th>
                                                                 @endif
                                                                 @if(!$isServiceIncident)
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Keterangan Limit</th>
                                                                 @endif
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Atas Nama</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase w-24">Bank</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase w-28">No. Rekening</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase w-32">Atas Nama</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
                                                             </tr>
@@ -1209,12 +1244,12 @@
                                                                     <td class="px-3 py-2">
                                                                         <span class="bg-{{ $expandColor }}-100 text-{{ $expandColor }}-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{{ $catNama }}</span>
                                                                     </td>
-                                                                    <td class="px-3 py-2 text-gray-600">{{ $part['kondisi'] ?? '-' }}</td>
                                                                     @if($isServiceIncident)
                                                                         <td class="px-3 py-2 text-gray-600">{{ $supplier?->nama_supplier ?? '-' }}</td>
                                                                     @endif
-                                                                    {{-- KOLOM STATUS LIMIT: Service vs Limit --}}
+                                                                    {{-- KOLOM STATUS LIMIT & KONDISI: hanya untuk service_part --}}
                                                                     @if(!$isServiceIncident)
+                                                                    <td class="px-3 py-2 text-gray-600">{{ $part['kondisi'] ?? '-' }}</td>
                                                                     @php
                                                                         $snap = $part['limit_snapshot'] ?? null;
                                                                     @endphp
@@ -1239,6 +1274,7 @@
                                                                         @endif
                                                                     </td>
                                                                     @endif
+                                                                    @if(!$isServiceIncident)
                                                                     <td class="px-3 py-2 text-gray-500">
                                                                         @if(!empty($snap))
                                                                             @php
@@ -1345,18 +1381,23 @@
                                                                             <span class="text-gray-300">—</span>
                                                                         @endif
                                                                     </td>
-                                                                    <td class="px-3 py-2 text-gray-600">{{ $part['nama_bank'] ?? '-' }}</td>
-                                                                    <td class="px-3 py-2 font-mono text-gray-600">{{ $part['no_rekening'] ?? '-' }}</td>
-                                                                    <td class="px-3 py-2 text-gray-600">{{ $part['nama_rekening'] ?? '-' }}</td>
+                                                                    @endif
+                                                                    <td class="px-3 py-2 text-gray-600 w-24">
+                                                                        {{ $part['nama_bank'] ?? '' }}
+                                                                    </td>
+                                                                    <td class="px-3 py-2 font-mono text-gray-600 w-28">{{ $part['no_rekening'] ?? '' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600 w-32 break-words">{{ $part['nama_rekening'] ?? '' }}</td>
                                                                     <td class="px-3 py-2 text-center">
                                                                         @php
-                                                                            $partLampiran = $sourceData['temp_files']['parts'][$pIdx]['bukti'] ?? [];
+                                                                            // Gunakan _orig_idx untuk akses lampiran dari sourceData
+                                                                            $origIdx = $part['_orig_idx'] ?? $pIdx;
+                                                                            $partLampiran = $sourceData['temp_files']['parts'][$origIdx]['bukti'] ?? [];
                                                                         @endphp
                                                                         @if(!empty($partLampiran))
                                                                             <div class="flex flex-col gap-0.5">
                                                                             @foreach($partLampiran as $pf)
                                                                                 @php
-                                                                                    $pfUrl = isset($pf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($pf['path']) : null;
+                                                                                    $pfUrl = isset($pf['path']) ? asset($pf['path']) : null;
                                                                                 @endphp
                                                                                 @if($pfUrl)
                                                                                     <a href="{{ $pfUrl }}" target="_blank"
@@ -1380,7 +1421,7 @@
                                                                 @endphp
                                                             @endforeach
                                                             <tr class="border-t-2 border-{{ $expandColor }}-200 bg-{{ $expandColor }}-50/50">
-                                                                <td colspan="{{ $isServiceIncident ? 9 : 9 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="{{ $isServiceIncident ? 8 : 10 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
@@ -1494,8 +1535,15 @@
                                                                             <div class="flex flex-col gap-0.5 items-center">
                                                                             @foreach($kjLampiran as $kjf)
                                                                                 @php
-                                                                                    $kjUrl = isset($kjf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($kjf['path']) : null;
-                                                                                    $kjExt = strtolower($kjf['extension'] ?? pathinfo($kjf['path'] ?? '', PATHINFO_EXTENSION));
+                                                                                    // Temp files: di storage/app/public/ → perlu Storage::url()
+                                                                                    // Final files: di public/ → gunakan asset()
+                                                                                    $kjPath = $kjf['path'] ?? '';
+                                                                                    $kjUrl = $kjPath 
+                                                                                        ? (str_starts_with($kjPath, 'purchase_order/') || str_starts_with($kjPath, 'service_') 
+                                                                                            ? \Storage::disk('public')->url($kjPath) 
+                                                                                            : asset($kjPath)) 
+                                                                                        : null;
+                                                                                    $kjExt = strtolower($kjf['extension'] ?? pathinfo($kjPath, PATHINFO_EXTENSION));
                                                                                     $kjIcon = in_array($kjExt, ['jpg','jpeg','png','gif']) ? 'fa-image text-blue-400'
                                                                                         : ($kjExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
                                                                                 @endphp
@@ -1591,7 +1639,7 @@
                                                                             <div class="flex flex-col gap-0.5">
                                                                             @foreach($gpsLampiran as $gf)
                                                                                 @php
-                                                                                    $gfUrl  = isset($gf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($gf['path']) : null;
+                                                                                    $gfUrl  = isset($gf['path']) ? asset($gf['path']) : null;
                                                                                 @endphp
                                                                                 @if($gfUrl)
                                                                                     <a href="{{ $gfUrl }}" target="_blank"
@@ -1667,7 +1715,7 @@
                                                         @foreach($lampiranFiles as $lf)
                                                             @php
                                                                 $lfUrl = $lf['public_url']
-                                                                    ?? (isset($lf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($lf['path']) : null);
+                                                                    ?? (isset($lf['path']) ? asset($lf['path']) : null);
                                                             @endphp
                                                             @if($lfUrl)
                                                                 <a href="{{ $lfUrl }}" target="_blank"
@@ -3691,3 +3739,7 @@ async function approveStnk(poId, poNumber) {
         </div>
     </div>
 </div>
+
+
+
+

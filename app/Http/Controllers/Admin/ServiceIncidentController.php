@@ -28,17 +28,25 @@ class ServiceIncidentController extends Controller
 
         // Hanya tampilkan yang sudah melewati PO (bukan Pending di PO)
         // Sama dengan logika GpsKendaraanController::index()
+        // PERBAIKAN: Data lama (persetujuan = NULL) juga ditampilkan sebagai "Disetujui" (approved by default)
         $data = ServiceIncident::with([
                 'kendaraan.jenis',
                 'attachments',
                 'parts.category',
                 'parts.supplier',
             ])
-            ->whereNotNull('persetujuan')
-            ->where('persetujuan', '!=', 'Pending')
             ->where(function ($q) {
-                $q->where('persetujuan', '!=', 'Ditolak')
-                  ->orWhereNotNull('pembayaran_id');
+                // Data baru: sudah melewati PO (bukan Pending)
+                $q->where(function ($q2) {
+                    $q2->whereNotNull('persetujuan')
+                       ->where('persetujuan', '!=', 'Pending')
+                       ->where(function ($q3) {
+                           $q3->where('persetujuan', '!=', 'Ditolak')
+                              ->orWhereNotNull('pembayaran_id');
+                       });
+                })
+                // Data lama: persetujuan NULL (langsung approved tanpa PO)
+                ->orWhereNull('persetujuan');
             })
             ->when($bulan, fn($q) => $q->whereRaw("DATE_FORMAT(tanggal_service,'%Y-%m') = ?", [$bulan]))
             ->when($kendaraanId, fn($q) => $q->where('kendaraan_id', $kendaraanId))
@@ -51,11 +59,19 @@ class ServiceIncidentController extends Controller
 
         $totalService = $data->total();
         // Hitung totalBiaya dari sum parts (bukan dari kolom total_biaya yang bisa stale)
+        // PERBAIKAN: Include data lama (persetujuan NULL)
         $totalBiaya   = \App\Models\ServiceIncidentPart::whereHas('serviceIncident', function ($q) use ($bulan, $kendaraanId) {
-                $q->whereNotNull('persetujuan')
-                  ->where('persetujuan', '!=', 'Pending')
-                  ->when($bulan, fn($q2) => $q2->whereRaw("DATE_FORMAT(tanggal_service,'%Y-%m') = ?", [$bulan]))
-                  ->when($kendaraanId, fn($q2) => $q2->where('kendaraan_id', $kendaraanId));
+                $q->where(function ($q2) {
+                    // Data baru: sudah melewati PO
+                    $q2->where(function ($q3) {
+                        $q3->whereNotNull('persetujuan')
+                           ->where('persetujuan', '!=', 'Pending');
+                    })
+                    // Data lama: persetujuan NULL
+                    ->orWhereNull('persetujuan');
+                })
+                ->when($bulan, fn($q2) => $q2->whereRaw("DATE_FORMAT(tanggal_service,'%Y-%m') = ?", [$bulan]))
+                ->when($kendaraanId, fn($q2) => $q2->where('kendaraan_id', $kendaraanId));
             })
             ->sum('biaya');
         $totalProses  = $data->where('status', 'proses')->count();
@@ -101,7 +117,6 @@ class ServiceIncidentController extends Controller
             'parts.*.posisi'               => 'nullable|string|max:100',
             'parts.*.tgl_pasang'           => 'required|date',
             'parts.*.kilometer_pasang'     => 'nullable|integer|min:0',
-            'parts.*.kondisi'              => 'nullable|in:Baik,Rusak,Perlu Ganti',
             'parts.*.biaya'                => 'nullable|numeric|min:0',
             'parts.*.bukti'                => 'nullable|array',
             'parts.*.bukti.*'              => 'file|mimes:jpg,jpeg,png,mp4,mov',
@@ -122,10 +137,10 @@ class ServiceIncidentController extends Controller
 
         $resolvedParts = $this->resolvePartsCategory($request->parts ?? []);
 
+        // ALWAYS use sum from parts, ignore override for service_incident
+        // Override field removed from UI but may still exist in old data
         $sumBiaya   = collect($resolvedParts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
-        $totalBiaya = filled($request->total_biaya_override) && (int)$request->total_biaya_override > 0
-            ? (int)$request->total_biaya_override
-            : $sumBiaya;
+        $totalBiaya = $sumBiaya;
 
         // ── Siapkan source_data untuk PurchaseOrder ────────────────────────
         $partsForPO = array_map(fn($p) => [
@@ -137,7 +152,6 @@ class ServiceIncidentController extends Controller
             'posisi'             => $p['posisi'] ?? null,
             'tgl_pasang'         => $p['tgl_pasang'] ?? now()->toDateString(),
             'kilometer_pasang'   => $p['kilometer_pasang'] ?? $request->kilometer,
-            'kondisi'            => $p['kondisi'] ?? 'Perlu Ganti',
             'status'             => 'Proses',
             'biaya'              => (int)($p['biaya'] ?? 0),
             'supplier_id'        => $p['supplier_id'] ?? null,
@@ -263,9 +277,6 @@ class ServiceIncidentController extends Controller
         }
 
         $updateData = ['status' => $request->status];
-        if ($request->status === 'Terpasang' && $part->status === 'tidak_aktif') {
-            $updateData['kondisi'] = 'Baik';
-        }
 
         $part->update($updateData);
 
@@ -490,14 +501,20 @@ class ServiceIncidentController extends Controller
         }
 
         foreach ($partsTidakAktif as $part) {
-            $part->update(['status' => 'Terpasang', 'kondisi' => 'Aktif']);
+            $part->update(['status' => 'Terpasang']);
         }
 
         $incident->refresh();
         $adaProses = $incident->parts->contains(fn($p) => $p->status === 'Proses');
         $incident->update(['status' => $adaProses ? 'proses' : 'selesai']);
 
-        return back()->with('success', 'Part berhasil ditandai sebagai Terpasang.');
+        // ⚙️ Update status kendaraan jadi "tersedia" karena service selesai
+        $kendaraan = \App\Models\Kendaraan::find($incident->kendaraan_id);
+        if ($kendaraan && $kendaraan->status_kendaraan === 'service') {
+            $kendaraan->update(['status_kendaraan' => 'tersedia']);
+        }
+
+        return back()->with('success', 'Part berhasil ditandai sebagai Terpasang. Status kendaraan dikembalikan ke Tersedia.');
     }
 
     // =========================================================================
@@ -527,7 +544,6 @@ class ServiceIncidentController extends Controller
             'parts.*.posisi'               => 'nullable|string|max:100',
             'parts.*.tgl_pasang'           => 'required|date',
             'parts.*.kilometer_pasang'     => 'nullable|integer|min:0',
-            'parts.*.kondisi'              => 'nullable|in:Baik,Rusak,Perlu Ganti',
             'parts.*.biaya'                => 'nullable|numeric|min:0',
             'parts.*.bukti'                => 'nullable|array',
             'parts.*.bukti.*'              => 'file|mimes:jpg,jpeg,png,mp4,mov',
@@ -545,12 +561,9 @@ class ServiceIncidentController extends Controller
 
         $resolvedParts = $this->resolvePartsCategory($request->parts ?? []);
 
-        $resolvedParts = $this->resolvePartsCategory($request->parts ?? []);
-
+        // ALWAYS use sum from parts, ignore override for service_incident
         $sumBiaya   = collect($resolvedParts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
-        $totalBiaya = filled($request->total_biaya_override) && (int)$request->total_biaya_override > 0
-            ? (int)$request->total_biaya_override
-            : $sumBiaya;
+        $totalBiaya = $sumBiaya;
 
         $partsForPO = array_map(fn($p) => [
             'nama_part'          => $p['nama_part'] ?? '',
@@ -561,7 +574,6 @@ class ServiceIncidentController extends Controller
             'posisi'             => $p['posisi'] ?? null,
             'tgl_pasang'         => $p['tgl_pasang'] ?? now()->toDateString(),
             'kilometer_pasang'   => $p['kilometer_pasang'] ?? $request->kilometer,
-            'kondisi'            => $p['kondisi'] ?? 'Perlu Ganti',
             'status'             => 'Proses',
             'biaya'              => (int)($p['biaya'] ?? 0),
             'supplier_id'        => $p['supplier_id'] ?? null,

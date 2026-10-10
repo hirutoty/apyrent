@@ -183,12 +183,18 @@ class ServiceHistoryController extends Controller
 
         if ($request->edit_po) {
             $po = \App\Models\PurchaseOrder::find($request->edit_po);
-            if ($po && $po->isRejected() && $po->source_type === 'service_part') {
-                $sourceData    = $po->source_data ?? [];
+            
+            // Cek apakah PO bisa di-edit:
+            // 1. PO ditolak penuh (isRejected() = true, status = 'Ditolak')
+            // 2. PO partial approved (status = 'Disetujui' tapi ada item_decisions dengan action = 'rejected')
+            $sourceData    = $po ? ($po->source_data ?? []) : [];
+            $itemDecisions = $sourceData['item_decisions'] ?? [];
+            $hasRejectedItems = collect($itemDecisions)->contains('action', 'rejected');
+            
+            if ($po && ($po->isRejected() || ($po->status === 'Disetujui' && $hasRejectedItems)) && $po->source_type === 'service_part') {
                 $kendaraanId   = $sourceData['kendaraan_id'] ?? null;
                 $kendaraanPO   = $kendaraanId ? Kendaraan::find($kendaraanId) : null;
                 $allPartsRaw   = $sourceData['parts'] ?? [];
-                $itemDecisions = $sourceData['item_decisions'] ?? [];
 
                 // Bangun map: idx → action ('approved'|'rejected') dari item_decisions
                 $decMap = collect($itemDecisions)->keyBy('idx');
@@ -202,6 +208,7 @@ class ServiceHistoryController extends Controller
 
                 foreach ($allPartsRaw as $idx => $part) {
                     $decision = ($decMap->get((string)$idx) ?? $decMap->get($idx))['action'] ?? null;
+                    
                     if ($decision === 'approved') {
                         // Part ini sudah diapprove — skip, jangan tampilkan di form ajukan ulang
                         continue;
@@ -249,11 +256,42 @@ class ServiceHistoryController extends Controller
         if ($request->filled('edit_pembayaran')) {
             $pembayaran = \App\Models\Pembayaran::find($request->edit_pembayaran);
             if ($pembayaran && (in_array($pembayaran->status, ['Ditolak']) || ($pembayaran->status === 'Disetujui' && !empty(collect($pembayaran->source_data['item_decisions'] ?? [])->where('action', 'rejected')->all()))) && $pembayaran->source_type === 'service_part') {
-                $sourceData    = $pembayaran->source_data ?? [];
-                $kendaraanId   = $sourceData['kendaraan_id'] ?? null;
-                $kendaraanPmb  = $kendaraanId ? Kendaraan::find($kendaraanId) : null;
-                $allParts      = $sourceData['parts'] ?? [];
-                $firstPart     = $allParts[0] ?? null;
+                $sourceData      = $pembayaran->source_data ?? [];
+                $kendaraanId     = $sourceData['kendaraan_id'] ?? null;
+                $kendaraanPmb    = $kendaraanId ? Kendaraan::find($kendaraanId) : null;
+                $allPartsRaw     = $sourceData['parts'] ?? [];
+                $itemDecisions   = $sourceData['item_decisions'] ?? [];
+                $lockedApproved  = $sourceData['locked_approved_idx'] ?? [];
+
+                // Bangun map: idx → action ('approved'|'rejected') dari item_decisions
+                $decMap = collect($itemDecisions)->keyBy('idx');
+
+                // Filter: hanya tampilkan part yang BELUM diapprove.
+                // - Pembayaran ditolak sepenuhnya: semua part ditampilkan
+                // - Pembayaran partial (status = Disetujui + ada rejected): hanya part dengan action != 'approved' atau locked yang ditampilkan
+                $filteredParts = [];
+                $filteredTempFiles = ['parts' => []];
+                $tempFilesRaw  = $sourceData['temp_files'] ?? [];
+
+                foreach ($allPartsRaw as $idx => $part) {
+                    $decision = ($decMap->get((string)$idx) ?? $decMap->get($idx))['action'] ?? null;
+                    // Skip part yang sudah approved (ada di item_decisions dengan action='approved')
+                    if ($decision === 'approved') {
+                        continue;
+                    }
+                    // Skip part yang ada di locked_approved_idx (dari partial approval cycle sebelumnya)
+                    if (in_array((int)$idx, array_map('intval', $lockedApproved))) {
+                        continue;
+                    }
+                    // Part pending atau rejected → tampilkan di form
+                    $filteredParts[] = $part;
+                    $oldBukti = $tempFilesRaw['parts'][$idx]['bukti'] ?? [];
+                    if (!empty($oldBukti)) {
+                        $filteredTempFiles['parts'][count($filteredParts) - 1]['bukti'] = $oldBukti;
+                    }
+                }
+
+                $firstPart = $filteredParts[0] ?? null;
 
                 $prefill = [
                     'source'          => 'edit_pembayaran',
@@ -277,8 +315,10 @@ class ServiceHistoryController extends Controller
                         'biaya'           => $firstPart['biaya'] ?? 0,
                         'kondisi'         => $firstPart['kondisi'] ?? 'Baik',
                     ] : null,
-                    'all_parts'       => $allParts,
-                    'temp_files'      => $sourceData['temp_files'] ?? [],
+                    'all_parts'       => $filteredParts,
+                    'temp_files'      => $filteredTempFiles,
+                    // Info untuk ditampilkan ke user berapa part yang sudah diapprove dan dilewati
+                    'approved_count'  => count($allPartsRaw) - count($filteredParts),
                 ];
             }
         }
@@ -522,9 +562,30 @@ class ServiceHistoryController extends Controller
 
         // Total biaya: auto-sum dari parts, atau override jika diisi
         $sumBiayaParts = collect($resolvedParts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
-        $totalBiaya    = filled($request->total_biaya_override) && (int)$request->total_biaya_override > 0
+        
+        // ── Adjust total biaya if coming from edit_pembayaran with locked approved items ──
+        // Saat edit pembayaran dengan partial approval, parts yang sudah approved tidak tampil di form.
+        // Kita perlu tambahkan biaya parts yang locked agar total biaya benar.
+        $nominalLockedApproved = 0;
+        if ($request->filled('edit_pembayaran_id')) {
+            $pembayaran = \App\Models\Pembayaran::find($request->edit_pembayaran_id);
+            if ($pembayaran) {
+                $sourceData = $pembayaran->source_data ?? [];
+                $allParts = $sourceData['parts'] ?? [];
+                $lockedIdx = array_map('intval', $sourceData['locked_approved_idx'] ?? []);
+                
+                // Sum biaya dari parts yang locked (sudah approved sebelumnya)
+                foreach ($lockedIdx as $idx) {
+                    if (isset($allParts[$idx]['biaya'])) {
+                        $nominalLockedApproved += (int)$allParts[$idx]['biaya'];
+                    }
+                }
+            }
+        }
+        
+        $totalBiaya = filled($request->total_biaya_override) && (int)$request->total_biaya_override > 0
             ? (int)$request->total_biaya_override
-            : $sumBiayaParts;
+            : ($sumBiayaParts + $nominalLockedApproved);
 
         // Siapkan metadata file
         $buktiBayarMeta  = $this->prepBuktiBayar($request);
@@ -2558,6 +2619,21 @@ class ServiceHistoryController extends Controller
             $newStatus = 'terpasang';
         }
         $sh->update(['status' => $newStatus]);
+
+        // ⚙️ Update kilometer kendaraan jika kilometer service lebih besar
+        $kendaraan = $sh->kendaraan;
+        if ($kendaraan && $sh->kilometer) {
+            $kmService = (int) $sh->kilometer;
+            $kmSekarang = (int) ($kendaraan->kilometer_sekarang ?? 0);
+            
+            if ($kmService > $kmSekarang) {
+                $kendaraan->update([
+                    'kilometer_sekarang' => $kmService,
+                    'km_terakhir_service' => $kmService,
+                    'tanggal_terakhir_service' => $sh->tanggal_service ?? now()->toDateString(),
+                ]);
+            }
+        }
 
         return redirect()->back()->with('success', 'Part berhasil ditandai sebagai Terpasang.');
     }

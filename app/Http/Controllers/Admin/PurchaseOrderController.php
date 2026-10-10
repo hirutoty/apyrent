@@ -81,57 +81,140 @@ class PurchaseOrderController extends Controller
             $statsQuery->whereYear('tanggal_po', $tahunFilter);
         }
 
-        $totalPO       = (clone $statsQuery)->count();
-        $totalApproved = (clone $statsQuery)->where(function ($q) {
+        $totalClosed   = (clone $statsQuery)->where('status_po', 'Closed')->count();
+        $totalNominal  = (clone $statsQuery)->whereIn('status', ['Disetujui', 'Pending'])->sum('total_harga');
+
+        // ── Hitung statistik PER ITEM (bukan per PO) ──────────────────────────────
+        // Ambil semua PO untuk dihitung item-nya di PHP
+        $allStatsPos = (clone $statsQuery)->get(['id', 'status', 'source_type', 'total_harga', 'source_data']);
+
+        $totalPO       = $allStatsPos->count();
+        $totalPending  = 0;
+        $totalApproved = 0;
+        $totalRejected = 0;
+        $nominalPending  = 0;
+        $nominalApproved = 0;
+        $nominalRejected = 0;
+
+        // Source types yang mendukung per-item counting
+        $perItemTypes = ['gps', 'gps_perpanjang', 'service_part', 'service_incident', 'service_asuransi'];
+
+        foreach ($allStatsPos as $_sPo) {
+            $_sd          = $_sPo->source_data ?? [];
+            $_gpsI        = $_sd['gps_items'] ?? [];
+            $_parts       = $_sd['parts'] ?? [];
+            $_kejad       = $_sd['kejadians'] ?? [];
+            $_dec         = $_sd['item_decisions'] ?? [];
+            $_locked      = array_map('intval', $_sd['locked_approved_idx'] ?? []);
+            $_decColl     = collect($_dec)->keyBy(fn($d) => (int)($d['idx'] ?? -1));
+
+            if (!empty($_gpsI) && in_array($_sPo->source_type, ['gps', 'gps_perpanjang'])) {
+                // GPS: hitung per gps_item
+                foreach ($_gpsI as $_gi => $_gitem) {
+                    $_iNom = (int)($_gitem['biaya_sewa'] ?? 0);
+                    if ($_decColl->has((int)$_gi)) {
+                        $act = $_decColl[(int)$_gi]['action'] ?? '';
+                        if ($act === 'approved') { $totalApproved++; $nominalApproved += $_iNom; }
+                        elseif ($act === 'rejected') { $totalRejected++; $nominalRejected += $_iNom; }
+                        else { $totalPending++; $nominalPending += $_iNom; }
+                    } elseif (in_array((int)$_gi, $_locked)) {
+                        $totalApproved++; $nominalApproved += $_iNom;
+                    } elseif ($_sPo->status === 'Disetujui') {
+                        $totalApproved++; $nominalApproved += $_iNom;
+                    } elseif ($_sPo->status === 'Ditolak') {
+                        $totalRejected++; $nominalRejected += $_iNom;
+                    } else {
+                        $totalPending++; $nominalPending += $_iNom;
+                    }
+                }
+            } elseif (!empty($_parts) && in_array($_sPo->source_type, ['service_part', 'service_incident'])) {
+                // Service Part / Incident: hitung per part
+                // Debug: Log untuk PO yang memiliki parts
+                \Log::info("Processing PO #{$_sPo->id} ({$_sPo->source_type})", [
+                    'status' => $_sPo->status,
+                    'parts_count' => count($_parts),
+                    'decisions_count' => count($_dec),
+                    'locked_count' => count($_locked),
+                    'dec_has_idx' => !empty($_dec) && isset($_dec[0]['idx']),
+                ]);
+                
+                foreach ($_parts as $_pi => $_part) {
+                    $_iNom = (int)($_part['biaya'] ?? 0);
+                    if ($_decColl->has((int)$_pi)) {
+                        $act = $_decColl[(int)$_pi]['action'] ?? '';
+                        if ($act === 'approved') { $totalApproved++; $nominalApproved += $_iNom; }
+                        elseif ($act === 'rejected') { $totalRejected++; $nominalRejected += $_iNom; }
+                        else { $totalPending++; $nominalPending += $_iNom; }
+                    } elseif (in_array((int)$_pi, $_locked)) {
+                        $totalApproved++; $nominalApproved += $_iNom;
+                    } elseif ($_sPo->status === 'Disetujui') {
+                        $totalApproved++; $nominalApproved += $_iNom;
+                    } elseif ($_sPo->status === 'Ditolak') {
+                        $totalRejected++; $nominalRejected += $_iNom;
+                    } else {
+                        $totalPending++; $nominalPending += $_iNom;
+                    }
+                }
+            } elseif (!empty($_kejad) && $_sPo->source_type === 'service_asuransi') {
+                // Service Asuransi: hitung per kejadian
+                foreach ($_kejad as $_ki => $_kej) {
+                    $_iNom = (int)($_kej['biaya'] ?? 0);
+                    if ($_decColl->has((int)$_ki)) {
+                        $act = $_decColl[(int)$_ki]['action'] ?? '';
+                        if ($act === 'approved') { $totalApproved++; $nominalApproved += $_iNom; }
+                        elseif ($act === 'rejected') { $totalRejected++; $nominalRejected += $_iNom; }
+                        else { $totalPending++; $nominalPending += $_iNom; }
+                    } elseif (in_array((int)$_ki, $_locked)) {
+                        $totalApproved++; $nominalApproved += $_iNom;
+                    } elseif ($_sPo->status === 'Disetujui') {
+                        $totalApproved++; $nominalApproved += $_iNom;
+                    } elseif ($_sPo->status === 'Ditolak') {
+                        $totalRejected++; $nominalRejected += $_iNom;
+                    } else {
+                        $totalPending++; $nominalPending += $_iNom;
+                    }
+                }
+            } else {
+                // Non-per-item types (pajak, asuransi_kendaraan, kir, stnk, dll): 1 PO = 1 item
+                $_poNom = (int)($_sPo->total_harga ?? 0);
+                if ($_sPo->status === 'Pending') {
+                    $totalPending++; $nominalPending += $_poNom;
+                } elseif ($_sPo->status === 'Disetujui') {
+                    $totalApproved++; $nominalApproved += $_poNom;
+                } elseif ($_sPo->status === 'Ditolak') {
+                    $totalRejected++; $nominalRejected += $_poNom;
+                }
+            }
+        }
+
+        // Debug: Log hasil perhitungan per-item
+        \Log::info('PO Per-Item Stats', [
+            'totalPending' => $totalPending,
+            'totalApproved' => $totalApproved,
+            'totalRejected' => $totalRejected,
+            'nominalPending' => $nominalPending,
+            'nominalApproved' => $nominalApproved,
+            'nominalRejected' => $nominalRejected,
+            'total_pos_processed' => $allStatsPos->count(),
+        ]);
+
+        // ── Count per PO untuk badge di tab nav (terpisah dari per-item stats) ──────
+        $totalPoForTab      = (clone $statsQuery)->count();
+        $totalPendingPoTab  = (clone $statsQuery)->where('status', 'Pending')->where('total_barang', '>', 0)->count();
+        $totalApprovedPoTab = (clone $statsQuery)->where(function ($q) {
             $q->where('status', 'Disetujui')
               ->orWhere(function ($q2) {
-                  // PO Pending yang punya item locked dihitung juga di Disetujui
                   $q2->where('status', 'Pending')
                      ->whereRaw("JSON_LENGTH(JSON_EXTRACT(source_data, '$.locked_approved_idx')) > 0");
               });
         })->count();
-        $totalPending  = (clone $statsQuery)->where('status', 'Pending')->where('total_barang', '>', 0)->count();
-        $totalRejected = (clone $statsQuery)->where(function ($q) {
+        $totalRejectedPoTab = (clone $statsQuery)->where(function ($q) {
             $q->where('status', 'Ditolak')
               ->orWhere(function ($q2) {
                   $q2->where('status', 'Disetujui')
                      ->whereRaw("JSON_SEARCH(JSON_EXTRACT(source_data, '$.item_decisions[*].action'), 'one', 'rejected') IS NOT NULL");
               });
         })->count();
-        $totalClosed   = (clone $statsQuery)->where('status_po', 'Closed')->count();
-        $totalNominal  = (clone $statsQuery)->whereIn('status', ['Disetujui', 'Pending'])->sum('total_harga');
-
-        // Nominal per status
-        $nominalPending  = (clone $statsQuery)->where('status', 'Pending')->sum('total_harga');
-        $nominalApproved = (clone $statsQuery)->where('status', 'Disetujui')->sum('total_harga');
-
-        // PO Pending dengan locked_approved_idx (partial sedang resubmit):
-        // total_harga PO sudah di-set hanya untuk item yang pending (item locked tidak termasuk).
-        // Karena itu nominalPending TIDAK perlu dikurangi — total_harga sudah net pending.
-        // Namun nominalApproved perlu ditambah nominal_approved_locked agar summary card
-        // "Disetujui" mencerminkan item yang sudah approved di siklus sebelumnya.
-        $nominalApprovedFromPending = (clone $statsQuery)
-            ->where('status', 'Pending')
-            ->whereRaw("JSON_LENGTH(JSON_EXTRACT(source_data, '$.locked_approved_idx')) > 0")
-            ->whereRaw("JSON_EXTRACT(source_data, '$.nominal_approved_locked') IS NOT NULL")
-            ->selectRaw("SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_approved_locked')) AS DECIMAL(15,2))) as total")
-            ->value('total') ?? 0;
-
-        // Tambahkan nominal locked ke Disetujui, tapi JANGAN kurangi dari Pending
-        // (total_harga sudah hanya berisi nominal item yang pending, bukan locked)
-        $nominalApproved += $nominalApprovedFromPending;
-
-        // PO full rejected: pakai total_harga
-        $nominalRejectedFull = (clone $statsQuery)->where('status', 'Ditolak')->sum('total_harga');
-
-        // PO partial (Disetujui tapi ada item rejected): ambil nominal_rejected dari source_data JSON
-        $nominalRejectedPartial = (clone $statsQuery)
-            ->where('status', 'Disetujui')
-            ->whereRaw("JSON_SEARCH(JSON_EXTRACT(source_data, '$.item_decisions[*].action'), 'one', 'rejected') IS NOT NULL")
-            ->selectRaw("SUM(IFNULL(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_rejected')) AS DECIMAL(15,2)), 0)) as total")
-            ->value('total') ?? 0;
-
-        $nominalRejected = $nominalRejectedFull + $nominalRejectedPartial;
 
         // Source types untuk dropdown filter
         $sourceTypes = PurchaseOrder::selectRaw('source_type, count(*) as total')
@@ -164,7 +247,11 @@ class PurchaseOrderController extends Controller
             'nominalPending',
             'nominalApproved',
             'nominalRejected',
-            'sourceTypes'
+            'sourceTypes',
+            'totalPoForTab',
+            'totalPendingPoTab',
+            'totalApprovedPoTab',
+            'totalRejectedPoTab'
         ));
     }
 
@@ -462,6 +549,14 @@ class PurchaseOrderController extends Controller
                 $kejadians = collect($allKejadians)
                     ->filter(fn($k, $i) => in_array($i, $lockedApprovedIdx))
                     ->all();
+            } elseif (in_array($tab, ['Pending', 'semua']) && !empty($lockedApprovedIdx)) {
+                // Tab Pending/semua untuk PO resubmit: tampilkan kejadian yang tidak locked (belum diapprove)
+                $kejadians = collect($allKejadians)
+                    ->filter(fn($k, $i) => !in_array($i, $lockedApprovedIdx))
+                    ->all();
+            } elseif ($tab === 'Ditolak') {
+                // Tidak ada item_decisions dan tab Ditolak: tidak ada kejadian ditolak, tampilkan kosong
+                $kejadians = [];
             } else {
                 $kejadians = $allKejadians;
             }
@@ -469,8 +564,22 @@ class PurchaseOrderController extends Controller
 
         $items = [];
         foreach ($kejadians as $idx => $kej) {
+            // PRESERVE ORIGINAL INDEX: track index asli kejadian di allKejadians
+            // Cari index asli kejadian ini dengan matching nama + biaya
+            $origIdx = null;
+            foreach ($allKejadians as $origIndex => $origKej) {
+                if (($origKej['nama_kejadian'] ?? '') === ($kej['nama_kejadian'] ?? '')
+                    && (int)($origKej['biaya'] ?? 0) === (int)($kej['biaya'] ?? 0)) {
+                    $origIdx = $origIndex;
+                    break;
+                }
+            }
+            if ($origIdx === null) {
+                $origIdx = $idx; // fallback
+            }
+
             // Ambil lampiran dari temp_files per kejadian
-            $tempKejFiles = $tempFiles['kejadians'][$idx] ?? [];
+            $tempKejFiles = $tempFiles['kejadians'][$origIdx] ?? [];
             $lampiran = [];
             foreach ($tempKejFiles as $tf) {
                 $ext = strtolower($tf['extension'] ?? '');
@@ -495,11 +604,11 @@ class PurchaseOrderController extends Controller
             // Bukti bayar dari item_decisions
             $itemDecisions = $sourceData['item_decisions'] ?? [];
             $decMap = collect($itemDecisions)->keyBy('idx');
-            $buktiAdmin = $decMap->get($idx)['bukti'] ?? null;
+            $buktiAdmin = $decMap->get($origIdx)['bukti'] ?? null;
 
             // Ambil action dari item_decisions
             $decMapForAction = collect($itemDecisions)->keyBy('idx');
-            $decEntry = $decMapForAction->get($idx);
+            $decEntry = $decMapForAction->get($origIdx);
 
             $items[] = [
                 'nama_kejadian'    => $kej['nama_kejadian'] ?? '-',
@@ -510,6 +619,7 @@ class PurchaseOrderController extends Controller
                 'bukti'            => $buktiAdmin && isset($buktiAdmin['path'])
                     ? ['url' => asset($buktiAdmin['path']), 'name' => $buktiAdmin['original_name'] ?? basename($buktiAdmin['path'])]
                     : null,
+                '_original_idx'    => $origIdx, // CRITICAL: preserve original index untuk approval
             ];
         }
 
@@ -595,8 +705,8 @@ class PurchaseOrderController extends Controller
                 $parts = collect($allParts)
                     ->filter(fn($p, $i) => !in_array($i, $lockedApprovedIdx))
                     ->all();
-            } elseif ($tab === 'Pending' && !empty($lockedApprovedIdx)) {
-                // Tab Pending + ada locked: exclude locked items, show only pending items
+            } elseif (($tab === 'Pending' || $tab === 'semua') && !empty($lockedApprovedIdx)) {
+                // Tab Pending/semua + ada locked: exclude locked items, show only pending items
                 $parts = collect($allParts)
                     ->filter(fn($p, $i) => !in_array($i, $lockedApprovedIdx))
                     ->all();
@@ -610,11 +720,11 @@ class PurchaseOrderController extends Controller
         $tempParts = $tempFiles['parts'] ?? [];
 
         $items = [];
-        foreach ($parts as $idx => $part) {
+        foreach ($parts as $origIdx => $part) {
             $category = isset($part['category_id']) ? \App\Models\ServiceCategory::find($part['category_id']) : null;
 
-            // Ambil lampiran untuk part ini dari temp_files
-            $lampiranFiles = $tempParts[$idx]['bukti'] ?? [];
+            // Ambil lampiran untuk part ini dari temp_files (menggunakan origIdx dari allParts)
+            $lampiranFiles = $tempParts[$origIdx]['bukti'] ?? [];
             $lampiran = [];
             foreach ($lampiranFiles as $file) {
                 $ext = strtolower($file['extension'] ?? '');
@@ -627,12 +737,12 @@ class PurchaseOrderController extends Controller
             }
 
             $items[] = [
+                '_original_idx'    => $origIdx, // Track original index untuk submit
                 'nama_part'        => $part['nama_part'] ?? '-',
                 'category_nama'    => $category ? $category->nama : ($part['nama_category_baru'] ?? '-'),
                 'part_number'      => $part['part_number'] ?? '-',
                 'posisi'           => $part['posisi'] ?? '-',
                 'biaya'            => $part['biaya'] ?? 0,
-                'kondisi'          => $part['kondisi'] ?? '-',
                 'keterangan'       => $part['keterangan_limit'] ?? $part['keterangan'] ?? '-',
                 'nama_bank'        => $part['nama_bank'] ?? '-',
                 'no_rekening'      => $part['no_rekening'] ?? '-',
@@ -644,8 +754,8 @@ class PurchaseOrderController extends Controller
                 'keterangan_limit' => $part['keterangan_limit'] ?? $part['keterangan'] ?? null,
                 'lampiran'         => $lampiran,
                 'bukti'            => $this->resolveBuktiAdmin($part['bukti_bayar_admin'] ?? null),
-                'action'           => $decMap->get($idx)['action'] ?? null,
-                'catatan_penolakan'=> $decMap->get($idx)['catatan'] ?? null,
+                'action'           => $decMap->get($origIdx)['action'] ?? null,
+                'catatan_penolakan'=> $decMap->get($origIdx)['catatan'] ?? null,
             ];
         }
 
@@ -722,10 +832,24 @@ class PurchaseOrderController extends Controller
 
         $items = [];
         foreach ($gpsItems as $idx => $item) {
+            // PRESERVE ORIGINAL INDEX: track index asli GPS di allGpsItems
+            // Cari index asli GPS ini dengan matching gps_id + biaya_sewa
+            $origIdx = null;
+            foreach ($allGpsItems as $origIndex => $origItem) {
+                if (($origItem['gps_id'] ?? null) === ($item['gps_id'] ?? null)
+                    && (float)($origItem['biaya_sewa'] ?? 0) === (float)($item['biaya_sewa'] ?? 0)) {
+                    $origIdx = $origIndex;
+                    break;
+                }
+            }
+            if ($origIdx === null) {
+                $origIdx = $idx; // fallback
+            }
+
             $gps = isset($item['gps_id']) ? \App\Models\Gps::find($item['gps_id']) : null;
 
             // Ambil lampiran dari DB berdasarkan gps_record_id
-            $recordId   = $recordIds[$idx] ?? null;
+            $recordId   = $recordIds[$origIdx] ?? null;
             $lampiran   = [];
             if ($recordId) {
                 $attachments = \App\Models\Attachment::where('relation_type', 'gps')
@@ -743,7 +867,7 @@ class PurchaseOrderController extends Controller
             }
 
             $items[] = [
-                '_original_idx' => (int) $idx, // index asli di gps_items — dipakai JS saat submit approve
+                '_original_idx' => $origIdx, // CRITICAL: preserve original index untuk approval
                 'gps_name'    => $gps ? $gps->nama_gps : '-',
                 'type'        => $item['type'] ?? '-',
                 'biaya_sewa'  => $item['biaya_sewa'] ?? 0,
@@ -1313,8 +1437,10 @@ class PurchaseOrderController extends Controller
         ]);
 
         // Build approvedSourceData for Pembayaran — only approved parts
+        // PENTING: Pembayaran hanya dapat parts yang approved, TAPI kita perlu
+        // pastikan index parts tetap sama dengan PO agar tidak ada mismatch.
         $approvedSourceData = array_merge($sourceData, [
-            'parts'          => $approvedParts,
+            'parts'          => $approvedParts, // Hanya approved
             'item_decisions' => array_values($allPartDecisions),
         ]);
 
@@ -2420,6 +2546,9 @@ class PurchaseOrderController extends Controller
                 $totalHargaNew         = collect($rejectedIdx)->sum(fn($i) => (int)($allKejadians[$i]['biaya'] ?? 0));
                 $nominalApprovedLocked = collect($lockedApprovedIdx)->sum(fn($i) => (int)($allKejadians[$i]['biaya'] ?? 0));
 
+                // Clear field 'biaya' agar extractNominalFromData() recalculate dari kejadians yang diresubmit
+                unset($sourceData['biaya']);
+
                 $updatedSourceData = array_merge($sourceData, [
                     'kejadians'               => $allKejadians,
                     'item_decisions'          => [],
@@ -2434,9 +2563,10 @@ class PurchaseOrderController extends Controller
                     'temp_files'              => $tempFiles,
                 ]);
 
+                // total_harga hanya untuk item yang diresubmit (rejected), tidak termasuk locked
                 $po->update([
                     'source_data'         => $updatedSourceData,
-                    'total_harga'         => $totalHargaNew + $nominalApprovedLocked,
+                    'total_harga'         => $totalHargaNew,
                     'total_barang'        => count($rejectedIdx),
                     'status'              => 'Pending',
                     'catatan_approval'    => null,
@@ -2613,6 +2743,9 @@ class PurchaseOrderController extends Controller
                 $totalHargaNew         = collect($rejectedIdx)->sum(fn($i) => (int)($allParts[$i]['biaya'] ?? 0));
                 $nominalApprovedLocked = collect($lockedApprovedIdx)->sum(fn($i) => (int)($allParts[$i]['biaya'] ?? 0));
 
+                // Clear field 'total_biaya_override' agar extractNominalFromData() recalculate dari parts yang diresubmit
+                unset($sourceData['total_biaya_override']);
+
                 $updatedSourceData = array_merge($sourceData, [
                     'parts'                   => $allParts,
                     'item_decisions'          => [],                     // Kosongkan — locked info ada di locked_approved_idx
@@ -2646,9 +2779,10 @@ class PurchaseOrderController extends Controller
                     ]);
                 }
 
+                // total_harga hanya untuk item yang diresubmit (rejected), tidak termasuk locked
                 $po->update([
                     'source_data'         => $updatedSourceData,
-                    'total_harga'         => $totalHargaNew + $nominalApprovedLocked,
+                    'total_harga'         => $totalHargaNew,
                     'total_barang'        => count($rejectedIdx),
                     'status'              => 'Pending',
                     'catatan_approval'    => null,

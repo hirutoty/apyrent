@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Service Asuransi')
 
@@ -30,27 +30,7 @@
         </div>
 
         {{-- NAV TABS --}}
-        <div>
-            <nav class="inline-flex gap-1 bg-gray-100 rounded-xl p-1">
-                @php
-                    $navItems = [
-                        ['label' => 'Service History',  'url' => '/admin/service-history',    'icon' => 'bi bi-clock-history'],
-                        ['label' => 'Service Asuransi', 'url' => '/admin/service-asuransi',   'icon' => 'bi bi-shield-fill-check'],
-                        ['label' => 'Service Incident', 'url' => '/admin/service-incident',   'icon' => 'bi bi-exclamation-triangle-fill'],
-                        ['label' => 'Reminder Service', 'url' => '/admin/reminder-service',   'icon' => 'bi bi-bell-fill'],
-                        ['label' => 'Kategori Service', 'url' => '/admin/service-categories', 'icon' => 'bi bi-tags-fill'],
-                    ];
-                @endphp
-                @foreach ($navItems as $item)
-                    @php $isActiveTab = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
-                    <a href="{{ $item['url'] }}"
-                        class="flex items-center gap-2 px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-lg transition-all duration-150
-                            {{ $isActiveTab ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60' }}">
-                        <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
-                    </a>
-                @endforeach
-            </nav>
-        </div>
+        @include('admin.service._nav_tabs', ['activeTab' => 'asuransi'])
 
         {{-- CHART FILTER --}}
         <x-chart-filter id="serviceAsuransiChartFilter" defaultFilter="month" :showCustomRange="true"
@@ -256,7 +236,7 @@
 
                                     {{-- KM --}}
                                     <td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">
-                                        {{ number_format($d->kilometer ?? 0, 0, ',', '.') }} km
+                                        {{ number_format($d->kendaraan->kilometer_sekarang ?? $d->kilometer ?? 0, 0, ',', '.') }} km
                                     </td>
 
                                     {{-- TANGGAL --}}
@@ -498,7 +478,7 @@
                                                                                     $lExt   = strtolower($lamp['extension'] ?? pathinfo($lPath, PATHINFO_EXTENSION));
                                                                                     $lIsImg = in_array($lExt, ['jpg','jpeg','png','webp','gif']);
                                                                                     $lUrl   = $lPath
-                                                                                        ? (str_starts_with($lPath, 'http') ? $lPath : \Illuminate\Support\Facades\Storage::disk('public')->url($lPath))
+                                                                                        ? (str_starts_with($lPath, 'http') ? $lPath : asset($lPath))
                                                                                         : null;
                                                                                 @endphp
                                                                                 @if($lUrl)
@@ -971,6 +951,22 @@
 
 
     // =================================================================
+    // GLOBAL CONFIGURATION
+    // =================================================================
+    const BASE_URL = '{{ url('/') }}';
+    const STORAGE_URL = '{{ url('/storage') }}';
+
+    // Helper: generate correct URL for temp vs final files
+    function getFileUrl(path) {
+        if (!path) return '';
+        // Temp files start with purchase_order/, service_, pembayaran/
+        if (path.startsWith('purchase_order/') || path.startsWith('service_') || path.startsWith('pembayaran/')) {
+            return STORAGE_URL + '/' + path;
+        }
+        return BASE_URL + '/' + path;
+    }
+
+    // =================================================================
     // HANDLE NAMA ASURANSI & JENIS ASURANSI
     // Data jenis asuransi di-embed langsung dari Blade (tidak perlu AJAX)
     // =================================================================
@@ -1138,16 +1134,17 @@
                 images.forEach(function(f) {
                     const wrap = document.createElement('div');
                     wrap.className = 'group relative rounded-xl overflow-hidden border border-purple-100 bg-purple-50 cursor-pointer';
-                    wrap.onclick   = function() { openLightbox('/' + f.path); };
+                    const fileUrl = getFileUrl(f.path);
+                    wrap.onclick   = function() { openLightbox(fileUrl); };
                     wrap.innerHTML = `
-                        <img src="/${f.path}" alt="${f.name}"
+                        <img src="${fileUrl}" alt="${f.name}"
                             class="w-full h-36 object-cover transition-transform duration-200 group-hover:scale-105">
                         <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                             <i class="fa fa-expand text-white opacity-0 group-hover:opacity-100 text-xl transition-opacity drop-shadow"></i>
                         </div>
                         <div class="absolute bottom-0 left-0 right-0 px-2 py-1.5 bg-gradient-to-t from-black/60 to-transparent">
                             <p class="text-[10px] text-white/90 truncate font-medium" title="${f.name}">${f.name}</p>
-                            <a href="/${f.path}" download="${f.name}" onclick="event.stopPropagation()"
+                            <a href="${fileUrl}" download="${f.name}" onclick="event.stopPropagation()"
                                 class="text-[10px] text-white/60 hover:text-white flex items-center gap-1 mt-0.5">
                                 <i class="fa fa-download text-[9px]"></i> Unduh
                             </a>
@@ -1173,7 +1170,7 @@
                     const isPdf = ext === 'pdf';
 
                     const item = document.createElement('a');
-                    item.href   = '/' + f.path;
+                    item.href   = getFileUrl(f.path);
                     item.target = '_blank';
                     item.className = `flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors hover:bg-gray-50 ${isPdf ? 'border-red-100 bg-red-50/40 text-red-600' : 'border-purple-100 bg-purple-50/40 text-purple-600'}`;
                     item.innerHTML = `
@@ -1236,16 +1233,17 @@
                 images.forEach(function(f) {
                     const wrap = document.createElement('div');
                     wrap.className = 'group relative rounded-xl overflow-hidden border border-gray-100 bg-gray-50 cursor-pointer';
-                    wrap.onclick   = function() { openLightbox('/' + f.path); };
+                    const fileUrl = getFileUrl(f.path);
+                    wrap.onclick   = function() { openLightbox(fileUrl); };
                     wrap.innerHTML = `
-                        <img src="/${f.path}" alt="${f.name}"
+                        <img src="${fileUrl}" alt="${f.name}"
                             class="w-full h-36 object-cover transition-transform duration-200 group-hover:scale-105">
                         <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                             <i class="fa fa-expand text-white opacity-0 group-hover:opacity-100 text-xl transition-opacity drop-shadow"></i>
                         </div>
                         <div class="absolute bottom-0 left-0 right-0 px-2 py-1.5 bg-gradient-to-t from-black/60 to-transparent">
                             <p class="text-[10px] text-white/90 truncate font-medium" title="${f.name}">${f.name}</p>
-                            <a href="/${f.path}" download="${f.name}" onclick="event.stopPropagation()"
+                            <a href="${fileUrl}" download="${f.name}" onclick="event.stopPropagation()"
                                 class="text-[10px] text-white/60 hover:text-white flex items-center gap-1 mt-0.5">
                                 <i class="fa fa-download text-[9px]"></i> Unduh
                             </a>
@@ -1272,7 +1270,7 @@
                     const isPdf = ext === 'pdf';
 
                     const item = document.createElement('a');
-                    item.href   = '/' + f.path;
+                    item.href   = getFileUrl(f.path);
                     item.target = '_blank';
                     item.className = `flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors hover:bg-gray-50 ${isPdf ? 'border-red-100 bg-red-50/40 text-red-600' : 'border-blue-100 bg-blue-50/40 text-blue-600'}`;
                     item.innerHTML = `
@@ -1706,3 +1704,7 @@ document.getElementById('modalSaAjukanUlang')?.addEventListener('click', functio
 </script>
 
 @endsection
+
+
+
+

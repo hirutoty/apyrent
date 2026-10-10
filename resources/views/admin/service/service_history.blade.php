@@ -29,29 +29,7 @@
     </div>
 
     {{-- NAV TABS --}}
-    <div>
-        <nav class="inline-flex gap-1 bg-gray-100 rounded-xl p-1">
-            @php
-                $navItems = [
-                    ['label' => 'Service History',  'url' => '/admin/service-history',    'icon' => 'bi bi-clock-history', 'role' => null],
-                    ['label' => 'Service Asuransi', 'url' => '/admin/service-asuransi',   'icon' => 'bi bi-shield-fill-check', 'role' => null],
-                    ['label' => 'Service Incident', 'url' => '/admin/service-incident',   'icon' => 'bi bi-exclamation-triangle-fill', 'role' => null],
-                    ['label' => 'Reminder Service', 'url' => '/admin/reminder-service',   'icon' => 'bi bi-bell-fill', 'role' => null],
-                    ['label' => 'Kategori Service', 'url' => '/admin/service-categories', 'icon' => 'bi bi-tags-fill', 'role' => 'superadmin'],
-                ];
-            @endphp
-            @foreach ($navItems as $item)
-                @if(!isset($item['role']) || (isset($item['role']) && auth()->user()->role === $item['role']))
-                    @php $isActiveTab = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
-                    <a href="{{ $item['url'] }}"
-                        class="flex items-center gap-2 px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-lg transition-all duration-150
-                            {{ $isActiveTab ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60' }}">
-                        <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
-                    </a>
-                @endif
-            @endforeach
-        </nav>
-    </div>
+    @include('admin.service._nav_tabs', ['activeTab' => 'history'])
 
     {{-- CHART FILTER --}}
     <x-chart-filter id="serviceHistoryChartFilter" defaultFilter="month" :showCustomRange="true"
@@ -201,7 +179,7 @@
                                 <div class="text-xs text-gray-500 font-mono">{{ $d->kendaraan?->nopol ?? '-' }}</div>
                             </td>
                             <td class="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
-                                {{ number_format($d->kilometer, 0, ',', '.') }} km
+                                {{ number_format($d->kendaraan->kilometer_sekarang ?? $d->kilometer, 0, ',', '.') }} km
                             </td>
                             <td class="px-4 py-4">
                                 @if ($partCount > 0)
@@ -528,7 +506,7 @@
                                                                     @foreach($buktiBayarData as $file)
                                                                         @php
                                                                             $fp  = $file['path'] ?? '';
-                                                                            $fu  = str_starts_with($fp, 'pembayaran/') ? \Illuminate\Support\Facades\Storage::url($fp) : asset($fp);
+                                                                            $fu  = asset($fp);
                                                                             $rn  = $file['original_name'] ?? $file['name'] ?? basename($fp);
                                                                             $fn  = preg_replace('/^\d+_\d+_/', '', $rn) ?: $rn;
                                                                         @endphp

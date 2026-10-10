@@ -68,22 +68,46 @@
         </div>
         <input type="hidden" id="prefill_kendaraan_id" value="{{ $prefill['kendaraan_id'] }}">
     @elseif ($prefill && ($prefill['source'] ?? '') === 'edit_po')
-        <div class="bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3">
-            <i class="fa fa-times-circle text-red-500 mt-0.5"></i>
-            <div>
-                <p class="text-sm font-semibold text-red-800">Ajukan Ulang — Pengajuan Sebelumnya Ditolak</p>
-                @if(!empty($prefill['catatan_tolak']))
-                    <p class="text-xs text-red-700 mt-0.5">Catatan penolakan: <strong>{{ $prefill['catatan_tolak'] }}</strong></p>
-                @endif
-                @if(!empty($prefill['approved_count']) && $prefill['approved_count'] > 0)
-                    <p class="text-xs text-green-700 mt-1.5 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
-                        <i class="fa fa-check-circle text-green-500 mr-1"></i>
-                        <strong>{{ $prefill['approved_count'] }} part</strong> sudah disetujui sebelumnya dan tidak perlu diajukan ulang — hanya part yang ditolak yang ditampilkan di bawah.
+        @php
+            $allPartsCount = count($prefill['all_parts'] ?? []);
+            $allApproved = $allPartsCount === 0 && ($prefill['approved_count'] ?? 0) > 0;
+        @endphp
+        
+        @if($allApproved)
+            {{-- Semua part sudah diapprove → tidak ada yang perlu diajukan ulang --}}
+            <div class="bg-green-50 border border-green-200 rounded-xl px-5 py-4 flex items-start gap-3">
+                <i class="fa fa-check-circle text-green-500 text-lg mt-0.5"></i>
+                <div class="flex-1">
+                    <p class="text-sm font-semibold text-green-800">Semua Part Sudah Disetujui</p>
+                    <p class="text-xs text-green-700 mt-0.5">
+                        <strong>{{ $prefill['approved_count'] }} part</strong> dari pengajuan sebelumnya sudah disetujui semua. 
+                        Tidak ada part yang perlu diajukan ulang.
                     </p>
-                @endif
-                <p class="text-xs text-red-600 mt-1">Perbarui data yang diperlukan lalu ajukan kembali.</p>
+                    <a href="{{ route('service-history.index') }}" 
+                        class="inline-block mt-3 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                        <i class="fa fa-arrow-left mr-1.5"></i> Kembali ke Service History
+                    </a>
+                </div>
             </div>
-        </div>
+        @else
+            {{-- Ada part yang ditolak → tampilkan form ajukan ulang --}}
+            <div class="bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3">
+                <i class="fa fa-times-circle text-red-500 mt-0.5"></i>
+                <div>
+                    <p class="text-sm font-semibold text-red-800">Ajukan Ulang — Pengajuan Sebelumnya Ditolak</p>
+                    @if(!empty($prefill['catatan_tolak']))
+                        <p class="text-xs text-red-700 mt-0.5">Catatan penolakan: <strong>{{ $prefill['catatan_tolak'] }}</strong></p>
+                    @endif
+                    @if(!empty($prefill['approved_count']) && $prefill['approved_count'] > 0)
+                        <p class="text-xs text-green-700 mt-1.5 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
+                            <i class="fa fa-check-circle text-green-500 mr-1"></i>
+                            <strong>{{ $prefill['approved_count'] }} part</strong> sudah disetujui sebelumnya dan tidak perlu diajukan ulang — hanya part yang ditolak yang ditampilkan di bawah.
+                        </p>
+                    @endif
+                    <p class="text-xs text-red-600 mt-1">Perbarui data yang diperlukan lalu ajukan kembali.</p>
+                </div>
+            </div>
+        @endif
         <input type="hidden" id="prefill_kendaraan_id" value="{{ $prefill['kendaraan_id'] }}">
     @elseif ($prefill && ($prefill['source'] ?? '') === 'edit_pembayaran')
         <div class="bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3">
@@ -99,7 +123,11 @@
         <input type="hidden" id="prefill_kendaraan_id" value="{{ $prefill['kendaraan_id'] }}">
     @endif
 
-    <form id="form-service-history" action="{{ route('service-history.store') }}" method="POST" enctype="multipart/form-data">
+    <form id="form-service-history" action="{{ route('service-history.store') }}" method="POST" enctype="multipart/form-data"
+        @if(($prefill['source'] ?? '') === 'edit_po' && count($prefill['all_parts'] ?? []) === 0 && ($prefill['approved_count'] ?? 0) > 0)
+            style="display: none;"
+        @endif
+    >
         @csrf
 
         @if ($prefill)
@@ -1113,7 +1141,7 @@ function addPartRow(data = null) {
                     Serial Number ${data ? '<span class="text-amber-500 text-[10px] font-normal">(perbarui!)</span>' : ''}
                 </label>
                 <input type="text" name="parts[${idx}][serial_number]"
-                    value=""
+                    value="${data?.serial_number || ''}"
                     placeholder="SN part baru"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 ${data ? 'border-amber-300 bg-amber-50' : ''}">
             </div>
@@ -1125,7 +1153,7 @@ function addPartRow(data = null) {
                     ${data ? '<span class="text-amber-500 text-[10px] font-normal">(perbarui!)</span>' : ''}
                 </label>
                 <input type="date" name="parts[${idx}][tgl_pasang]" required
-                    value="{{ now()->format('Y-m-d') }}"
+                    value="${tglPasang}"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 ${data ? 'border-amber-300 bg-amber-50' : ''}">
             </div>
 
@@ -1693,42 +1721,47 @@ document.addEventListener('DOMContentLoaded', function() {
         loadLimitRules('{{ $prefill["kendaraan_id"] }}').then(function() {
             onKendaraanChange('{{ $prefill["kendaraan_id"] }}');
 
-        @if(($prefill['source'] ?? '') === 'edit_po' && !empty($prefill['all_parts']))
-            {{-- Ajukan ulang dari PO ditolak: render semua parts --}}
-            const allParts  = @json($prefill['all_parts']);
-            const tempFiles = @json($prefill['temp_files'] ?? []);
-            allParts.forEach(function(part, idx) {
-                const oldBukti = (tempFiles.parts && tempFiles.parts[idx] && tempFiles.parts[idx].bukti)
-                    ? tempFiles.parts[idx].bukti
-                    : [];
-                addPartRow({
-                    nama_part:        part.nama_part       || '',
-                    category_id:      part.category_id     || '',
-                    supplier_id:      part.supplier_id     || '',
-                    posisi:           part.posisi           || '',
-                    part_number:      part.part_number      || '',
-                    interval_nilai:   part.interval_nilai   || 12,
-                    interval_satuan:  part.interval_satuan  || 'bulan',
-                    biaya:            part.biaya            || 0,
-                    kondisi:          part.kondisi          || '',
-                    // Sengaja tidak prefill keterangan_limit dari snapshot lama —
-                    // akan dihitung ulang dari DB terkini via fetchLimitBiayaKumulatif() di bawah.
-                    keterangan_limit: '',
-                    nama_bank:        part.nama_bank        || '',
-                    no_rekening:      part.no_rekening      || '',
-                    nama_rekening:    part.nama_rekening     || '',
-                    old_files:        oldBukti,
+        @if(($prefill['source'] ?? '') === 'edit_po')
+            {{-- Ajukan ulang dari PO ditolak: render semua parts yang belum diapprove --}}
+            @if(!empty($prefill['all_parts']))
+                const allParts  = @json($prefill['all_parts']);
+                const tempFiles = @json($prefill['temp_files'] ?? []);
+                allParts.forEach(function(part, idx) {
+                    const oldBukti = (tempFiles.parts && tempFiles.parts[idx] && tempFiles.parts[idx].bukti)
+                        ? tempFiles.parts[idx].bukti
+                        : [];
+                    addPartRow({
+                        nama_part:        part.nama_part        || '',
+                        category_id:      part.category_id      || '',
+                        supplier_id:      part.supplier_id      || '',
+                        posisi:           part.posisi           || '',
+                        part_number:      part.part_number      || '',
+                        serial_number:    part.serial_number    || '',
+                        tgl_pasang:       part.tgl_pasang       || '',
+                        kilometer_pasang: part.kilometer_pasang || '',
+                        interval_nilai:   part.interval_nilai   || 12,
+                        interval_satuan:  part.interval_satuan  || 'bulan',
+                        biaya:            part.biaya            || 0,
+                        kondisi:          part.kondisi          || '',
+                        // Sengaja tidak prefill keterangan_limit dari snapshot lama —
+                        // akan dihitung ulang dari DB terkini via fetchLimitBiayaKumulatif() di bawah.
+                        keterangan_limit: '',
+                        nama_bank:        part.nama_bank        || '',
+                        no_rekening:      part.no_rekening      || '',
+                        nama_rekening:    part.nama_rekening    || '',
+                        old_files:        oldBukti,
+                    });
                 });
-            });
-            // Setelah semua row ditambahkan, fetch kumulatif biaya terbaru dari DB
-            // agar keterangan ditampilkan berdasarkan kondisi terkini (bukan snapshot lama).
-            // fetchLimitBiayaKumulatif() bersifat async — dipanggil setelah microtask queue kosong.
-            setTimeout(function() {
-                document.querySelectorAll('[id^="biaya-kumulatif-hint-"]').forEach(function(el) {
-                    const m = el.id.match(/biaya-kumulatif-hint-(\d+)/);
-                    if (m) fetchLimitBiayaKumulatif(parseInt(m[1]));
-                });
-            }, 0);
+                // Setelah semua row ditambahkan, fetch kumulatif biaya terbaru dari DB
+                // agar keterangan ditampilkan berdasarkan kondisi terkini (bukan snapshot lama).
+                // fetchLimitBiayaKumulatif() bersifat async — dipanggil setelah microtask queue kosong.
+                setTimeout(function() {
+                    document.querySelectorAll('[id^="biaya-kumulatif-hint-"]').forEach(function(el) {
+                        const m = el.id.match(/biaya-kumulatif-hint-(\d+)/);
+                        if (m) fetchLimitBiayaKumulatif(parseInt(m[1]));
+                    });
+                }, 0);
+            @endif
         @elseif(($prefill['source'] ?? '') === 'edit_pembayaran' && !empty($prefill['all_parts']))
             {{-- Ajukan ulang dari Pembayaran ditolak: render semua parts --}}
             const allParts  = @json($prefill['all_parts']);
@@ -1738,11 +1771,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     ? tempFiles.parts[idx].bukti
                     : [];
                 addPartRow({
-                    nama_part:        part.nama_part       || '',
-                    category_id:      part.category_id     || '',
-                    supplier_id:      part.supplier_id     || '',
+                    nama_part:        part.nama_part        || '',
+                    category_id:      part.category_id      || '',
+                    supplier_id:      part.supplier_id      || '',
                     posisi:           part.posisi           || '',
                     part_number:      part.part_number      || '',
+                    serial_number:    part.serial_number    || '',
+                    tgl_pasang:       part.tgl_pasang       || '',
+                    kilometer_pasang: part.kilometer_pasang || '',
                     interval_nilai:   part.interval_nilai   || 12,
                     interval_satuan:  part.interval_satuan  || 'bulan',
                     biaya:            part.biaya            || 0,
@@ -1764,15 +1800,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (m) fetchLimitBiayaKumulatif(parseInt(m[1]));
                 });
             }, 0);
-        @else
+        @elseif(!empty($prefill["part"]))
             {{-- Tambah row pre-filled tunggal (reminder / part) --}}
             addPartRow({
-                nama_part:        '{{ addslashes($prefill["part"]["nama_part"]) }}',
-                category_id:      '{{ $prefill["part"]["category_id"] }}',
+                nama_part:        '{{ addslashes($prefill["part"]["nama_part"] ?? "") }}',
+                category_id:      '{{ $prefill["part"]["category_id"] ?? "" }}',
                 posisi:           '{{ addslashes($prefill["part"]["posisi"] ?? "") }}',
                 part_number:      '{{ addslashes($prefill["part"]["part_number"] ?? "") }}',
-                interval_nilai:   '{{ $prefill["part"]["interval_nilai"] }}',
-                interval_satuan:  '{{ $prefill["part"]["interval_satuan"] }}',
+                interval_nilai:   '{{ $prefill["part"]["interval_nilai"] ?? 12 }}',
+                interval_satuan:  '{{ $prefill["part"]["interval_satuan"] ?? "bulan" }}',
                 biaya:            '{{ $prefill["part"]["biaya"] ?? 0 }}',
             });
         @endif

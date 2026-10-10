@@ -27,12 +27,20 @@ class GpsKendaraanController extends Controller
         // - Jika Ditolak: hanya tampilkan yang sudah sampai tahap Pembayaran (punya pembayaran_id)
         //   Ditolak di PO (tidak ada pembayaran_id) → tidak ditampilkan
         //   Ditolak di Pembayaran (ada pembayaran_id) → tampilkan sebagai informasi
+        // PERBAIKAN: Data lama (persetujuan = NULL) juga ditampilkan sebagai "Disetujui" (approved by default)
         $query = GpsKendaraan::with(['kendaraan', 'gps', 'attachments', 'pembayaran:id,source_type,status'])
-            ->whereNotNull('persetujuan')
-            ->where('persetujuan', '!=', 'Pending')
             ->where(function ($q) {
-                $q->whereNotIn('persetujuan', ['Ditolak', 'Ditolak Pembayaran'])
-                  ->orWhereNotNull('pembayaran_id'); // Ditolak di Pembayaran → tampilkan
+                // Data baru: sudah melewati PO (bukan Pending)
+                $q->where(function ($q2) {
+                    $q2->whereNotNull('persetujuan')
+                       ->where('persetujuan', '!=', 'Pending')
+                       ->where(function ($q3) {
+                           $q3->whereNotIn('persetujuan', ['Ditolak', 'Ditolak Pembayaran'])
+                              ->orWhereNotNull('pembayaran_id'); // Ditolak di Pembayaran → tampilkan
+                       });
+                })
+                // Data lama: persetujuan NULL (langsung approved tanpa PO)
+                ->orWhereNull('persetujuan');
             })
             ->latest();
 

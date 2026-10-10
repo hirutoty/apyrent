@@ -639,14 +639,33 @@ class PengeluaranInterceptorService
             // Upload new temp files (jika ada)
             $newUploadedFiles = $this->uploadTemporaryFiles($request, $pembayaranId);
 
-            // Ambil temp_files lama
-            $oldTempFiles = $pembayaran->source_data['temp_files'] ?? [];
+            // Ambil temp_files dan source_data lama
+            $oldSourceData = $pembayaran->source_data ?? [];
+            $oldTempFiles = $oldSourceData['temp_files'] ?? [];
 
             // Merge: per part, pakai baru kalau ada; pertahankan lama kalau tidak
             $mergedTempFiles = $this->mergeTemporaryFiles($oldTempFiles, $newUploadedFiles, $interceptedData['source_data']['parts'] ?? []);
 
             // Hapus file lama HANYA yang sudah diganti
             $this->deleteReplacedTempFiles($oldTempFiles, $newUploadedFiles);
+
+            // Preserve kilometer dari oldSourceData jika tidak diubah (kosong/0 di form)
+            $oldKilometer = (int)($oldSourceData['kilometer'] ?? 0);
+            $newKilometer = (int)($interceptedData['source_data']['kilometer'] ?? 0);
+            if ($oldKilometer > 0 && $newKilometer === 0) {
+                $interceptedData['source_data']['kilometer'] = $oldKilometer;
+            }
+
+            // Merge parts untuk preserve field lama (serial_number, dll)
+            $oldParts = $oldSourceData['parts'] ?? [];
+            $newParts = $interceptedData['source_data']['parts'] ?? [];
+            if (!empty($oldParts) && count($oldParts) === count($newParts)) {
+                foreach ($newParts as $idx => $newPart) {
+                    if (isset($oldParts[$idx])) {
+                        $interceptedData['source_data']['parts'][$idx] = array_merge($oldParts[$idx], $newPart);
+                    }
+                }
+            }
 
             // Update pembayaran
             $pembayaran->update([
@@ -755,12 +774,20 @@ class PengeluaranInterceptorService
                 $newPartCursor = 0;
                 foreach ($rejectedIdx as $oldIdx) {
                     if (isset($newParts[$newPartCursor])) {
-                        $mergedParts[$oldIdx] = $newParts[$newPartCursor];
+                        // Merge untuk preserve field lama yang tidak diubah (serial_number, dll)
+                        $mergedParts[$oldIdx] = array_merge($mergedParts[$oldIdx], $newParts[$newPartCursor]);
                         $newPartCursor++;
                     }
                 }
 
                 $newSourceData['parts'] = array_values($mergedParts);
+
+                // Preserve kilometer dari oldSourceData jika tidak diubah (kosong/0 di form)
+                $oldKilometer = (int)($oldSourceData['kilometer'] ?? 0);
+                $newKilometer = (int)($newSourceData['kilometer'] ?? 0);
+                if ($oldKilometer > 0 && $newKilometer === 0) {
+                    $newSourceData['kilometer'] = $oldKilometer;
+                }
 
                 // Simpan daftar index yang sudah locked approved agar approveItems() bisa guard-nya.
                 // item_decisions di-reset supaya approver bisa putuskan ulang HANYA untuk part baru.

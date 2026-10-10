@@ -1701,10 +1701,31 @@ class PembayaranController extends Controller
             $sourceDataForClient['kejadians'] = $filteredKejadians;
         }
         if (!empty($sourceDataForClient['gps_items']) && is_array($sourceDataForClient['gps_items'])) {
-            foreach ($sourceDataForClient['gps_items'] as &$g) {
-                if (isset($g['biaya_sewa'])) $g['biaya_sewa'] = (int) $g['biaya_sewa'];
+            // ── Filter: keluarkan GPS items yang sudah diputuskan (approved/rejected) ──
+            // Modal approval hanya boleh menampilkan items yang BELUM diputuskan.
+            if (in_array($pembayaran->source_type, ['gps', 'gps_perpanjang'])) {
+                $decidedGpsIdx = collect($sourceData['item_decisions'] ?? [])
+                    ->unique('idx')
+                    ->pluck('idx')
+                    ->map('intval')
+                    ->flip()
+                    ->all();
+
+                $filteredGpsItems = [];
+                foreach ($sourceDataForClient['gps_items'] as $idx => $g) {
+                    // Skip jika sudah ada keputusan di item_decisions
+                    if (isset($decidedGpsIdx[(int)$idx])) continue;
+                    if (isset($g['biaya_sewa'])) $g['biaya_sewa'] = (int) $g['biaya_sewa'];
+                    $g['_original_idx'] = (int) $idx; // simpan index asli agar frontend bisa kirim ke backend
+                    $filteredGpsItems[] = $g;
+                }
+                $sourceDataForClient['gps_items'] = $filteredGpsItems;
+            } else {
+                foreach ($sourceDataForClient['gps_items'] as &$g) {
+                    if (isset($g['biaya_sewa'])) $g['biaya_sewa'] = (int) $g['biaya_sewa'];
+                }
+                unset($g);
             }
-            unset($g);
         }
 
         $relatedData = [];
@@ -2321,44 +2342,11 @@ class PembayaranController extends Controller
                 $transferService->transferGpsRejected($pembayaran, $rejectedItems);
             }
 
-            // Tentukan status PR induk
-            $totalItems    = count($items);
-            $approvedCount = count($approvedItems);
-            $rejectedCount = count($rejectedItems);
-
-            if ($approvedCount === $totalItems) {
-                $newStatus = 'Disetujui';
-            } elseif ($rejectedCount === $totalItems) {
-                $newStatus = 'Ditolak';
-            } else {
-                $newStatus = 'Disetujui'; // partial approval → tetap Disetujui, item_decisions tracks rejected
-            }
-
             // Hitung nominal approved-only dan rejected-only untuk update record
             $sourceGpsItems  = $pembayaran->source_data['gps_items'] ?? [];
             $nominalApproved = 0;
             $nominalRejected = 0;
-            foreach ($items as $idx => $decision) {
-                $biayaSewa = (int) ($sourceGpsItems[(int) $idx]['biaya_sewa'] ?? 0);
-                if ($decision['action'] === 'approved') {
-                    $nominalApproved += $biayaSewa;
-                } else {
-                    $nominalRejected += $biayaSewa;
-                }
-            }
-
-            $pembayaran->update([
-                'status'              => $newStatus,
-                'target_id'           => $targetId,
-                'can_edit'            => $rejectedCount > 0,
-                'disetujui_oleh'      => auth()->user()->nama ?? auth()->user()->email,
-                'tanggal_persetujuan' => now(),
-                // Simpan nominal approved saja; nominal rejected akan tetap
-                // tercatat di source_data agar view bisa menampilkan keduanya
-                'nominal'             => $nominalApproved,
-            ]);
-
-            // Simpan keputusan per item ke source_data untuk ditampilkan di UI
+            
             // PENTING: Gabungkan dengan keputusan lama yang approved agar tidak hilang
             $existingDecisions = collect($pembayaran->source_data['item_decisions'] ?? [])
                 ->where('action', 'approved')
@@ -2367,17 +2355,16 @@ class PembayaranController extends Controller
             $itemDecisions = [];
             
             // Collect idx yang ada di form saat ini (decision baru)
-            // PENTING: Pastikan type konsisten (int) untuk comparison
-            $currentItemsIdx = array_map(function($key) {
-                return (int)$key;
-            }, array_keys($items));
+            $currentItemsIdx = array_map(fn($key) => (int)$key, array_keys($items));
             
             // Masukkan keputusan lama yang approved HANYA untuk idx yang TIDAK ada di form saat ini
             foreach ($existingDecisions as $existingIdx => $existingDec) {
-                // Strict comparison untuk memastikan tidak ada false positive
                 if (in_array((int)$existingIdx, $currentItemsIdx, true)) {
                     continue; // Skip, akan diambil dari decision baru
                 }
+                $gpsItem = $sourceGpsItems[(int)$existingIdx] ?? [];
+                $biayaSewa = (int) ($gpsItem['biaya_sewa'] ?? 0);
+                $nominalApproved += $biayaSewa;
                 $itemDecisions[] = array_merge($existingDec, [
                     'idx' => (int) $existingIdx,
                 ]);
@@ -2386,15 +2373,65 @@ class PembayaranController extends Controller
             // Tambahkan keputusan baru dari form saat ini
             foreach ($items as $idx => $decision) {
                 $gpsItem  = $sourceGpsItems[(int) $idx] ?? [];
+                $biayaSewa = (int) ($gpsItem['biaya_sewa'] ?? 0);
+                if ($decision['action'] === 'approved') {
+                    $nominalApproved += $biayaSewa;
+                } else {
+                    $nominalRejected += $biayaSewa;
+                }
+                
                 $gpsModel = isset($gpsItem['gps_id']) ? \App\Models\Gps::find($gpsItem['gps_id']) : null;
                 $itemDecisions[] = [
                     'idx'        => (int) $idx,
                     'nama_gps'   => $gpsModel->nama_gps ?? '-',
                     'type'       => $gpsItem['type'] ?? '-',
-                    'biaya_sewa' => (int) ($gpsItem['biaya_sewa'] ?? 0),
+                    'biaya_sewa' => $biayaSewa,
                     'action'     => $decision['action'],
                 ];
             }
+
+            // Tentukan status PR berdasarkan semua item (lama + baru)
+            $allGpsItems   = $sourceGpsItems;
+            $allDecisions  = collect($itemDecisions)->unique('idx')->keyBy(fn($d) => (int)($d['idx'] ?? -1));
+            $totalAllItems = count($allGpsItems);
+            $totalDecided  = $allDecisions->count();
+            $allApproved   = $allDecisions->where('action', 'approved')->count();
+            $allRejected   = $allDecisions->where('action', 'rejected')->count();
+
+            // Debug log
+            \Log::info('GPS Approval Status Calculation', [
+                'pembayaran_id' => $pembayaran->id,
+                'no_pr' => $pembayaran->no_pr,
+                'source_type' => $pembayaran->source_type,
+                'totalAllItems' => $totalAllItems,
+                'totalDecided' => $totalDecided,
+                'allApproved' => $allApproved,
+                'allRejected' => $allRejected,
+                'itemDecisions_count' => count($itemDecisions),
+            ]);
+
+            // Semua item sudah diputuskan
+            if ($totalDecided >= $totalAllItems) {
+                if ($allRejected === $totalAllItems) {
+                    $newStatus = 'Ditolak';
+                } else {
+                    $newStatus = 'Disetujui'; // semua atau sebagian approved
+                }
+            } else {
+                // Masih ada item pending → tetap Diajukan
+                $newStatus = 'Diajukan';
+            }
+
+            $pembayaran->update([
+                'status'              => $newStatus,
+                'target_id'           => $targetId,
+                'can_edit'            => $allRejected > 0,
+                'disetujui_oleh'      => auth()->user()->nama ?? auth()->user()->email,
+                'tanggal_persetujuan' => now(),
+                'nominal'             => $nominalApproved,
+            ]);
+
+            // Simpan keputusan per item ke source_data untuk ditampilkan di UI
             $updatedSourceData = array_merge($pembayaran->source_data ?? [], [
                 'item_decisions'   => $itemDecisions,
                 'nominal_approved' => $nominalApproved,
@@ -2404,7 +2441,7 @@ class PembayaranController extends Controller
 
             DB::commit();
 
-            $msg = "Keputusan disimpan: {$approvedCount} disetujui, {$rejectedCount} ditolak. Status PR: {$newStatus}.";
+            $msg = "Keputusan disimpan: {$allApproved} disetujui, {$allRejected} ditolak. Status PR: {$newStatus}.";
             return redirect()->route('pembayaran.index')->with('success', $msg);
 
         } catch (\Exception $e) {
@@ -2481,27 +2518,6 @@ class PembayaranController extends Controller
                 $targetId = $transferService->transfer($pembayaran, [], $transferArg);
             }
 
-            // Tentukan status PR induk
-            $totalItems    = count($items);
-            $approvedCount = count($approvedItems);
-            $rejectedCount = count($rejectedItems);
-
-            if ($approvedCount === $totalItems) {
-                $newStatus = 'Disetujui';
-            } elseif ($rejectedCount === $totalItems) {
-                $newStatus = 'Ditolak';
-            } else {
-                $newStatus = 'Disetujui'; // partial approval → tetap Disetujui
-            }
-
-            $pembayaran->update([
-                'status'              => $newStatus,
-                'target_id'           => $targetId,
-                'can_edit'            => $rejectedCount > 0,
-                'disetujui_oleh'      => auth()->user()->nama ?? auth()->user()->email,
-                'tanggal_persetujuan' => now(),
-            ]);
-
             // Hitung nominal approved-only dan rejected-only
             $sourceParts     = $pembayaran->source_data['parts'] ?? [];
             $nominalApproved = 0;
@@ -2552,6 +2568,53 @@ class PembayaranController extends Controller
                     'catatan'   => $decision['catatan'] ?? null,
                 ];
             }
+
+            // Tentukan status PR berdasarkan semua item (lama + baru)
+            $allParts      = $sourceParts;
+            $allDecisions  = collect($itemDecisions)->unique('idx')->keyBy(fn($d) => (int)($d['idx'] ?? -1));
+            
+            // IMPORTANT: totalAllItems harus dikurangi dengan locked_approved_idx (part yang sudah approved di siklus sebelumnya)
+            // karena part tersebut tidak masuk ke pembayaran ini (sudah di pembayaran sebelumnya)
+            $lockedApprovedIdx = $pembayaran->source_data['locked_approved_idx'] ?? [];
+            $totalAllItems = count($allParts) - count($lockedApprovedIdx);
+            
+            $totalDecided  = $allDecisions->count();
+            $allApproved   = $allDecisions->where('action', 'approved')->count();
+            $allRejected   = $allDecisions->where('action', 'rejected')->count();
+
+            // Debug log
+            \Log::info('ServicePart/Incident Approval Status Calculation', [
+                'pembayaran_id' => $pembayaran->id,
+                'no_pr' => $pembayaran->no_pr,
+                'source_type' => $pembayaran->source_type,
+                'totalParts' => count($allParts),
+                'lockedApprovedCount' => count($lockedApprovedIdx),
+                'totalAllItems' => $totalAllItems,
+                'totalDecided' => $totalDecided,
+                'allApproved' => $allApproved,
+                'allRejected' => $allRejected,
+                'itemDecisions_count' => count($itemDecisions),
+            ]);
+
+            // Semua item sudah diputuskan
+            if ($totalDecided >= $totalAllItems) {
+                if ($allRejected === $totalAllItems) {
+                    $newStatus = 'Ditolak';
+                } else {
+                    $newStatus = 'Disetujui'; // semua atau sebagian approved
+                }
+            } else {
+                // Masih ada item pending → tetap Diajukan agar muncul di tab Diajukan
+                $newStatus = 'Diajukan';
+            }
+
+            $pembayaran->update([
+                'status'              => $newStatus,
+                'target_id'           => $targetId,
+                'can_edit'            => $allRejected > 0,
+                'disetujui_oleh'      => auth()->user()->nama ?? auth()->user()->email,
+                'tanggal_persetujuan' => now(),
+            ]);
 
             // Update nominal ke approved-only saja
             $pembayaran->update(['nominal' => $nominalApproved]);
@@ -2634,9 +2697,19 @@ class PembayaranController extends Controller
             }
 
             // ── Task 4: Catat cashflow per item ke tabel keuangans ───────────
-            if (!empty($approvedItems)) {
+            // PENTING: Untuk service_incident, cashflow dicatat di transferServiceIncident()
+            // JANGAN catat ulang di sini agar tidak double entry.
+            // Hanya service_part yang perlu catat cashflow di sini karena tidak lewat transfer.
+            if (!empty($approvedItems) && $pembayaran->source_type === 'service_part') {
                 $sdParts     = $pembayaran->source_data['parts'] ?? [];
                 $tanggalAppr = now()->toDateString();
+                
+                // Cari service_history terkait untuk mendapatkan service_part records
+                $sh = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
+                if (!$sh) {
+                    \Log::warning("approveItemsServicePart: ServiceHistory not found for pembayaran #{$pembayaran->id}");
+                }
+                
                 foreach ($approvedItems as $approvedItem) {
                     $idx   = (int) $approvedItem['idx'];
                     $part  = $sdParts[$idx] ?? [];
@@ -2648,15 +2721,31 @@ class PembayaranController extends Controller
                         : '-';
                     $namaPart = $part['nama_part'] ?? ('Part #' . ($idx + 1));
 
+                    // Cari service_part record yang sesuai untuk source_id
+                    $existingPart = null;
+                    if ($sh) {
+                        $existingPart = \App\Models\ServicePart::where('service_history_id', $sh->id)
+                            ->where('nama_part', $namaPart)
+                            ->first();
+                    }
+
+                    if (!$existingPart) {
+                        \Log::warning("approveItemsServicePart: ServicePart not found for idx:{$idx} nama_part:{$namaPart}");
+                        continue;
+                    }
+
                     $lastSaldo = (float) DB::table('keuangans')->orderBy('id', 'desc')->value('saldo') ?? 0;
 
                     Keuangan::create([
                         'tanggal'     => $tanggalAppr,
                         'reference'   => 'PR-SVC-' . $pembayaran->no_pr . '-' . ($idx + 1),
+                        'source_type' => 'service_part',
+                        'source_id'   => $existingPart->id,
                         'user_id'     => auth()->id(),
-                        'kategori'    => 'Service Kendaraan',
+                        'divisi'      => auth()->user() ? ucfirst(auth()->user()->role) : 'Keuangan',
+                        'kategori'    => 'Pengeluaran',
                         'metode'      => 'Cash',
-                        'keterangan'  => 'Service Part: ' . $namaPart . ' — ' . $namaKendaraan . ' (PR #' . $pembayaran->no_pr . ')',
+                        'keterangan'  => 'Service Kendaraan: ' . $namaPart . ' ' . $namaKendaraan,
                         'pemasukan'   => 0,
                         'pengeluaran' => $biaya,
                         'saldo'       => $lastSaldo - $biaya,
@@ -2668,9 +2757,20 @@ class PembayaranController extends Controller
             // ── Update keterangan_limit & snapshot di source_data ─────────────
             $this->updateSourceDataKeteranganLimit($pembayaran);
 
+            // ── Update total_biaya service_history ─────────────────────────────
+            // Saat partial/full approval, total_biaya harus dihitung ulang dari
+            // parts yang statusnya bukan 'Ditolak Pembayaran'
+            $sh = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
+            if ($sh) {
+                $totalBiayaBaru = $sh->parts()
+                    ->whereNotIn('persetujuan', ['Ditolak Pembayaran'])
+                    ->sum('biaya');
+                $sh->update(['total_biaya' => $totalBiayaBaru]);
+            }
+
             DB::commit();
 
-            $msg = "Keputusan disimpan: {$approvedCount} part disetujui, {$rejectedCount} part ditolak. Status PR: {$newStatus}.";
+            $msg = "Keputusan disimpan: {$allApproved} part disetujui, {$allRejected} part ditolak. Status PR: {$newStatus}.";
             return redirect()->route('pembayaran.index')->with('success', $msg);
 
         } catch (\Exception $e) {
@@ -2803,11 +2903,22 @@ class PembayaranController extends Controller
 
             // Tentukan status PR berdasarkan semua item (lama + baru)
             $allKejadians   = $sourceKejadians;
-            $allDecisions   = collect($itemDecisions)->keyBy(fn($d) => (int)($d['idx'] ?? -1));
+            $allDecisions   = collect($itemDecisions)->unique('idx')->keyBy(fn($d) => (int)($d['idx'] ?? -1));
             $totalAllItems  = count($allKejadians);
             $totalDecided   = $allDecisions->count();
             $allApproved    = $allDecisions->where('action', 'approved')->count();
             $allRejected    = $allDecisions->where('action', 'rejected')->count();
+
+            // Debug log
+            \Log::info('ServiceAsuransi Approval Status Calculation', [
+                'pembayaran_id' => $pembayaran->id,
+                'totalAllItems' => $totalAllItems,
+                'totalDecided' => $totalDecided,
+                'allApproved' => $allApproved,
+                'allRejected' => $allRejected,
+                'itemDecisions_count' => count($itemDecisions),
+                'itemDecisions' => $itemDecisions,
+            ]);
 
             // Semua item sudah diputuskan
             if ($totalDecided >= $totalAllItems) {
@@ -2885,7 +2996,7 @@ class PembayaranController extends Controller
 
             DB::commit();
 
-            $msg = "Keputusan disimpan: {$approvedCount} kejadian disetujui, {$rejectedCount} ditolak. Status PR: {$newStatus}.";
+            $msg = "Keputusan disimpan: {$allApproved} kejadian disetujui, {$allRejected} ditolak. Status PR: {$newStatus}.";
             return redirect()->route('pembayaran.index')->with('success', $msg);
 
         } catch (\Exception $e) {
@@ -3135,10 +3246,23 @@ class PembayaranController extends Controller
         $pembayaran->updateQuietly(['source_data' => $sourceData]);
 
         // Update juga di tabel purchase_orders yang terkait (via pembayaran_id)
+        // PENTING: JANGAN overwrite semua parts! Hanya update parts yang ada di pembayaran (approved).
+        // PO punya semua parts (approved + rejected), pembayaran hanya punya approved.
         \App\Models\PurchaseOrder::where('pembayaran_id', $pembayaran->id)
             ->each(function ($po) use ($sourceData) {
                 $poSourceData = $po->source_data ?? [];
-                $poSourceData['parts'] = $sourceData['parts'];
+                $poParts = $poSourceData['parts'] ?? [];
+                
+                // Merge: update hanya parts yang ada di pembayaran, pertahankan sisanya
+                foreach ($sourceData['parts'] as $idx => $updatedPart) {
+                    if (isset($poParts[$idx])) {
+                        $poParts[$idx] = array_merge($poParts[$idx], $updatedPart);
+                    } else {
+                        $poParts[$idx] = $updatedPart;
+                    }
+                }
+                
+                $poSourceData['parts'] = $poParts;
                 $po->updateQuietly(['source_data' => $poSourceData]);
             });
     }
@@ -3792,14 +3916,22 @@ class PembayaranController extends Controller
                 $poSourceData = $po->source_data ?? [];
 
                 // Update bagian source_data PO sesuai source_type
-                // PENTING: jangan replace parts/kejadians, merge data terbaru ke parts existing
-                // agar count total items tetap benar (tidak hilang parts yang approved)
+                // PENTING: JANGAN replace/overwrite parts/kejadians dari PO dengan yang dari Pembayaran!
+                // Pembayaran hanya punya approved parts, sedangkan PO punya semua parts (approved + rejected).
+                // Yang perlu di-update hanya field tertentu (misal: biaya, keterangan) untuk parts yang diresubmit.
                 if (in_array($srcType, ['service_part', 'service_incident'])) {
-                    // Ambil parts dari PO yang existing (mungkin sudah ada locked)
+                    // Ambil parts dari PO yang existing (complete: approved + rejected)
                     $existingPoParts = $poSourceData['parts'] ?? [];
-                    // Merge: update parts yang diresubmit + tetap simpan approved yang tidak diresubmit
+                    // Update HANYA parts yang ada di pembayaran (yang diresubmit)
+                    // JANGAN overwrite semua — pertahankan parts yang tidak ada di pembayaran (rejected)
                     foreach ($sourceData['parts'] as $idx => $part) {
-                        $existingPoParts[$idx] = $part;
+                        // Hanya update field tertentu, jangan replace seluruh part
+                        // Ini untuk kasus resubmit di mana biaya/keterangan mungkin berubah
+                        if (isset($existingPoParts[$idx])) {
+                            $existingPoParts[$idx] = array_merge($existingPoParts[$idx], $part);
+                        } else {
+                            $existingPoParts[$idx] = $part;
+                        }
                     }
                     $poSourceData['parts'] = $existingPoParts;
                 } elseif ($srcType === 'service_asuransi') {
@@ -3830,9 +3962,13 @@ class PembayaranController extends Controller
                 // nominal_approved_locked = biaya item yang sudah approved dan tidak ikut resubmit
                 $poSourceData['nominal_approved_locked'] = $nominalApproved;
 
-                // Update locked_approved_idx = idx yang ada di item_decisions (approved lama)
+                // Update locked_approved_idx = idx yang ada di item_decisions DAN action = 'approved'
+                // PENTING: JANGAN masukkan idx yang rejected ke locked_approved_idx!
                 $poSourceData['locked_approved_idx'] = array_values(
-                    array_column($sourceData['item_decisions'], 'idx')
+                    array_column(
+                        array_filter($sourceData['item_decisions'], fn($d) => ($d['action'] ?? '') === 'approved'),
+                        'idx'
+                    )
                 );
 
                 $po->update([
