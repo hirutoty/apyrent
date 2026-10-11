@@ -307,20 +307,42 @@
                                                                 <span class="text-gray-300">—</span>
                                                             @endif
                                                         </td>
-                                                        {{-- LAMPIRAN (dari temp_files saat create) --}}
+                                                        {{-- LAMPIRAN per part (dari field bukti atau fallback ke temp_files pembayaran) --}}
                                                         <td class="px-3 py-2">
                                                             @php
                                                                 $buktiData = $part->bukti;
                                                                 if (is_string($buktiData)) $buktiData = json_decode($buktiData, true);
+                                                                
+                                                                // Fallback: ambil dari pembayaran temp_files jika bukti kosong
+                                                                if (empty($buktiData) && $d->pembayaran_id) {
+                                                                    $pembayaran = \App\Models\Pembayaran::find($d->pembayaran_id);
+                                                                    if ($pembayaran && $pembayaran->source_data) {
+                                                                        // Cari index part yang match
+                                                                        $partIndex = null;
+                                                                        $sourceDataParts = $pembayaran->source_data['parts'] ?? [];
+                                                                        foreach ($sourceDataParts as $spIdx => $sp) {
+                                                                            if (trim(strtolower($sp['nama_part'] ?? '')) === trim(strtolower($part->nama_part ?? ''))) {
+                                                                                $partIndex = $spIdx;
+                                                                                break;
+                                                                            }
+                                                                        }
+                                                                        
+                                                                        // Ambil dari temp_files per part
+                                                                        if ($partIndex !== null) {
+                                                                            $tempFiles = $pembayaran->source_data['temp_files'] ?? [];
+                                                                            $buktiData = $tempFiles['parts'][$partIndex]['bukti'] ?? null;
+                                                                        }
+                                                                    }
+                                                                }
                                                             @endphp
                                                             @if($buktiData && is_array($buktiData) && count($buktiData) > 0)
                                                                 <div class="flex flex-col gap-1">
                                                                     @foreach($buktiData as $file)
                                                                         <a href="{{ asset($file['path'] ?? '') }}" target="_blank"
                                                                             class="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline truncate max-w-[130px]"
-                                                                            title="{{ $file['name'] ?? '' }}">
+                                                                            title="{{ $file['name'] ?? $file['original_name'] ?? $file['stored_name'] ?? '' }}">
                                                                             <i class="fa fa-paperclip text-[10px] flex-shrink-0"></i>
-                                                                            <span class="truncate">{{ $file['name'] ?? basename($file['path'] ?? '') }}</span>
+                                                                            <span class="truncate">{{ $file['name'] ?? $file['original_name'] ?? $file['stored_name'] ?? basename($file['path'] ?? '') }}</span>
                                                                         </a>
                                                                     @endforeach
                                                                 </div>

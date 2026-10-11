@@ -735,9 +735,13 @@ class PengeluaranTransferService
             }
             $pendingParts = $pendingPartsQuery->orderBy('id')->get();
 
-            // ── Jika tidak ada pending parts, insert baru dari source_data ──
-            // Ini menangani kasus pertama kali approve PO (parts belum ada di DB)
-            if ($pendingParts->isEmpty() && !empty($parts)) {
+            // ── Jika tidak ada pending parts, cek apakah parts sudah ada di DB ──
+            // Jika parts sudah ada (punya Disetujui/Ditolak Pembayaran), skip insert
+            // Insert baru HANYA jika parts belum pernah dibuat sama sekali
+            $existingPartsCount = $incident->parts()->count();
+            $shouldInsertNew = $pendingParts->isEmpty() && !empty($parts) && $existingPartsCount === 0;
+            
+            if ($shouldInsertNew) {
                 $tempFiles = $sourceData['temp_files'] ?? [];
                 $tempPartFiles = $tempFiles['parts'] ?? [];
                 
@@ -757,6 +761,16 @@ class PengeluaranTransferService
                             'path' => $file['path'] ?? '',
                             'name' => $file['original_name'] ?? $file['stored_name'] ?? basename($file['path'] ?? ''),
                         ];
+                    }
+                    
+                    // TAMBAHAN: Ambil juga lampiran dari source_data parts (untuk data dari PO/Pembayaran)
+                    if (empty($lampiranPayload) && isset($partData['lampiran']) && is_array($partData['lampiran'])) {
+                        foreach ($partData['lampiran'] as $lamp) {
+                            $lampiranPayload[] = [
+                                'path' => $lamp['path'] ?? '',
+                                'name' => $lamp['name'] ?? $lamp['original_name'] ?? basename($lamp['path'] ?? ''),
+                            ];
+                        }
                     }
 
                     \App\Models\ServiceIncidentPart::create([
@@ -787,8 +801,10 @@ class PengeluaranTransferService
                     ->get();
             } else {
                 // ── Update parts yang sudah ada ──
-                // Bangun map nama_part -> biaya dari source_data (parts yang diapprove)
-                // untuk mengupdate harga terbaru yang mungkin diedit di form pembayaran sebelum approve
+                // Untuk resubmit: cari parts berdasarkan nama_part (bukan hanya persetujuan=Pending)
+                // karena parts bisa sudah punya status Disetujui/Ditolak sebelumnya
+                
+                // Bangun map nama_part -> biaya dari source_data (parts yang diapprove kali ini)
                 $sourcePartsForBiaya = !empty($approvedIndices)
                     ? array_intersect_key($allParts, array_flip($approvedIndices))
                     : $allParts;
@@ -798,21 +814,79 @@ class PengeluaranTransferService
                     $sourcePartsBiayaMap[$key] = (int)($sp['biaya'] ?? 0);
                 }
 
-                foreach ($pendingParts as $idx => $existingPart) {
-                    $originalIdx = !empty($approvedIndices) ? ($approvedIndices[$idx] ?? $idx) : $idx;
-                    $updateData = [
-                        'persetujuan' => 'Disetujui',
-                        'status'      => 'aktif', // aktif setelah diapprove pembayaran
-                    ];
-                    // Update biaya dari source_data (harga yang sudah diedit di form pembayaran)
-                    $namaKey = trim(strtolower($existingPart->nama_part ?? ''));
-                    if (isset($sourcePartsBiayaMap[$namaKey])) {
-                        $updateData['biaya'] = $sourcePartsBiayaMap[$namaKey];
+                // Jika ada pending parts, update seperti biasa
+                if ($pendingParts->isNotEmpty()) {
+                    foreach ($pendingParts as $idx => $existingPart) {
+                        $originalIdx = !empty($approvedIndices) ? ($approvedIndices[$idx] ?? $idx) : $idx;
+                        
+                        // Build lampiran dari source_data part
+                        $partDataForLampiran = $allParts[$originalIdx] ?? null;
+                        $lampiranFromSourceData = [];
+                        if ($partDataForLampiran && isset($partDataForLampiran['lampiran']) && is_array($partDataForLampiran['lampiran'])) {
+                            foreach ($partDataForLampiran['lampiran'] as $lamp) {
+                                $lampiranFromSourceData[] = [
+                                    'path' => $lamp['path'] ?? '',
+                                    'name' => $lamp['name'] ?? $lamp['original_name'] ?? basename($lamp['path'] ?? ''),
+                                ];
+                            }
+                        }
+                        
+                        $updateData = [
+                            'persetujuan' => 'Disetujui',
+                            'status'      => 'aktif', // aktif setelah diapprove pembayaran
+                        ];
+                        // Update biaya dari source_data (harga yang sudah diedit di form pembayaran)
+                        $namaKey = trim(strtolower($existingPart->nama_part ?? ''));
+                        if (isset($sourcePartsBiayaMap[$namaKey])) {
+                            $updateData['biaya'] = $sourcePartsBiayaMap[$namaKey];
+                        }
+                        if (isset($buktiBayarMap[$originalIdx])) {
+                            $updateData['bukti_bayar'] = [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]];
+                        }
+                        // Update lampiran jika ada dari source_data
+                        if (!empty($lampiranFromSourceData)) {
+                            $updateData['bukti'] = $lampiranFromSourceData;
+                        }
+                        $existingPart->update($updateData);
                     }
-                    if (isset($buktiBayarMap[$originalIdx])) {
-                        $updateData['bukti_bayar'] = [['path' => $buktiBayarMap[$originalIdx], 'name' => basename($buktiBayarMap[$originalIdx])]];
+                } else {
+                    // Resubmit case: tidak ada pending parts, tapi ada parts yang perlu diupdate
+                    // Match berdasarkan nama_part dari source_data yang diapprove
+                    foreach ($sourcePartsForBiaya as $origIdx => $sp) {
+                        $namaPart = trim($sp['nama_part'] ?? '');
+                        $existingPart = $incident->parts()
+                            ->where('nama_part', $namaPart)
+                            ->where('purchase_order_id', $poTerkait?->id)
+                            ->first();
+                        
+                        if ($existingPart) {
+                            // Build lampiran dari source_data
+                            $lampiranFromSourceData = [];
+                            if (isset($sp['lampiran']) && is_array($sp['lampiran'])) {
+                                foreach ($sp['lampiran'] as $lamp) {
+                                    $lampiranFromSourceData[] = [
+                                        'path' => $lamp['path'] ?? '',
+                                        'name' => $lamp['name'] ?? $lamp['original_name'] ?? basename($lamp['path'] ?? ''),
+                                    ];
+                                }
+                            }
+                            
+                            // Update part yang ketemu
+                            $updateData = [
+                                'persetujuan' => 'Disetujui',
+                                'status'      => 'aktif',
+                                'biaya'       => (int)($sp['biaya'] ?? 0),
+                            ];
+                            if (isset($buktiBayarMap[$origIdx])) {
+                                $updateData['bukti_bayar'] = [['path' => $buktiBayarMap[$origIdx], 'name' => basename($buktiBayarMap[$origIdx])]];
+                            }
+                            // Update lampiran jika ada
+                            if (!empty($lampiranFromSourceData)) {
+                                $updateData['bukti'] = $lampiranFromSourceData;
+                            }
+                            $existingPart->update($updateData);
+                        }
                     }
-                    $existingPart->update($updateData);
                 }
             }
 
@@ -826,22 +900,47 @@ class PengeluaranTransferService
 
             // Catat cashflow per part yang baru disetujui saja
             // (refresh dari DB agar biaya yang baru dipakai)
+            // PENTING: Hanya catat cashflow untuk parts yang BARU diapprove pada siklus ini
+            // Hindari double-entry untuk parts yang sudah approved sebelumnya
             $kendaraanForFinance = $kendaraan;
-            $pendingParts->each(function ($existingPart) use ($kendaraanForFinance, $pembayaran) {
-                $existingPart->refresh(); // ambil biaya terbaru dari DB
-                $biaya         = (int)($existingPart->biaya ?? 0);
-                $categoryId    = $existingPart->category_id ?? null;
-                $categoryModel = $categoryId ? \App\Models\ServiceCategory::find($categoryId) : null;
-                $namaKategori   = $categoryModel->nama ?? $existingPart->nama_part ?? '-';
-                $nopolKendaraan = $kendaraanForFinance->nopol ?? '-';
-                $merkKendaraan  = $kendaraanForFinance->merk  ?? '-';
+            
+            // Ambil parts yang baru disetujui: cari berdasarkan nama_part yang ada di source_data approved
+            $approvedPartNames = collect($sourcePartsForBiaya)->pluck('nama_part')->map(fn($n) => trim($n))->all();
+            
+            $incident->parts()
+                ->whereIn('nama_part', $approvedPartNames)
+                ->where('persetujuan', 'Disetujui')
+                ->where(function ($q) use ($poTerkait) {
+                    if ($poTerkait) {
+                        $q->where('purchase_order_id', $poTerkait->id);
+                    }
+                })
+                ->each(function ($existingPart) use ($kendaraanForFinance, $pembayaran) {
+                    // Cek apakah cashflow untuk part ini sudah pernah dicatat sebelumnya
+                    // Jika ada Keuangan dengan source_type=INC dan source_id=part.id, skip
+                    $alreadyRecorded = \App\Models\Keuangan::where('source_type', 'INC')
+                        ->where('source_id', $existingPart->id)
+                        ->exists();
+                    
+                    if ($alreadyRecorded) {
+                        \Log::info("Skipping cashflow for ServiceIncidentPart #{$existingPart->id} - already recorded");
+                        return; // skip, sudah dicatat sebelumnya
+                    }
+                    
+                    $existingPart->refresh(); // ambil biaya terbaru dari DB
+                    $biaya         = (int)($existingPart->biaya ?? 0);
+                    $categoryId    = $existingPart->category_id ?? null;
+                    $categoryModel = $categoryId ? \App\Models\ServiceCategory::find($categoryId) : null;
+                    $namaKategori   = $categoryModel->nama ?? $existingPart->nama_part ?? '-';
+                    $nopolKendaraan = $kendaraanForFinance->nopol ?? '-';
+                    $merkKendaraan  = $kendaraanForFinance->merk  ?? '-';
 
-                $this->createKeuanganRecord('INC', $existingPart->id, $biaya,
-                    'Service Insiden: ' . $namaKategori . ' ' . $merkKendaraan . ' ' . $nopolKendaraan);
-                $this->createBukubesarRecord('INC', $existingPart->id, $biaya,
-                    'Beban Service Incident: ' . $namaKategori . ' ' . $merkKendaraan . ' ' . $nopolKendaraan,
-                    'Auto-posting: Service incident ' . $namaKategori . ' ' . $nopolKendaraan . ' via pembayaran #' . $pembayaran->id);
-            });
+                    $this->createKeuanganRecord('INC', $existingPart->id, $biaya,
+                        'Service Insiden: ' . $namaKategori . ' ' . $merkKendaraan . ' ' . $nopolKendaraan);
+                    $this->createBukubesarRecord('INC', $existingPart->id, $biaya,
+                        'Beban Service Incident: ' . $namaKategori . ' ' . $merkKendaraan . ' ' . $nopolKendaraan,
+                        'Auto-posting: Service incident ' . $namaKategori . ' ' . $nopolKendaraan . ' via pembayaran #' . $pembayaran->id);
+                });
         } else {
             // Fallback: buat baru jika tidak ada existing (seharusnya tidak terjadi)
             $incident = \App\Models\ServiceIncident::create([
