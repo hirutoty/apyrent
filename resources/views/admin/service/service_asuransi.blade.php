@@ -165,6 +165,7 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Biaya</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Status</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Persetujuan</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Status Kendaraan</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Aksi</th>
                         </tr>
                     </thead>
@@ -358,11 +359,48 @@
                                         @endif
                                     </td>
 
-
-                                    
+                                    {{-- STATUS KENDARAAN --}}
+                                    <td class="px-5 py-4 whitespace-nowrap">
+                                        @php $sk = $d->kendaraan->status_kendaraan ?? null; @endphp
+                                        @if($sk === 'bermasalah')
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                                Bermasalah
+                                            </span>
+                                        @elseif($sk === 'tersedia')
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                Tersedia
+                                            </span>
+                                        @elseif($sk === 'disewa')
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                                Disewa
+                                            </span>
+                                        @elseif($sk === 'service')
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                Service
+                                            </span>
+                                        @else
+                                            <span class="text-gray-300 text-xs">—</span>
+                                        @endif
+                                    </td>
 
                                     {{-- AKSI --}}
                                     <td class="px-5 py-4" onclick="event.stopPropagation()">
+                                            {{-- Tandai Tersedia: hanya jika status kendaraan = bermasalah --}}
+                                            @if(($d->kendaraan->status_kendaraan ?? null) === 'bermasalah')
+                                            <form action="{{ route('service-asuransi.reset-status-kendaraan', $d->id) }}" method="POST"
+                                                onsubmit="return confirm('Tandai kendaraan {{ addslashes($d->kendaraan->nopol ?? '') }} sebagai Tersedia?')" class="inline">
+                                                @csrf
+                                                <button type="submit"
+                                                    class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
+                                                    <i class="fa fa-circle-check text-xs"></i> Tandai Tersedia
+                                                </button>
+                                            </form>
+                                            @endif
+
                                             {{-- Ajukan Ulang: hanya untuk Ditolak di Pembayaran --}}
                                             @if($d->persetujuan === 'Ditolak' && $d->pembayaran_id)
                                             <button type="button"

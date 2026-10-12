@@ -2020,6 +2020,13 @@ class PengeluaranTransferService
             ->sum('biaya');
         $serviceAsuransi->update(['biaya' => (int) $totalBiayaFinal]);
 
+        // ── Update status_kendaraan = bermasalah saat pembayaran service asuransi disetujui ──
+        // Kendaraan yang mengajukan service asuransi otomatis ditandai bermasalah.
+        // Admin dapat mereset ke 'tersedia' secara manual via tombol di halaman service asuransi.
+        if ($kendaraan && $kendaraan->status_kendaraan !== 'bermasalah') {
+            $kendaraan->update(['status_kendaraan' => 'bermasalah']);
+        }
+
         // Copy attachments tambahan (jika ada dari approval)
         $this->copyAttachmentsToFinalStorage(
             $approvalFiles['attachments'] ?? [],

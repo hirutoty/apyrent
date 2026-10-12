@@ -991,9 +991,27 @@ class ServiceHistoryController extends Controller
                     }
                 }
 
-                $updateKendaraan = [
-                    'status_kendaraan' => $request->status === 'proses' ? 'service' : 'tersedia',
-                ];
+                $updateKendaraan = [];
+
+                // ── Status kendaraan otomatis berdasarkan sisa part 'aktif' ──────────
+                // Part 'aktif' = sudah disetujui pembayaran tapi belum dipasang secara fisik.
+                // Jika tidak ada lagi part aktif di kendaraan ini → semua sudah Terpasang → tersedia.
+                // Guard: jangan ubah jika kendaraan sedang 'disewa' atau 'bermasalah'.
+                $kendaraan->refresh(); // ambil status terbaru setelah parts di-replace
+                if (!in_array($kendaraan->status_kendaraan, ['disewa', 'bermasalah'])) {
+                    $adaPartAktif = \App\Models\ServicePart::where('kendaraan_id', $kendaraan->id)
+                        ->where('status', 'aktif')
+                        ->exists();
+
+                    if ($adaPartAktif) {
+                        // Masih ada part yang belum dipasang → tetap service
+                        $updateKendaraan['status_kendaraan'] = 'service';
+                    } else {
+                        // Semua part sudah Terpasang/Limit/Diganti → kendaraan tersedia kembali
+                        $updateKendaraan['status_kendaraan'] = 'tersedia';
+                    }
+                }
+
                 if ($request->status === 'selesai') {
                     $updateKendaraan['km_terakhir_service'] = $request->kilometer;
                     $updateKendaraan['kilometer_sekarang']  = $request->kilometer;
@@ -1001,7 +1019,9 @@ class ServiceHistoryController extends Controller
                 if ($tglTerakhirPasang) {
                     $updateKendaraan['tanggal_terakhir_service'] = $tglTerakhirPasang->toDateString();
                 }
-                $kendaraan->update($updateKendaraan);
+                if (!empty($updateKendaraan)) {
+                    $kendaraan->update($updateKendaraan);
+                }
 
                 $this->catatKeuangan($service, $kendaraan, $totalBiaya, $request->tanggal_service, true);
             });

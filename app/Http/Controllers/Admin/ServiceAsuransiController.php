@@ -486,9 +486,12 @@ class ServiceAsuransiController extends Controller
                 ->all();
 
             $newSourceData = array_merge($sourceData, [
-                'kejadians'      => $mergedKejadians,
-                'item_decisions' => $preservedItemDecisions,
-                'temp_files'     => $tempFiles,
+                'kejadians'           => $mergedKejadians,
+                'item_decisions'      => $preservedItemDecisions,
+                'temp_files'          => $tempFiles,
+                // Pastikan service_asuransi_id selalu ada di source_data Pembayaran
+                // agar showApprovalModal dapat menggunakan fallback DB filter
+                'service_asuransi_id' => $sourceData['service_asuransi_id'] ?? $data->id,
             ]);
 
             // Hitung biaya total: approved lama + yang baru diresubmit
@@ -516,9 +519,15 @@ class ServiceAsuransiController extends Controller
             // ── Sync PO terkait ─────────────────────────────────────────────
             $po = \App\Models\PurchaseOrder::where('pembayaran_id', $pembayaran->id)->first();
             if ($po) {
-                $poSourceData                   = $po->source_data ?? [];
-                $poSourceData['kejadians']       = array_values($mergedKejadians);
-                $poSourceData['item_decisions']  = $preservedItemDecisions;
+                $poSourceData                    = $po->source_data ?? [];
+                // Gunakan index asli (bukan array_values) agar index kejadian konsisten
+                // dengan item_decisions dan filter di showApprovalModal
+                $poSourceData['kejadians']        = $mergedKejadians;
+                $poSourceData['item_decisions']   = $preservedItemDecisions;
+                // Pastikan service_asuransi_id tetap ada di PO source_data
+                if (!isset($poSourceData['service_asuransi_id'])) {
+                    $poSourceData['service_asuransi_id'] = $data->id;
+                }
                 $po->update([
                     'source_data' => $poSourceData,
                     'total_harga' => $nominalTotal,
@@ -552,6 +561,38 @@ class ServiceAsuransiController extends Controller
             \Log::error('Error ajukanUlang service asuransi: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Reset status_kendaraan dari 'bermasalah' → 'tersedia' secara manual.
+     * Dipanggil via tombol "Tandai Tersedia" di halaman service asuransi.
+     */
+    public function resetStatusKendaraan($id)
+    {
+        $data      = ServiceAsuransi::with('kendaraan')->findOrFail($id);
+        $kendaraan = $data->kendaraan;
+
+        if (!$kendaraan) {
+            return back()->with('error', 'Kendaraan tidak ditemukan.');
+        }
+
+        if ($kendaraan->status_kendaraan !== 'bermasalah') {
+            return back()->with('info', 'Status kendaraan saat ini bukan Bermasalah, tidak ada perubahan.');
+        }
+
+        // Cek apakah masih ada service asuransi lain yang bermasalah pada kendaraan yang sama
+        $masihAdaBermasalah = ServiceAsuransi::where('kendaraan_id', $kendaraan->id)
+            ->where('id', '!=', $id)
+            ->where('status', 'bermasalah')
+            ->exists();
+
+        if ($masihAdaBermasalah) {
+            return back()->with('error', 'Kendaraan masih memiliki service asuransi lain yang berstatus Bermasalah. Selesaikan semua terlebih dahulu.');
+        }
+
+        $kendaraan->update(['status_kendaraan' => 'tersedia']);
+
+        return back()->with('success', 'Status kendaraan ' . ($kendaraan->nopol ?? '') . ' berhasil diubah menjadi Tersedia.');
     }
 
     public function updateStatus(Request $request, $id)

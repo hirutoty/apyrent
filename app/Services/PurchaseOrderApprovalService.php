@@ -131,10 +131,24 @@ class PurchaseOrderApprovalService
         $sourceDataForPembayaran = $approvedSourceData;
         unset($sourceDataForPembayaran['item_decisions']);
 
+        // ── Inject linked record IDs dari PO ke source_data Pembayaran ──────────
+        // service_asuransi_id dan service_incident_id hanya ada di PO source_data,
+        // tapi dibutuhkan oleh showApprovalModal (fallback DB filter) dan
+        // transferServiceAsuransi/Incident (lookup record lama). Inject di sini agar
+        // Pembayaran selalu membawa referensi ke record yang benar.
+        $poSourceDataForInject = $po->source_data ?? [];
+        if ($sourceType === 'service_asuransi' && !empty($poSourceDataForInject['service_asuransi_id'])) {
+            $sourceDataForPembayaran['service_asuransi_id'] = $poSourceDataForInject['service_asuransi_id'];
+        }
+        if ($sourceType === 'service_incident' && !empty($poSourceDataForInject['service_incident_id'])) {
+            $sourceDataForPembayaran['service_incident_id'] = $poSourceDataForInject['service_incident_id'];
+        }
+
         // ── Jika PO sudah punya Pembayaran (resubmit partial round ke-2+), UPDATE PR lama ──
-        // Berlaku untuk service_part dan service_incident — source type yang mendukung
-        // multi-round partial approval. Source type lain (GPS, pajak, asuransi, KIR, STNK)
-        // selalu buat Pembayaran baru karena tidak punya skenario reuse PR.
+        // Berlaku untuk service_part dan service_incident saja.
+        // service_asuransi selalu buat Pembayaran baru per round agar setiap batch
+        // kejadian punya PR sendiri — penggabungan ke 1 row dilakukan di view service_asuransi,
+        // bukan di level Pembayaran.
         $existingPembayaran = null;
         if (
             in_array($sourceType, ['service_part', 'service_incident'])
@@ -145,8 +159,8 @@ class PurchaseOrderApprovalService
 
         if ($existingPembayaran) {
             // ── UPDATE Pembayaran lama ──────────────────────────────────────
-            // Merge parts baru yang approved ke dalam source_data yang sudah ada.
-            // Parts lama (yang sudah approved sebelumnya) tetap dipertahankan.
+            // Merge items baru yang approved ke dalam source_data yang sudah ada.
+            // Items lama (yang sudah approved sebelumnya) tetap dipertahankan.
             $existingSourceData = $existingPembayaran->source_data ?? [];
 
             // Gabungkan parts: pakai index original dari approvedSourceData agar
@@ -157,7 +171,6 @@ class PurchaseOrderApprovalService
                 unset($part['status_approval'], $part['catatan_penolakan']);
                 $existingParts[$idx] = $part;
             }
-
             $existingSourceData['parts'] = $existingParts;
 
             // Nominal: akumulasi dari semua parts yang ada di PR (approved lama + approved baru)
@@ -381,14 +394,20 @@ class PurchaseOrderApprovalService
                 unset($newData['gps_record_ids']);
             }
 
-            // ── Preserve locked_approved_idx dari partial approval sebelumnya ──────────
-            // Saat PO partial approved → resubmit, locked_approved_idx harus tetap ada
-            // agar items yang sudah approved tidak muncul lagi di approval modal berikutnya.
+            // ── Preserve locked_approved_idx dan linked record IDs dari partial approval sebelumnya ──
+            // Saat PO partial approved → resubmit, field-field berikut harus tetap ada:
+            // - locked_approved_idx   : agar items yang sudah approved tidak muncul lagi di approval modal
+            // - service_asuransi_id   : agar updateLinkedRecord tidak buat record ServiceAsuransi baru
+            // - service_incident_id   : agar updateLinkedRecord tidak buat record ServiceIncident baru
+            // item_decisions di-clear karena cycle approval baru dimulai
             $oldSourceData = $po->source_data ?? [];
             $preservedFields = [
-                'locked_approved_idx' => $oldSourceData['locked_approved_idx'] ?? [],
-                // item_decisions di-clear karena cycle approval baru dimulai
+                'locked_approved_idx'  => $oldSourceData['locked_approved_idx'] ?? [],
+                'service_asuransi_id'  => $oldSourceData['service_asuransi_id'] ?? null,
+                'service_incident_id'  => $oldSourceData['service_incident_id'] ?? null,
             ];
+            // Hapus null values agar tidak mengotori source_data dengan key kosong
+            $preservedFields = array_filter($preservedFields, fn($v) => $v !== null);
 
             // Update PO dengan data baru + preserve locked items
             $po->update([

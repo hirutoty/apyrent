@@ -655,6 +655,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
       ->name('service-asuransi.ajukan-ulang');
   Route::post('service-asuransi/{id}/ajukan-ulang-submit', [ServiceAsuransiController::class, 'ajukanUlangSubmit'])
       ->name('service-asuransi.ajukan-ulang-submit');
+  Route::post('service-asuransi/{id}/reset-status-kendaraan', [ServiceAsuransiController::class, 'resetStatusKendaraan'])
+      ->name('service-asuransi.reset-status-kendaraan');
 
   // Reminder Service
   Route::resource('reminder-service', ReminderServiceController::class);

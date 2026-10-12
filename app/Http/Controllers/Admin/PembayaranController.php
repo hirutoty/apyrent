@@ -1369,6 +1369,17 @@ class PembayaranController extends Controller
                 ]);
             }
 
+            // ── Update status kendaraan → 'service' saat pembayaran disetujui ──
+            // Guard: jangan ubah jika kendaraan sedang disewa atau bermasalah
+            $kendaraanIdSvc = $pembayaran->kendaraan_id
+                ?? ($pembayaran->source_data['kendaraan_id'] ?? null);
+            if ($kendaraanIdSvc) {
+                $kendaraanService = \App\Models\Kendaraan::find($kendaraanIdSvc);
+                if ($kendaraanService && !in_array($kendaraanService->status_kendaraan, ['disewa', 'bermasalah'])) {
+                    $kendaraanService->update(['status_kendaraan' => 'service']);
+                }
+            }
+
             // (kilometer kendaraan diupdate saat tombol Terpasang diklik)
 
             // ── Recalculate keterangan_limit untuk parts yang baru diaktifkan ──
@@ -2766,6 +2777,19 @@ class PembayaranController extends Controller
                     ->whereNotIn('persetujuan', ['Ditolak Pembayaran'])
                     ->sum('biaya');
                 $sh->update(['total_biaya' => $totalBiayaBaru]);
+            }
+
+            // ── Update status kendaraan → 'service' saat ada part yang diapprove ──
+            // Guard: jangan ubah jika kendaraan sedang disewa atau bermasalah
+            if (!empty($approvedItems)) {
+                $kendaraanIdSvc = $pembayaran->kendaraan_id
+                    ?? ($pembayaran->source_data['kendaraan_id'] ?? null);
+                if ($kendaraanIdSvc) {
+                    $kendaraanSvc = \App\Models\Kendaraan::find($kendaraanIdSvc);
+                    if ($kendaraanSvc && !in_array($kendaraanSvc->status_kendaraan, ['disewa', 'bermasalah'])) {
+                        $kendaraanSvc->update(['status_kendaraan' => 'service']);
+                    }
+                }
             }
 
             DB::commit();
