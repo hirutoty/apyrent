@@ -204,6 +204,7 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Tgl Pasang</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Status</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Persetujuan</th>
+                                                    <th class="text-left px-3 py-2 font-semibold min-w-[100px]">Tgl Approval</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Info Pembayaran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Lampiran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Bukti Bayar</th>
@@ -281,6 +282,16 @@
                                                                 </span>
                                                             @else
                                                                 <span class="text-gray-300">—</span>
+                                                            @endif
+                                                        </td>
+                                                        {{-- Tanggal Approval --}}
+                                                        <td class="px-3 py-2">
+                                                            @if($part->tanggal_approval)
+                                                                <span class="text-xs text-green-600 font-medium">
+                                                                    {{ \Carbon\Carbon::parse($part->tanggal_approval)->format('d M Y H:i') }}
+                                                                </span>
+                                                            @else
+                                                                <span class="text-gray-300 text-xs">—</span>
                                                             @endif
                                                         </td>
                                                         {{-- Info Pembayaran --}}
@@ -399,7 +410,7 @@
                                             </tbody>
                                             <tfoot>
                                                 <tr class="bg-orange-50 border-t-2 border-orange-200">
-                                                    <td colspan="14" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
+                                                    <td colspan="15" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
                                                     <td class="px-3 py-2 text-right text-xs font-bold text-emerald-700">
                                                         Rp {{ number_format($d->parts->sum('biaya'), 0, ',', '.') }}
                                                     </td>

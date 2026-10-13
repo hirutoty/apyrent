@@ -42,12 +42,73 @@ class ServiceAsuransiController extends Controller
             });
         }
 
-        // Filter status
+        // Filter status - BEFORE grouping untuk filter by individual record status
+        $statusFilter = null;
         if ($request->filled('status') && in_array($request->status, ['bermasalah', 'selesai', 'tidak_aktif'])) {
-            $query->where('status', $request->status);
+            $statusFilter = $request->status;
+            $query->where('status', $statusFilter);
         }
 
-        $data = $query->paginate(15)->withQueryString();
+        // Fetch all matching records (belum paginate)
+        $allRecords = $query->get();
+
+        // ── GROUP BY: kendaraan_id + nama_asuransi + jenis_asuransi_id ──────
+        $grouped = $allRecords->groupBy(function ($item) {
+            return implode('|', [
+                $item->kendaraan_id,
+                $item->nama_asuransi ?? '',
+                $item->jenis_asuransi_id ?? '',
+            ]);
+        });
+
+        // ── MERGE: Aggregate kejadians, status priority, etc ─────────────────
+        $mergedData = $grouped->map(function ($group) {
+            // Ambil record pertama sebagai base (latest)
+            $base = $group->first();
+            
+            // Aggregate semua kejadian dari semua records dalam group
+            $allKejadians = $group->flatMap(fn($record) => $record->kejadians);
+            
+            // Status priority: bermasalah > tidak_aktif > selesai
+            $hasBermasalah = $group->contains('status', 'bermasalah');
+            $hasTidakAktif = $group->contains('status', 'tidak_aktif');
+            $mergedStatus  = $hasBermasalah ? 'bermasalah' : ($hasTidakAktif ? 'tidak_aktif' : 'selesai');
+            
+            // Persetujuan: priority Disetujui > Diajukan ke Pembayaran > others
+            $persetujuanList = $group->pluck('persetujuan')->filter()->unique();
+            $mergedPersetujuan = $persetujuanList->contains('Disetujui') 
+                ? 'Disetujui' 
+                : ($persetujuanList->contains('Diajukan ke Pembayaran') ? 'Diajukan ke Pembayaran' : $base->persetujuan);
+            
+            // Create merged object (use base as template, override with merged data)
+            $merged = clone $base;
+            $merged->status = $mergedStatus;
+            $merged->persetujuan = $mergedPersetujuan;
+            
+            // Replace kejadians relation with merged collection
+            $merged->setRelation('kejadians', $allKejadians);
+            
+            // Store original records for per-kejadian actions (disimpan sebagai custom attribute)
+            $merged->original_records = $group;
+            
+            return $merged;
+        })->values(); // Reset keys to 0,1,2...
+
+        // ── PAGINATION: Manual pagination after grouping ──────────────────────
+        $perPage     = 15;
+        $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage('page');
+        $currentItems = $mergedData->slice(($currentPage - 1) * $perPage, $perPage)->values();
+        
+        $data = new \Illuminate\Pagination\LengthAwarePaginator(
+            $currentItems,
+            $mergedData->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path'  => \Illuminate\Pagination\Paginator::resolveCurrentPath(),
+                'query' => $request->query(),
+            ]
+        );
 
         // Hitung jumlah & total nominal pengajuan yang ditolak di level PO
         $poDitolak     = PurchaseOrder::where('source_type', 'service_asuransi')
@@ -83,13 +144,13 @@ class ServiceAsuransiController extends Controller
             'kendaraan_id'                  => 'required|exists:kendaraan,id',
             'nama_asuransi'                 => 'nullable|string|max:255',
             'jenis_asuransi_id'             => 'nullable|exists:jenis_asuransi,id',
-            'tanggal_service'               => 'required|date',
-            'periode_mulai'                 => 'nullable|date',
-            'periode_selesai'               => 'nullable|date|after_or_equal:periode_mulai',
             'kilometer'                     => 'required|numeric',
             'biaya'                         => 'nullable|numeric',
             'kejadians'                     => 'required|array|min:1',
             'kejadians.*.nama_kejadian'     => 'required|string|max:255',
+            'kejadians.*.tanggal'           => 'required|date',
+            'kejadians.*.periode_mulai'     => 'nullable|date',
+            'kejadians.*.periode_selesai'   => 'nullable|date|after_or_equal:kejadians.*.periode_mulai',
             'kejadians.*.biaya'             => 'nullable|integer|min:0',
             'kejadians.*.lampiran'          => 'required|array|min:1',
             'kejadians.*.lampiran.*'        => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
@@ -152,9 +213,13 @@ class ServiceAsuransiController extends Controller
                     }
                 }
                 $kejadiansMeta[] = [
-                    'nama_kejadian' => $kej['nama_kejadian'] ?? '',
-                    'biaya'         => (int) ($kej['biaya'] ?? 0),
-                    'lampiran'      => $lampiranPaths,
+                    'nama_kejadian'  => $kej['nama_kejadian'] ?? '',
+                    'biaya'          => (int) ($kej['biaya'] ?? 0),
+                    'lampiran'       => $lampiranPaths,
+                    // Date fields: tanggal, periode_mulai, periode_selesai per kejadian
+                    'tanggal'        => $kej['tanggal'] ?? null,
+                    'periode_mulai'  => $kej['periode_mulai'] ?? null,
+                    'periode_selesai'=> $kej['periode_selesai'] ?? null,
                 ];
             }
 
@@ -180,48 +245,96 @@ class ServiceAsuransiController extends Controller
         $data = ServiceAsuransi::findOrFail($id);
 
         $request->validate([
-            'kendaraan_id'      => 'required|exists:kendaraan,id',
-            'nama_asuransi'     => 'nullable|string|max:255',
-            'jenis_asuransi_id' => 'nullable|exists:jenis_asuransi,id',
-            'tanggal_service'   => 'required|date',
-            'periode_mulai'     => 'nullable|date',
-            'periode_selesai'   => 'nullable|date|after_or_equal:periode_mulai',
-            'kilometer'         => 'required|numeric',
-            'biaya'             => 'nullable|numeric',
+            'kendaraan_id'                  => 'required|exists:kendaraan,id',
+            'nama_asuransi'                 => 'nullable|string|max:255',
+            'jenis_asuransi_id'             => 'nullable|exists:jenis_asuransi,id',
+            'kilometer'                     => 'required|numeric',
+            'kejadians'                     => 'required|array|min:1',
+            'kejadians.*.nama_kejadian'     => 'required|string|max:255',
+            'kejadians.*.tanggal'           => 'required|date',
+            'kejadians.*.periode_mulai'     => 'nullable|date',
+            'kejadians.*.periode_selesai'   => 'nullable|date|after_or_equal:kejadians.*.periode_mulai',
+            'kejadians.*.biaya'             => 'nullable|integer|min:0',
         ]);
 
-        $buktiLama      = $this->normalizeFileArray($data->getRawOriginal('bukti'));
-        $attachmentLama = $this->normalizeFileArray($data->getRawOriginal('attachment'));
+        try {
+            // Regenerate keterangan slug jika kendaraan berubah
+            $kendaraan  = Kendaraan::findOrFail($request->kendaraan_id);
+            $keterangan = 'servis asuransi-' . $kendaraan->nopol;
 
-        $buktiFiles      = $this->uploadBuktiFiles($request);
-        $attachmentFiles = $this->uploadAttachmentFiles($request);
+            // Hitung total biaya dari kejadian
+            $biayaTotal = 0;
+            foreach (($request->kejadians ?? []) as $kej) {
+                $biayaTotal += (int) ($kej['biaya'] ?? 0);
+            }
 
-        $buktiList      = array_merge($buktiLama,      $buktiFiles);
-        $attachmentList = array_merge($attachmentLama, $attachmentFiles);
+            // Update service asuransi header
+            $data->update([
+                'kendaraan_id'      => $request->kendaraan_id,
+                'nama_asuransi'     => $request->nama_asuransi ?: null,
+                'jenis_asuransi_id' => $request->jenis_asuransi_id ?: null,
+                'kilometer'         => $request->kilometer,
+                'biaya'             => $biayaTotal,
+                'keterangan'        => $keterangan,
+            ]);
 
-        // Regenerate keterangan slug jika kendaraan berubah
-        $kendaraan  = Kendaraan::findOrFail($request->kendaraan_id);
-        $keterangan = 'servis asuransi-' . $kendaraan->nopol;
+            // Delete existing kejadians
+            \App\Models\ServiceAsuransiKejadian::where('service_asuransi_id', $id)->delete();
 
-        // CATATAN: field 'biaya' TIDAK diupdate di sini.
-        // Biaya (total biaya kejadian) hanya diperbarui secara otomatis saat keuangan
-        // approve pembayaran — via transferServiceAsuransi() yang menjumlahkan dari
-        // tabel service_asuransi_kejadians. Mengedit langsung di sini akan melewati
-        // alur approval dan menyebabkan inkonsistensi data.
-        $data->update([
-            'kendaraan_id'      => $request->kendaraan_id,
-            'nama_asuransi'     => $request->nama_asuransi ?: null,
-            'jenis_asuransi_id' => $request->jenis_asuransi_id ?: null,
-            'tanggal_service'   => $request->tanggal_service,
-            'periode_mulai'     => $request->periode_mulai,
-            'periode_selesai'   => $request->periode_selesai,
-            'kilometer'         => $request->kilometer,
-            'keterangan'        => $keterangan,
-            'bukti'             => !empty($buktiList)      ? $buktiList      : null,
-            'attachment'        => !empty($attachmentList) ? $attachmentList : null,
-        ]);
+            // Recreate kejadians with new data
+            foreach ($request->kejadians as $idx => $kej) {
+                $lampiranPaths = [];
 
-        return back()->with('success', 'Data berhasil diupdate');
+                // Handle existing lampiran (lampiran_lama)
+                if (!empty($kej['lampiran_lama'])) {
+                    foreach ($kej['lampiran_lama'] as $lf) {
+                        if (!empty($lf['path'])) {
+                            $lampiranPaths[] = [
+                                'path'          => $lf['path'],
+                                'original_name' => $lf['original_name'] ?? basename($lf['path']),
+                                'extension'     => $lf['extension'] ?? pathinfo($lf['path'], PATHINFO_EXTENSION),
+                                'size'          => (int)($lf['size'] ?? 0),
+                            ];
+                        }
+                    }
+                }
+
+                // Handle new uploaded lampiran
+                $fileKey = "kejadians.{$idx}.lampiran";
+                if ($request->hasFile($fileKey)) {
+                    $files = $request->file($fileKey);
+                    if (!is_array($files)) $files = [$files];
+                    foreach ($files as $file) {
+                        if (!$file->isValid()) continue;
+                        $path = $file->store('service-asuransi-kejadian', 'public');
+                        $lampiranPaths[] = [
+                            'path'          => $path,
+                            'original_name' => $file->getClientOriginalName(),
+                            'size'          => $file->getSize(),
+                            'extension'     => $file->getClientOriginalExtension(),
+                        ];
+                    }
+                }
+
+                // Create kejadian with tanggal, periode, and updated lampiran
+                \App\Models\ServiceAsuransiKejadian::create([
+                    'service_asuransi_id' => $id,
+                    'nama_kejadian'       => $kej['nama_kejadian'],
+                    'biaya'               => (int)($kej['biaya'] ?? 0),
+                    'tanggal'             => $kej['tanggal'],
+                    'periode_mulai'       => $kej['periode_mulai'] ?? null,
+                    'periode_selesai'     => $kej['periode_selesai'] ?? null,
+                    'lampiran'            => !empty($lampiranPaths) ? $lampiranPaths : null,
+                    'status'              => $kej['status'] ?? 'diajukan',
+                ]);
+            }
+
+            return back()->with('success', 'Data berhasil diupdate');
+
+        } catch (\Exception $e) {
+            \Log::error('Error updating service asuransi: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Terjadi kesalahan saat mengupdate. Silakan coba lagi.');
+        }
     }
 
     public function destroy($id)
@@ -348,6 +461,9 @@ class ServiceAsuransiController extends Controller
                 'id'                => $kej->id,
                 'nama_kejadian'     => $kej->nama_kejadian,
                 'biaya'             => $kej->biaya,
+                'tanggal'           => $kej->tanggal,
+                'periode_mulai'     => $kej->periode_mulai,
+                'periode_selesai'   => $kej->periode_selesai,
                 'lampiran_existing' => $buildLampiran($kej->lampiran ?? [], $tempKejFiles),
             ];
         })->values();
@@ -361,6 +477,9 @@ class ServiceAsuransiController extends Controller
                     'id'                => null,
                     'nama_kejadian'     => $kej['nama_kejadian'] ?? '',
                     'biaya'             => (int)($kej['biaya'] ?? 0),
+                    'tanggal'           => $kej['tanggal'] ?? null,
+                    'periode_mulai'     => $kej['periode_mulai'] ?? null,
+                    'periode_selesai'   => $kej['periode_selesai'] ?? null,
                     'lampiran_existing' => $buildLampiran($lampiranModel, $tempKejFiles),
                 ];
             })->values();
@@ -444,9 +563,12 @@ class ServiceAsuransiController extends Controller
                 ));
                 $newLampiran = $tempFiles['kejadians'][$idx] ?? [];
                 return [
-                    'nama_kejadian' => $kej['nama_kejadian'] ?? '',
-                    'biaya'         => (int)($kej['biaya'] ?? 0),
-                    'lampiran'      => array_merge($lampiranLama, $newLampiran),
+                    'nama_kejadian'  => $kej['nama_kejadian'] ?? '',
+                    'biaya'          => (int)($kej['biaya'] ?? 0),
+                    'lampiran'       => array_merge($lampiranLama, $newLampiran),
+                    'tanggal'        => $kej['tanggal'] ?? null,
+                    'periode_mulai'  => $kej['periode_mulai'] ?? null,
+                    'periode_selesai'=> $kej['periode_selesai'] ?? null,
                 ];
             }, $kejadians, array_keys($kejadians));
 
@@ -547,6 +669,9 @@ class ServiceAsuransiController extends Controller
                     'biaya'               => (int)($kej['biaya'] ?? 0),
                     'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
                     'status'              => 'diajukan',
+                    'tanggal'             => $kej['tanggal'] ?? null,
+                    'periode_mulai'       => $kej['periode_mulai'] ?? null,
+                    'periode_selesai'     => $kej['periode_selesai'] ?? null,
                 ]);
             }
 

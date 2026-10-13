@@ -352,7 +352,11 @@ class PengeluaranTransferService
                 $draftByPembayaran->parts()
                     ->whereIn('status', ['tidak_aktif'])
                     ->each(function ($part) use ($sourcePartBiayaMap) {
-                        $updateData = ['status' => 'aktif', 'persetujuan' => 'Disetujui'];
+                        $updateData = [
+                            'status'            => 'aktif',
+                            'persetujuan'       => 'Disetujui',
+                            'tanggal_approval'  => now(),
+                        ];
                         // Update biaya dari source_data (harga yang sudah diedit di form pembayaran)
                         $namaKey = trim(strtolower($part->nama_part ?? ''));
                         if (isset($sourcePartBiayaMap[$namaKey])) {
@@ -377,7 +381,11 @@ class PengeluaranTransferService
                     ->each(function ($part) use ($approvedSourceParts, $rejectedSourceParts, $approvedSourcePartsWithBiaya) {
                         $key = trim(strtolower($part->nama_part ?? '')) . '||' . ((int)($part->biaya ?? 0));
                         if (isset($approvedSourceParts[$key])) {
-                            $updateData = ['status' => 'aktif', 'persetujuan' => 'Disetujui'];
+                            $updateData = [
+                                'status'            => 'aktif',
+                                'persetujuan'       => 'Disetujui',
+                                'tanggal_approval'  => now(),
+                            ];
                             // Update biaya dari source_data (harga terbaru yang diapprove)
                             if (isset($approvedSourcePartsWithBiaya[$key])) {
                                 $updateData['biaya'] = $approvedSourcePartsWithBiaya[$key];
@@ -540,6 +548,7 @@ class PengeluaranTransferService
                 'approval_by'         => auth()->id(),
                 'approval_at'         => now(),
                 'persetujuan'         => 'Disetujui',
+                'tanggal_approval'    => now(),
             ]);
 
             // ── Tandai part lama sebagai Diganti jika ini dari Ganti Baru ────
@@ -785,6 +794,7 @@ class PengeluaranTransferService
                         'nama_rekening'       => $partData['nama_rekening'] ?? null,
                         'biaya'               => (int)($partData['biaya'] ?? 0),
                         'persetujuan'         => 'Disetujui',
+                        'tanggal_approval'    => now(),
                         'status'              => 'aktif',
                         'bukti_bayar'         => $buktiPayload,
                         'bukti'               => !empty($lampiranPayload) ? $lampiranPayload : null,
@@ -832,8 +842,9 @@ class PengeluaranTransferService
                         }
                         
                         $updateData = [
-                            'persetujuan' => 'Disetujui',
-                            'status'      => 'aktif', // aktif setelah diapprove pembayaran
+                            'persetujuan'       => 'Disetujui',
+                            'tanggal_approval'  => now(),
+                            'status'            => 'aktif', // aktif setelah diapprove pembayaran
                         ];
                         // Update biaya dari source_data (harga yang sudah diedit di form pembayaran)
                         $namaKey = trim(strtolower($existingPart->nama_part ?? ''));
@@ -873,9 +884,10 @@ class PengeluaranTransferService
                             
                             // Update part yang ketemu
                             $updateData = [
-                                'persetujuan' => 'Disetujui',
-                                'status'      => 'aktif',
-                                'biaya'       => (int)($sp['biaya'] ?? 0),
+                                'persetujuan'       => 'Disetujui',
+                                'tanggal_approval'  => now(),
+                                'status'            => 'aktif',
+                                'biaya'             => (int)($sp['biaya'] ?? 0),
                             ];
                             if (isset($buktiBayarMap[$origIdx])) {
                                 $updateData['bukti_bayar'] = [['path' => $buktiBayarMap[$origIdx], 'name' => basename($buktiBayarMap[$origIdx])]];
@@ -1946,6 +1958,9 @@ class PengeluaranTransferService
                 if ($existingKej) {
                     $existingKej->update([
                         'status'             => 'ditolak',
+                        'tanggal'            => $kej['tanggal'] ?? $existingKej->tanggal ?? $sourceData['tanggal_service'] ?? now()->toDateString(),
+                        'periode_mulai'      => $kej['periode_mulai'] ?? $existingKej->periode_mulai ?? $sourceData['periode_mulai'] ?? null,
+                        'periode_selesai'    => $kej['periode_selesai'] ?? $existingKej->periode_selesai ?? $sourceData['periode_selesai'] ?? null,
                         'catatan_penolakan'  => $catatanTolak,
                         'bukti_bayar'        => null,
                     ]);
@@ -1955,6 +1970,9 @@ class PengeluaranTransferService
                     \App\Models\ServiceAsuransiKejadian::create([
                         'service_asuransi_id' => $serviceAsuransi->id,
                         'nama_kejadian'        => $kej['nama_kejadian'] ?? '-',
+                        'tanggal'              => $kej['tanggal'] ?? $sourceData['tanggal_service'] ?? now()->toDateString(),
+                        'periode_mulai'        => $kej['periode_mulai'] ?? $sourceData['periode_mulai'] ?? null,
+                        'periode_selesai'      => $kej['periode_selesai'] ?? $sourceData['periode_selesai'] ?? null,
                         'biaya'                => (int)($kej['biaya'] ?? 0),
                         'lampiran'             => !empty($lampiranFinal) ? $lampiranFinal : null,
                         'bukti_bayar'          => null,
@@ -1975,7 +1993,11 @@ class PengeluaranTransferService
                 if ($existingKej) {
                     $existingKej->update([
                         'biaya'             => $biayaTerbaru, // update ke harga terbaru yang diapprove
+                        'tanggal'           => $kej['tanggal'] ?? $existingKej->tanggal ?? $sourceData['tanggal_service'] ?? now()->toDateString(),
+                        'periode_mulai'     => $kej['periode_mulai'] ?? $existingKej->periode_mulai ?? $sourceData['periode_mulai'] ?? null,
+                        'periode_selesai'   => $kej['periode_selesai'] ?? $existingKej->periode_selesai ?? $sourceData['periode_selesai'] ?? null,
                         'status'            => 'disetujui',
+                        'tanggal_approval'  => now(), // Set timestamp saat disetujui
                         'catatan_penolakan' => null,
                         'bukti_bayar'       => $buktiPerKejadian ? [$buktiPerKejadian] : $existingKej->bukti_bayar,
                     ]);
@@ -1984,10 +2006,14 @@ class PengeluaranTransferService
                     \App\Models\ServiceAsuransiKejadian::create([
                         'service_asuransi_id' => $serviceAsuransi->id,
                         'nama_kejadian'        => $kej['nama_kejadian'] ?? '-',
+                        'tanggal'              => $kej['tanggal'] ?? $sourceData['tanggal_service'] ?? now()->toDateString(),
+                        'periode_mulai'        => $kej['periode_mulai'] ?? $sourceData['periode_mulai'] ?? null,
+                        'periode_selesai'      => $kej['periode_selesai'] ?? $sourceData['periode_selesai'] ?? null,
                         'biaya'                => $biayaTerbaru,
                         'lampiran'             => !empty($lampiranFinal) ? $lampiranFinal : null,
                         'bukti_bayar'          => $buktiPerKejadian ? [$buktiPerKejadian] : null,
                         'status'               => 'disetujui',
+                        'tanggal_approval'     => now(), // Set timestamp saat disetujui
                         'catatan_penolakan'    => null,
                     ]);
                 }

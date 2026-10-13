@@ -160,9 +160,6 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Asuransi</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Keterangan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">KM</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Tanggal</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Periode</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Biaya</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Status</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Persetujuan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Status Kendaraan</th>
@@ -230,70 +227,14 @@
                                     @endif
                                 </td>
 
-                                {{-- KELUHAN --}}
+                                    {{-- KELUHAN --}}
                                     <td class="px-5 py-4 text-sm text-gray-700 max-w-xs">
                                         <span class="line-clamp-2">{{ $d->keterangan ?? '-' }}</span>
-                                    </td>
+                                    <x`/td>
 
                                     {{-- KM --}}
                                     <td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">
                                         {{ number_format($d->kendaraan->kilometer_sekarang ?? $d->kilometer ?? 0, 0, ',', '.') }} km
-                                    </td>
-
-                                    {{-- TANGGAL --}}
-                                    <td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">
-                                        {{ $d->tanggal_service ? \Carbon\Carbon::parse($d->tanggal_service)->format('d M Y') : '-' }}
-                                    </td>
-
-                                    {{-- PERIODE --}}
-                                    <td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">
-                                        @if($d->periode_mulai && $d->periode_selesai)
-                                            <div class="flex flex-col gap-0.5">
-                                                <span class="text-xs text-gray-400">Mulai:</span>
-                                                <span class="font-medium">{{ \Carbon\Carbon::parse($d->periode_mulai)->format('d M Y') }}</span>
-                                                <span class="text-xs text-gray-400 mt-1">Selesai:</span>
-                                                <span class="font-medium">{{ \Carbon\Carbon::parse($d->periode_selesai)->format('d M Y') }}</span>
-                                            </div>
-                                        @else
-                                            <span class="text-gray-300">—</span>
-                                        @endif
-                                    </td>
-
-                                    {{-- BIAYA --}}
-                                    <td class="px-5 py-4 whitespace-nowrap">
-                                        @if($hasPending && $totalKejadian > 0)
-                                            {{-- Ada yang sudah dibayar DAN ada yang pending --}}
-                                            <div class="flex flex-col gap-0.5">
-                                                <div>
-                                                    <span class="text-xs text-gray-400">Total dibayar:</span>
-                                                    <span class="text-sm font-semibold text-green-600 block">
-                                                        Rp {{ number_format($totalKejadian, 0, ',', '.') }}
-                                                    </span>
-                                                </div>
-                                                <div>
-                                                    <span class="text-xs text-amber-500">Pending:</span>
-                                                    <span class="text-xs font-medium text-amber-600">
-                                                        Rp {{ number_format($nominalPending, 0, ',', '.') }}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        @elseif($hasPending)
-                                            {{-- Hanya ada pending, belum ada yang dibayar --}}
-                                            <div class="flex flex-col gap-0.5">
-                                                <span class="text-xs text-amber-500">Pending:</span>
-                                                <span class="text-sm font-semibold text-amber-600">
-                                                    Rp {{ number_format($nominalPending, 0, ',', '.') }}
-                                                </span>
-                                            </div>
-                                        @else
-                                            {{-- Hanya tampilkan total yang sudah dibayar --}}
-                                            <span class="text-sm font-semibold text-gray-800">
-                                                Rp {{ number_format($totalKejadian, 0, ',', '.') }}
-                                            </span>
-                                            @if($isPartial)
-                                                <p class="text-[10px] text-gray-400 mt-0.5">dari {{ $kejadianDisetujui }} kejadian</p>
-                                            @endif
-                                        @endif
                                     </td>
 
                                     {{-- STATUS --}}
@@ -410,7 +351,8 @@
                                             </button>
                                             @endif
 
-                                            <button
+                                            {{-- Button Edit di-hidden karena sekarang edit dilakukan per-kejadian via Ajukan Ulang --}}
+                                            {{-- <button
                                                 onclick="event.stopPropagation(); openEditModal(this)"
                                                 class="btn-edit inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors"
                                                 data-id="{{ $d->id }}"
@@ -424,7 +366,7 @@
                                                 data-biaya="{{ $d->biaya }}"
                                                 data-keterangan="{{ $d->keterangan }}">
                                                 <i class="fa fa-edit text-xs"></i> Edit
-                                            </button>
+                                            </button> --}}
 
                                             <form action="{{ route('service-asuransi.destroy', $d->id) }}" method="POST"
                                                 onsubmit="return confirm('Yakin ingin menghapus data ini?')" class="inline">
@@ -441,21 +383,64 @@
 
                                 {{-- EXPANDABLE KEJADIAN ROW --}}
                                 <tr id="kejadian-row-{{ $d->id }}" style="display:none;" class="bg-slate-50 border-t border-slate-100">
-                                    <td colspan="15" class="px-6 py-4">
+                                    <td colspan="10" class="px-6 py-4">
                                         @if($kejadianCount > 0)
-                                            <div class="overflow-x-auto rounded-xl border border-slate-200">
-                                                <table class="w-full text-xs">
-                                                    <thead>
-                                                        <tr class="bg-slate-100 text-gray-500">
-                                                            <th class="text-left px-3 py-2 font-semibold w-8">No</th>
-                                                            <th class="text-left px-3 py-2 font-semibold">Nama Kejadian</th>
-                                                            <th class="text-right px-3 py-2 font-semibold w-32">Biaya</th>
-                                                            <th class="text-left px-3 py-2 font-semibold min-w-[180px]">Lampiran</th>
-                                                            <th class="text-left px-3 py-2 font-semibold min-w-[180px]">Bukti Bayar</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @foreach($d->kejadians as $i => $kej)
+                                            @php
+                                                // Group kejadian by DATE(tanggal) - tanggal servis, bukan tanggal_approval
+                                                // Sort by tanggal DESC so newest appears first
+                                                $kejadianGrouped = $d->kejadians
+                                                    ->sortByDesc('tanggal')
+                                                    ->groupBy(function($kej) {
+                                                        // Group key: tanggal (tanggal servis/kejadian)
+                                                        // Jika null, group sebagai 'pending'
+                                                        return $kej->tanggal 
+                                                            ? \Carbon\Carbon::parse($kej->tanggal)->format('Y-m-d')
+                                                            : 'pending';
+                                                    });
+                                            @endphp
+
+                                            {{-- Loop setiap group tanggal --}}
+                                            @foreach($kejadianGrouped as $groupDate => $kejadians)
+                                                @php
+                                                    // Format tanggal untuk header section
+                                                    $dateHeader = $groupDate === 'pending' 
+                                                        ? 'Belum Disetujui / Pending'
+                                                        : \Carbon\Carbon::parse($groupDate)->isoFormat('dddd, D MMMM YYYY');
+                                                    
+                                                    // Hitung total biaya per group
+                                                    $groupTotal = $kejadians->sum('biaya');
+                                                @endphp
+
+                                                {{-- Header Section per Tanggal --}}
+                                                <div class="mb-4 {{ !$loop->first ? 'mt-6' : '' }}">
+                                                    <div class="flex items-center gap-3 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl mb-3">
+                                                        <i class="fa fa-calendar text-blue-600 text-sm"></i>
+                                                        <div class="flex-1">
+                                                            <span class="text-sm font-bold text-blue-900">{{ $dateHeader }}</span>
+                                                            <span class="text-xs text-blue-600 ml-2">({{ $kejadians->count() }} kejadian)</span>
+                                                        </div>
+                                                        <span class="text-sm font-bold text-blue-700">
+                                                            Rp {{ number_format($groupTotal, 0, ',', '.') }}
+                                                        </span>
+                                                    </div>
+
+                                                    {{-- Table Kejadian untuk Group ini --}}
+                                                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                                                        <table class="w-full text-xs">
+                                                            <thead>
+                                                                <tr class="bg-slate-100 text-gray-500">
+                                                                    <th class="text-left px-3 py-2 font-semibold w-8">No</th>
+                                                                    <th class="text-left px-3 py-2 font-semibold">Nama Kejadian</th>
+                                                                    <th class="text-left px-3 py-2 font-semibold min-w-[90px]">Tanggal</th>
+                                                                    <th class="text-left px-3 py-2 font-semibold min-w-[140px]">Periode</th>
+                                                                    <th class="text-right px-3 py-2 font-semibold w-32">Biaya</th>
+                                                                    <th class="text-left px-3 py-2 font-semibold min-w-[100px]">Tgl Approval</th>
+                                                                    <th class="text-left px-3 py-2 font-semibold min-w-[180px]">Lampiran</th>
+                                                                    <th class="text-left px-3 py-2 font-semibold min-w-[180px]">Bukti Bayar</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @foreach($kejadians as $i => $kej)
                                                             @php
                                                                 $kejStatus      = $kej->status ?? 'diajukan';
                                                                 $isKejDitolak   = $kejStatus === 'ditolak';
@@ -495,9 +480,37 @@
                                                                     @endif
                                                                 </td>
 
+                                                                {{-- Tanggal --}}
+                                                                <td class="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
+                                                                    {{ $kej->tanggal ? \Carbon\Carbon::parse($kej->tanggal)->format('d M Y') : '-' }}
+                                                                </td>
+
+                                                                {{-- Periode (Mulai - Selesai) --}}
+                                                                <td class="px-3 py-2 text-xs text-gray-600">
+                                                                    @if($kej->periode_mulai && $kej->periode_selesai)
+                                                                        <div class="flex flex-col gap-0.5">
+                                                                            <span class="text-[10px] text-gray-400">Mulai: <span class="font-medium text-gray-600">{{ \Carbon\Carbon::parse($kej->periode_mulai)->format('d M Y') }}</span></span>
+                                                                            <span class="text-[10px] text-gray-400">Selesai: <span class="font-medium text-gray-600">{{ \Carbon\Carbon::parse($kej->periode_selesai)->format('d M Y') }}</span></span>
+                                                                        </div>
+                                                                    @else
+                                                                        <span class="text-gray-300">—</span>
+                                                                    @endif
+                                                                </td>
+
                                                                 {{-- Biaya: coret jika ditolak, highlight amber jika diajukan --}}
                                                                 <td class="px-3 py-2 text-right font-semibold {{ $isKejDitolak ? 'text-red-400 line-through' : ($isKejDiajukan ? 'text-amber-600' : 'text-gray-700') }}">
                                                                     Rp {{ number_format($kej->biaya, 0, ',', '.') }}
+                                                                </td>
+
+                                                                {{-- Tanggal Approval --}}
+                                                                <td class="px-3 py-2 text-xs">
+                                                                    @if($kej->tanggal_approval)
+                                                                        <span class="text-green-600 font-medium">
+                                                                            {{ \Carbon\Carbon::parse($kej->tanggal_approval)->format('d M Y') }}
+                                                                        </span>
+                                                                    @else
+                                                                        <span class="text-gray-300">—</span>
+                                                                    @endif
                                                                 </td>
 
                                                                 {{-- Lampiran (file dari pengaju) --}}
@@ -576,27 +589,18 @@
                                                     </tbody>
                                                     <tfoot>
                                                         <tr class="bg-slate-100 border-t border-slate-200">
-                                                            <td colspan="2" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total:</td>
+                                                            <td colspan="4" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total:</td>
                                                             <td class="px-3 py-2 text-right text-xs font-bold text-gray-800">
-                                                                @php
-                                                                    // Konsisten dengan logika header: kalau sudah ada keputusan (disetujui/ditolak),
-                                                                    // total hanya dari yang disetujui. Kalau semua masih 'diajukan'/null, sum semua.
-                                                                    $tfootTotal = ($kejadianDisetujui > 0 || $kejadianDitolak > 0)
-                                                                        ? $d->kejadians->where('status', 'disetujui')->sum('biaya')
-                                                                        : $d->kejadians->sum('biaya');
-                                                                @endphp
-                                                                Rp {{ number_format($tfootTotal, 0, ',', '.') }}
-                                                                @if($kejadianDitolak > 0)
-                                                                    <p class="text-[10px] font-normal text-red-400 mt-0.5">
-                                                                        {{ $kejadianDitolak }} ditolak (Rp {{ number_format($d->kejadians->where('status','ditolak')->sum('biaya'), 0,',','.') }})
-                                                                    </p>
-                                                                @endif
+                                                                Rp {{ number_format($groupTotal, 0, ',', '.') }}
                                                             </td>
-                                                            <td colspan="2"></td>
+                                                            <td colspan="3"></td>
                                                         </tr>
                                                     </tfoot>
-                                                </table>
-                                            </div>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+
                                         @else
                                             <div class="text-center py-4 text-xs text-gray-400">
                                                 <i class="fa fa-list text-gray-300 text-xl mb-1 block"></i>
@@ -608,7 +612,7 @@
 
                         @empty
                             <tr>
-                                <td colspan="13" class="px-5 py-12 text-center">
+                                <td colspan="10" class="px-5 py-12 text-center">
                                     <p class="text-sm text-gray-500">Belum ada data service asuransi</p>
                                 </td>
                             </tr>
@@ -692,12 +696,6 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Service</label>
-                        <input type="date" name="tanggal_service" id="tanggal_service"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                    </div>
-
-                    <div class="mb-4">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Kilometer</label>
                         <div class="relative">
                             <input type="number" name="kilometer" id="kilometer" placeholder="Otomatis dari kendaraan"
@@ -735,20 +733,6 @@
                     </div>
 
                 </div>{{-- /fields-tambah-only --}}
-
-                {{-- Periode Mulai & Selesai — selalu tampil (Tambah & Edit) --}}
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Periode Mulai</label>
-                        <input type="date" name="periode_mulai" id="periode_mulai"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Periode Selesai</label>
-                        <input type="date" name="periode_selesai" id="periode_selesai"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                    </div>
-                </div>
 
                 <button type="submit"
                     class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl">
@@ -953,8 +937,9 @@
     function openEditModal(btn) {
         setModalMode('edit');
 
+        const serviceId = btn.dataset.id;
         const form = document.getElementById('form');
-        form.action = '/admin/service-asuransi/' + btn.dataset.id;
+        form.action = '/admin/service-asuransi/' + serviceId;
 
         const existingMp = document.getElementById('method-put');
         if (existingMp) existingMp.remove();
@@ -963,12 +948,9 @@
         input.type = 'hidden'; input.name = '_method'; input.value = 'PUT'; input.id = 'method-put';
         form.appendChild(input);
 
-        document.getElementById('biaya').value           = btn.dataset.biaya;
-        document.getElementById('kendaraan_id').value    = btn.dataset.kendaraan_id;
-        document.getElementById('tanggal_service').value = btn.dataset.tanggal_service;
-        document.getElementById('periode_mulai').value   = btn.dataset.periode_mulai || '';
-        document.getElementById('periode_selesai').value = btn.dataset.periode_selesai || '';
-        document.getElementById('kilometer').value       = btn.dataset.kilometer;
+        // Set basic fields from button data
+        document.getElementById('kendaraan_id').value = btn.dataset.kendaraan_id;
+        document.getElementById('kilometer').value    = btn.dataset.kilometer;
 
         // Set nama asuransi dan render jenis dropdown
         const namaAsuransi    = btn.dataset.nama_asuransi    || '';
@@ -977,11 +959,32 @@
         document.getElementById('nama_asuransi').value = namaAsuransi;
         renderJenisDropdown(namaAsuransi, jenisAsuransiId);
 
-        // Reset kejadian container (edit mode tidak pre-fill kejadian)
+        // Reset kejadian dan fetch data kejadian from server
         resetKejadian();
-        // Update total display dari biaya tersimpan
-        const savedBiaya = parseInt(btn.dataset.biaya || 0);
-        document.getElementById('total-biaya-display').textContent = 'Rp ' + savedBiaya.toLocaleString('id-ID');
+
+        // Fetch kejadian data
+        const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        fetch('/admin/service-asuransi/' + serviceId + '/ajukan-ulang', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
+        })
+        .then(r => r.json())
+        .then(function(data) {
+            if (!data.success) throw new Error(data.message || 'Gagal memuat data');
+            
+            // Populate kejadian data
+            const kejadians = data.kejadians || [];
+            kejadians.forEach(function(kej, idx) {
+                addKejadianWithData(kej);
+            });
+            
+            // Update total biaya display
+            updateTotalBiaya();
+        })
+        .catch(function(err) {
+            console.error('Error loading kejadian data:', err);
+            alert('Gagal memuat data kejadian: ' + err.message);
+        });
 
         modal.classList.remove('hidden');
         modal.classList.add('flex');
@@ -1081,6 +1084,23 @@
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                 </div>
             </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Tanggal Service <span class="text-red-400">*</span></label>
+                    <input type="date" name="kejadians[${idx}][tanggal]" required
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Mulai</label>
+                    <input type="date" name="kejadians[${idx}][periode_mulai]"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Selesai</label>
+                    <input type="date" name="kejadians[${idx}][periode_selesai]"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+            </div>
             <div>
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">
                     Lampiran <span class="text-red-400">*</span> <span class="text-gray-400 font-normal text-[10px]">(wajib — foto/dokumen bukti kejadian)</span>
@@ -1104,9 +1124,116 @@
     function removeKejadian(idx) {
         document.getElementById('kejadian-row-' + idx)?.remove();
         recalcTotalBiaya();
-        if (!document.querySelector('[id^="kejadian-row-"]')) {
+        // Show empty state if no kejadian
+        const container = document.getElementById('kejadian-container');
+        if (container.children.length === 0) {
             document.getElementById('kejadian-empty').style.display = '';
         }
+    }
+
+    // Add kejadian with existing data (for edit mode)
+    function addKejadianWithData(kej) {
+        const idx       = kejadianIndex++;
+        const container = document.getElementById('kejadian-container');
+        document.getElementById('kejadian-empty').style.display = 'none';
+
+        // Build lampiran HTML from existing files
+        let lampiranHtml = '';
+        const lampiranExisting = kej.lampiran_existing || [];
+        if (lampiranExisting.length > 0) {
+            lampiranHtml = '<div class="mt-1 space-y-0.5">' +
+                lampiranExisting.map(function(lf) {
+                    const path = lf.path || '';
+                    const name = lf.original_name || path.split('/').pop();
+                    const ext  = (lf.extension || '').toLowerCase();
+                    const icon = ['jpg','jpeg','png','webp'].includes(ext) ? 'fa-image text-blue-400' : (ext === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                    const url  = lf.url || (path ? '/storage/' + path : null);
+                    return url ? '<a href="' + url + '" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline"><i class="fa ' + icon + ' text-[9px]"></i><span class="truncate max-w-[200px]">' + name + '</span></a><br>' : '';
+                }).join('') + '</div>';
+        }
+
+        // Hidden inputs for existing lampiran
+        const hiddenLampiranInputs = lampiranExisting.map(function(lf, li) {
+            const path = lf.path || '';
+            const name = lf.original_name || path.split('/').pop();
+            const ext  = lf.extension || path.split('.').pop();
+            const size = lf.size || 0;
+            if (!path) return '';
+            return '<input type="hidden" name="kejadians[' + idx + '][lampiran_lama][' + li + '][path]"          value="' + path.replace(/"/g, '&quot;') + '">'
+                 + '<input type="hidden" name="kejadians[' + idx + '][lampiran_lama][' + li + '][original_name]" value="' + name.replace(/"/g, '&quot;') + '">'
+                 + '<input type="hidden" name="kejadians[' + idx + '][lampiran_lama][' + li + '][extension]"     value="' + ext + '">'
+                 + '<input type="hidden" name="kejadians[' + idx + '][lampiran_lama][' + li + '][size]"          value="' + size + '">';
+        }).join('');
+
+        const row = document.createElement('div');
+        row.id        = 'kejadian-row-' + idx;
+        row.className = 'bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3';
+        row.innerHTML = `
+            ${hiddenLampiranInputs}
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-gray-600">Kejadian #${idx + 1}</span>
+                <button type="button" onclick="removeKejadian(${idx})"
+                    class="w-6 h-6 rounded-lg bg-red-100 text-red-500 hover:bg-red-200 flex items-center justify-center text-xs transition-colors">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Kejadian <span class="text-red-400">*</span></label>
+                    <input type="text" name="kejadians[${idx}][nama_kejadian]" required
+                        value="${(kej.nama_kejadian || '').replace(/"/g, '&quot;')}"
+                        placeholder="cth: Ganti Kaca Depan"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp)</label>
+                    <input type="number" name="kejadians[${idx}][biaya]" min="0" value="${kej.biaya || 0}"
+                        onchange="recalcTotalBiaya()" oninput="recalcTotalBiaya()"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Tanggal Service <span class="text-red-400">*</span></label>
+                    <input type="date" name="kejadians[${idx}][tanggal]" required value="${kej.tanggal || ''}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Mulai</label>
+                    <input type="date" name="kejadians[${idx}][periode_mulai]" value="${kej.periode_mulai || ''}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Selesai</label>
+                    <input type="date" name="kejadians[${idx}][periode_selesai]" value="${kej.periode_selesai || ''}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">
+                    Lampiran ${lampiranExisting.length > 0 ? '' : '<span class="text-red-400">*</span>'}
+                    <span class="text-gray-400 font-normal text-[10px]">(${lampiranExisting.length > 0 ? 'tambah file baru jika perlu' : 'wajib — foto/dokumen bukti kejadian'})</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer border border-dashed border-blue-200 hover:border-blue-400 bg-white hover:bg-blue-50/40 rounded-lg px-3 py-2.5 transition-colors">
+                    <i class="fa fa-paperclip text-blue-400 text-sm"></i>
+                    <span class="text-xs text-gray-500">Klik untuk pilih file...</span>
+                    <input type="file" name="kejadians[${idx}][lampiran][]" multiple
+                        ${lampiranExisting.length > 0 ? '' : 'required'}
+                        accept="image/*,.pdf,.doc,.docx"
+                        onchange="updateLampiranList(${idx}, this)"
+                        class="hidden">
+                </label>
+                ${lampiranHtml}
+                <div id="lampiran-list-${idx}" class="mt-1 space-y-1"></div>
+                ${lampiranExisting.length === 0 ? '<p class="text-[10px] text-red-500 mt-1"><i class="fa fa-circle-exclamation"></i> Wajib upload minimal 1 lampiran per kejadian</p>' : ''}
+            </div>
+        `;
+        container.appendChild(row);
+        recalcTotalBiaya();
+    }
+
+    function updateTotalBiaya() {
+        recalcTotalBiaya();
     }
 
     function recalcTotalBiaya() {
@@ -1534,10 +1661,7 @@
                 @csrf
                 <input type="hidden" name="kendaraan_id"    id="saAuKendaraanId">
                 <input type="hidden" name="nama_asuransi"   id="saAuNamaAsuransi">
-                <input type="hidden" name="tanggal_service" id="saAuTglService">
-                <input type="hidden" name="periode_mulai"   id="saAuPeriodeMulai">
-                <input type="hidden" name="periode_selesai" id="saAuPeriodeSelesai">
-                <input type="hidden" name="kilometer"       id="saAuKilometer">
+                <input type="hidden" name="kilometer" id="saAuKilometer">
 
                 <div class="flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs text-gray-600">
                     Total Biaya:
@@ -1610,9 +1734,6 @@ function renderSaAuForm(data) {
 
     document.getElementById('saAuKendaraanId').value    = data.kendaraan_id    || '';
     document.getElementById('saAuNamaAsuransi').value   = data.nama_asuransi   || '';
-    document.getElementById('saAuTglService').value     = data.tanggal_service || '';
-    document.getElementById('saAuPeriodeMulai').value   = data.periode_mulai   || '';
-    document.getElementById('saAuPeriodeSelesai').value = data.periode_selesai || '';
     document.getElementById('saAuKilometer').value      = data.kilometer       || '';
 
     const container = document.getElementById('saAuKejadianContainer');
@@ -1680,6 +1801,23 @@ function renderSaAuKejadian(container, idx, kej) {
                 <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp)</label>
                 <input type="number" name="kejadians[${idx}][biaya]" min="0" value="${kej.biaya||0}"
                     onchange="updateSaAuTotal()" oninput="updateSaAuTotal()"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+            </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+            <div>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Tanggal Service <span class="text-red-400">*</span></label>
+                <input type="date" name="kejadians[${idx}][tanggal]" required value="${kej.tanggal||''}"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Mulai</label>
+                <input type="date" name="kejadians[${idx}][periode_mulai]" value="${kej.periode_mulai||''}"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Selesai</label>
+                <input type="date" name="kejadians[${idx}][periode_selesai]" value="${kej.periode_selesai||''}"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
             </div>
         </div>

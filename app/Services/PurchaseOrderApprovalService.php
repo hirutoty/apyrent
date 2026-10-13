@@ -893,6 +893,12 @@ class PurchaseOrderApprovalService
             $keterangan   = $sourceData['keterangan'] ?? null;
             $totalBiaya   = collect($kejadians)->sum(fn($k) => (int)($k['biaya'] ?? 0));
 
+            // Ekstrak date fields dari parent untuk diisi ke setiap kejadian
+            // Priority: gunakan dari kejadian individual jika ada, fallback ke parent sourceData
+            $tanggalService   = $sourceData['tanggal_service'] ?? now()->toDateString();
+            $periodeMulai     = $sourceData['periode_mulai'] ?? null;
+            $periodeSelesai   = $sourceData['periode_selesai'] ?? null;
+
             // ── Guard: jika service_asuransi_id sudah ada di source_data PO,
             // ini adalah partial approval kedua (resubmit). Cukup tambah kejadian baru
             // ke record yang sudah ada — jangan buat record baru.
@@ -910,10 +916,14 @@ class PurchaseOrderApprovalService
                     ]);
 
                     // Tambahkan HANYA kejadian baru (jangan hapus yang sudah ada)
+                    // Include tanggal, periode_mulai, periode_selesai dari parent
                     foreach ($kejadians as $kej) {
                         \App\Models\ServiceAsuransiKejadian::create([
                             'service_asuransi_id' => $existing->id,
                             'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
+                            'tanggal'             => $kej['tanggal'] ?? $tanggalService,
+                            'periode_mulai'       => $kej['periode_mulai'] ?? $periodeMulai,
+                            'periode_selesai'     => $kej['periode_selesai'] ?? $periodeSelesai,
                             'biaya'               => (int)($kej['biaya'] ?? 0),
                             'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
                             'status'              => 'diajukan',
@@ -930,9 +940,9 @@ class PurchaseOrderApprovalService
                 'kendaraan_id'      => $kendaraanId,
                 'nama_asuransi'     => $namaAsuransi,
                 'jenis_asuransi_id' => $sourceData['jenis_asuransi_id'] ?? null,
-                'tanggal_service'   => $sourceData['tanggal_service'] ?? now()->toDateString(),
-                'periode_mulai'     => $sourceData['periode_mulai'] ?? null,
-                'periode_selesai'   => $sourceData['periode_selesai'] ?? null,
+                'tanggal_service'   => $tanggalService,
+                'periode_mulai'     => $periodeMulai,
+                'periode_selesai'   => $periodeSelesai,
                 'kilometer'         => $sourceData['kilometer'] ?? 0,
                 'biaya'             => $totalBiaya,
                 'keterangan'        => $keterangan,
@@ -946,6 +956,9 @@ class PurchaseOrderApprovalService
                 \App\Models\ServiceAsuransiKejadian::create([
                     'service_asuransi_id' => $serviceAsuransi->id,
                     'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
+                    'tanggal'             => $kej['tanggal'] ?? $tanggalService,
+                    'periode_mulai'       => $kej['periode_mulai'] ?? $periodeMulai,
+                    'periode_selesai'     => $kej['periode_selesai'] ?? $periodeSelesai,
                     'biaya'               => (int)($kej['biaya'] ?? 0),
                     'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
                     'status'              => 'diajukan',

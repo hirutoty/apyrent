@@ -380,14 +380,13 @@
                                 <thead>
                                     <tr class="bg-gray-50/80 border-b border-gray-100">
                                         <th class="w-6 px-2 py-2.5"></th>
-                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">PO Number</th>
+                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Kendaraan</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Vendor</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Pemohon</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Departemen</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Keluhan</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Items</th>
                                         <th class="text-right text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Total Harga</th>
-                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Tanggal</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Status</th>
                                         <th class="text-center text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Aksi</th>
                                     </tr>
@@ -472,8 +471,17 @@
                                                 <i id="chv-{{ $poRowId }}" class="fa fa-chevron-right text-[10px] text-gray-300 transition-transform duration-200"></i>
                                             @endif
                                         </td>
-                                        <td class="px-4 py-3">
-                                            <span class="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg border border-indigo-100">{{ $po->po_id }}</span>
+                                        <td class="px-4 py-3 text-xs text-gray-700">
+                                            @php
+                                                $kendaraanId = $sourceData['kendaraan_id'] ?? null;
+                                                $kendaraan = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
+                                            @endphp
+                                            @if($kendaraan)
+                                                <span class="font-semibold">{{ $kendaraan->nopol }}</span>
+                                                <span class="text-gray-400 text-[10px] block">{{ $kendaraan->merk }}</span>
+                                            @else
+                                                <span class="text-gray-400">—</span>
+                                            @endif
                                         </td>
                                         <td class="px-4 py-3 text-xs text-gray-700">{{ $po->vendor ?? '-' }}</td>
                                         <td class="px-4 py-3 text-xs text-gray-700">{{ $po->pemohon ?? '-' }}</td>
@@ -818,7 +826,6 @@
                                                 Rp {{ number_format($_poNomShow, 0, ',', '.') }}
                                             </span>
                                         </td>
-                                        <td class="px-4 py-3 text-xs text-gray-500">{{ $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-' }}</td>
                                         <td class="px-4 py-3">
                                             @php
                                                 $_poDecForBadge  = $po->source_data['item_decisions'] ?? [];
@@ -1163,45 +1170,31 @@
                                         }
                                     @endphp
                                     <tr id="{{ $poRowId }}" class="hidden">
-                                        <td colspan="11" class="px-0 py-0">
+                                        <td colspan="10" class="px-0 py-0">
                                             @if($isServicePart || $isServiceIncident)
-                                            {{-- ── SERVICE PART / SERVICE INCIDENT EXPAND ── --}}
+                                            {{-- ── SERVICE PART / SERVICE INCIDENT EXPAND (NEW LAYOUT) ── --}}
                                             @php $expandColor = $isServiceIncident ? 'red' : 'orange'; @endphp
                                             <div class="bg-{{ $expandColor }}-50/30 border-t border-{{ $expandColor }}-100 px-6 py-4">
-                                                <div class="flex items-center gap-2 mb-3">
-                                                    <i class="{{ $isServiceIncident ? 'fa fa-exclamation-triangle' : 'fa fa-tools' }} text-{{ $expandColor }}-600 text-xs"></i>
-                                                    <span class="text-[11px] font-bold text-{{ $expandColor }}-700 uppercase tracking-wide">
-                                                        Detail — {{ $isServiceIncident ? 'Service Incident' : 'Service Part' }}
-                                                    </span>
+                                                {{-- Header: Kendaraan --}}
+                                                <div class="bg-white border border-{{ $expandColor }}-200 rounded-xl px-4 py-3 mb-3">
+                                                    <div class="flex items-center gap-3">
+                                                        <i class="fa fa-car text-{{ $expandColor }}-600 text-lg"></i>
+                                                        <div>
+                                                            <h4 class="font-bold text-gray-800 text-sm">{{ $kendaraan ? $kendaraan->nopol : '-' }}</h4>
+                                                            <p class="text-xs text-gray-500">{{ $kendaraan ? $kendaraan->merk : '' }}</p>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                {{-- Info kendaraan & service --}}
-                                                <div class="grid grid-cols-4 gap-4 mb-3 text-xs">
-                                                    <div>
-                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
-                                                        <p class="font-semibold text-gray-800">{{ $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-' }}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Service</p>
-                                                        <p class="text-gray-700">{{ isset($sourceData['tanggal_service']) ? \Carbon\Carbon::parse($sourceData['tanggal_service'])->format('d M Y') : '-' }}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">KM / Keluhan</p>
-                                                        <p class="text-gray-700">{{ $sourceData['kilometer'] ?? '-' }} {{ $sourceData['keluhan'] ? '— ' . \Illuminate\Support\Str::limit($sourceData['keluhan'], 30) : '' }}</p>
-                                                    </div>
-                                                    @if($isServiceIncident && !empty($sourceData['keterangan']))
-                                                    <div>
-                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Keterangan</p>
-                                                        <p class="font-mono text-[11px] text-red-700 bg-red-50 px-1.5 py-0.5 rounded">{{ $sourceData['keterangan'] }}</p>
-                                                    </div>
-                                                    @endif
-                                                </div>
-                                                {{-- Lampiran section dihapus untuk service_incident/service_part karena sudah ada per-part di tabel --}}
-                                                {{-- Tabel parts --}}
+
+                                                {{-- Tabel parts dengan PO Number & Tanggal PO per item --}}
                                                 <div class="bg-white rounded-xl border border-{{ $expandColor }}-100 overflow-hidden">
                                                     <table class="w-full text-xs">
                                                         <thead>
                                                             <tr class="bg-{{ $expandColor }}-50 border-b border-{{ $expandColor }}-100">
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">PO Number</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tanggal PO</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tanggal Pasang</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Part</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kategori</th>
                                                                 @if($isServiceIncident)
@@ -1232,9 +1225,29 @@
                                                                     $category = isset($part['category_id']) ? \App\Models\ServiceCategory::find($part['category_id']) : null;
                                                                     $catNama  = $category ? $category->nama : ($part['nama_category_baru'] ?? '-');
                                                                     $supplier = isset($part['supplier_id']) ? \App\Models\Supplier::find($part['supplier_id']) : null;
+                                                                    
+                                                                    // Tanggal Pasang dari part (setiap part punya tanggal pasang sendiri)
+                                                                    $tglPasang = $part['tgl_pasang'] ?? null;
                                                                 @endphp
                                                                 <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                     <td class="px-3 py-2 text-gray-400">{{ $pIdx + 1 }}</td>
+                                                                    
+                                                                    {{-- PO Number --}}
+                                                                    <td class="px-3 py-2">
+                                                                        <span class="font-mono text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">{{ $po->po_id }}</span>
+                                                                    </td>
+                                                                    
+                                                                    {{-- Tanggal PO --}}
+                                                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                                                        {{ $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-' }}
+                                                                    </td>
+                                                                    
+                                                                    {{-- Tanggal Pasang (per item) --}}
+                                                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                                                        {{ $tglPasang ? \Carbon\Carbon::parse($tglPasang)->format('d M Y') : '-' }}
+                                                                    </td>
+                                                                    
+                                                                    {{-- Nama Part --}}
                                                                     <td class="px-3 py-2">
                                                                         <span class="font-semibold text-gray-800">{{ $part['nama_part'] ?? '-' }}</span>
                                                                         @if(!empty($part['part_number']) && $part['part_number'] !== '-')
@@ -1421,7 +1434,7 @@
                                                                 @endphp
                                                             @endforeach
                                                             <tr class="border-t-2 border-{{ $expandColor }}-200 bg-{{ $expandColor }}-50/50">
-                                                                <td colspan="{{ $isServiceIncident ? 8 : 10 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="{{ $isServiceIncident ? 11 : 13 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
@@ -1429,56 +1442,30 @@
                                                 </div>
                                             </div>
                                             @elseif($isServiceAsuransi)
-                                            {{-- ── SERVICE ASURANSI EXPAND ── --}}
+                                            {{-- ── SERVICE ASURANSI EXPAND (NEW LAYOUT) ── --}}
                                             <div class="bg-blue-50/30 border-t border-blue-100 px-6 py-4">
-                                                <div class="flex items-center gap-2 mb-3">
-                                                    <i class="fa fa-shield-alt text-blue-600 text-xs"></i>
-                                                    <span class="text-[11px] font-bold text-blue-700 uppercase tracking-wide">Detail — Service Asuransi</span>
-                                                </div>
-                                                <div class="grid grid-cols-4 gap-4 mb-3 text-xs">
-                                                    <div>
-                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
-                                                        <p class="font-semibold text-gray-800">{{ $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-' }}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Nama Asuransi</p>
-                                                        <p class="text-gray-700">{{ $sourceData['nama_asuransi'] ?? '-' }}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Service</p>
-                                                        <p class="text-gray-700">{{ isset($sourceData['tanggal_service']) ? \Carbon\Carbon::parse($sourceData['tanggal_service'])->format('d M Y') : '-' }}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Keterangan</p>
-                                                        <p class="font-mono text-[11px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">{{ $sourceData['keterangan'] ?? ($po->keterangan ?? '-') }}</p>
+                                                {{-- Header: Kendaraan & Nama Asuransi --}}
+                                                <div class="bg-white border border-blue-200 rounded-xl px-4 py-3 mb-3">
+                                                    <div class="flex items-center gap-3">
+                                                        <i class="fa fa-shield-halved text-blue-600 text-lg"></i>
+                                                        <div class="flex-1">
+                                                            <h4 class="font-bold text-gray-800 text-sm">{{ $kendaraan ? $kendaraan->nopol : '-' }} — {{ $kendaraan ? $kendaraan->merk : '' }}</h4>
+                                                            @if($sourceData['nama_asuransi'] ?? null)
+                                                            <p class="text-xs text-blue-600 font-semibold mt-0.5">{{ $sourceData['nama_asuransi'] }}</p>
+                                                            @endif
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                @php $_saPemohon = $po->pemohon ?? $sourceData['pemohon'] ?? null; $_saDept = $po->departemen ?? $sourceData['departemen'] ?? null; @endphp
 
-                                                {{-- Lampiran PO-level (temp_files) --}}
-                                                @php
-                                                    $saLampiran = $sourceData['temp_files']['attachments'] ?? [];
-                                                    // Kumpulkan semua lampiran kejadian ke satu array flat
-                                                    $saKejLampiran = [];
-                                                    foreach (($sourceData['kejadians'] ?? []) as $kjIdx2 => $kj2) {
-                                                        foreach (($kj2['lampiran'] ?? []) as $lf) {
-                                                            $saKejLampiran[] = array_merge($lf, ['_kej' => $kj2['nama_kejadian'] ?? '#'.($kjIdx2+1)]);
-                                                        }
-                                                        // Juga cek temp_files per kejadian
-                                                        $tempKejFiles = $sourceData['temp_files']['kejadians'][$kjIdx2] ?? [];
-                                                        foreach ($tempKejFiles as $lf) {
-                                                            $saKejLampiran[] = array_merge($lf, ['_kej' => $kj2['nama_kejadian'] ?? '#'.($kjIdx2+1)]);
-                                                        }
-                                                    }
-                                                    $allSaLampiran = array_merge($saLampiran, $saKejLampiran);
-                                                @endphp
-
-
+                                                {{-- TABEL ITEMS dengan PO Number & Tanggal PO per item --}}
                                                 <div class="bg-white rounded-xl border border-blue-100 overflow-hidden">
                                                     <table class="w-full text-xs">
                                                         <thead>
                                                             <tr class="bg-blue-50 border-b border-blue-100">
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">PO Number</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tanggal PO</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tanggal Pasang</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Kejadian</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
@@ -1511,15 +1498,37 @@
                                                                         'rejected' => 'bg-red-50/60',
                                                                         default    => 'odd:bg-white even:bg-gray-50/40',
                                                                     };
+                                                                    
+                                                                    // Tanggal Pasang dari kejadian (item), bukan dari PO level
+                                                                    $tglPasang = $kj['tanggal_pasang'] ?? null;
                                                                 @endphp
                                                                 <tr class="border-t border-gray-50 {{ $kjRowBg }}">
                                                                     <td class="px-3 py-2 text-gray-400">{{ $kjIdx + 1 }}</td>
+                                                                    
+                                                                    {{-- PO Number --}}
+                                                                    <td class="px-3 py-2">
+                                                                        <span class="font-mono text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">{{ $po->po_id }}</span>
+                                                                    </td>
+                                                                    
+                                                                    {{-- Tanggal PO --}}
+                                                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                                                        {{ $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-' }}
+                                                                    </td>
+                                                                    
+                                                                    {{-- Tanggal Pasang (per item) --}}
+                                                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                                                        {{ $tglPasang ? \Carbon\Carbon::parse($tglPasang)->format('d M Y') : '-' }}
+                                                                    </td>
+                                                                    
+                                                                    {{-- Nama Kejadian --}}
                                                                     <td class="px-3 py-2 font-semibold text-gray-800">
                                                                         {{ $kj['nama_kejadian'] ?? '-' }}
                                                                         @if($kjDecCatatan)
                                                                             <span class="block text-[10px] font-normal text-red-500 mt-0.5">{{ $kjDecCatatan }}</span>
                                                                         @endif
                                                                     </td>
+                                                                    
+                                                                    {{-- Status --}}
                                                                     <td class="px-3 py-2 text-center">
                                                                         @if($kjDecAction === 'approved')
                                                                             <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>
@@ -1529,14 +1538,14 @@
                                                                             <span class="text-gray-300 text-[10px]">—</span>
                                                                         @endif
                                                                     </td>
+                                                                    
+                                                                    {{-- Lampiran --}}
                                                                     <td class="px-3 py-2 text-center">
                                                                         @php $kjLampiran = $kj['lampiran'] ?? []; @endphp
                                                                         @if(!empty($kjLampiran))
                                                                             <div class="flex flex-col gap-0.5 items-center">
                                                                             @foreach($kjLampiran as $kjf)
                                                                                 @php
-                                                                                    // Temp files: di storage/app/public/ → perlu Storage::url()
-                                                                                    // Final files: di public/ → gunakan asset()
                                                                                     $kjPath = $kjf['path'] ?? '';
                                                                                     $kjUrl = $kjPath 
                                                                                         ? (str_starts_with($kjPath, 'purchase_order/') || str_starts_with($kjPath, 'service_') 
@@ -1561,11 +1570,13 @@
                                                                             <span class="text-gray-300 text-[10px]">—</span>
                                                                         @endif
                                                                     </td>
+                                                                    
+                                                                    {{-- Biaya --}}
                                                                     <td class="px-3 py-2 text-right font-bold {{ $kjDecAction === 'rejected' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($kj['biaya'] ?? 0, 0, ',', '.') }}</td>
                                                                 </tr>
                                                             @endforeach
                                                             <tr class="border-t-2 border-blue-200 bg-blue-50/50">
-                                                                <td colspan="4" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="7" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
