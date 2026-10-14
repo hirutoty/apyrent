@@ -213,6 +213,9 @@ class PurchaseOrderApprovalService
                 'can_edit'            => false,
             ]);
 
+            // ── Populate item_pr_numbers: map each item index → PR number ──────────
+            $this->populateItemPrNumbers($pembayaran, $sourceType, $sourceDataForPembayaran);
+
             $po->update(['pembayaran_id' => $pembayaran->id]);
         }
 
@@ -477,7 +480,41 @@ class PurchaseOrderApprovalService
             'can_edit' => false,
         ]);
 
+        // ── Populate item_pr_numbers per item ───────────────────────────────────
+        $this->populateItemPrNumbers($pembayaran, $sourceType, $sourceData);
+
         return $pembayaran;
+    }
+
+    /**
+     * Populate item_pr_numbers di source_data Pembayaran.
+     * Map setiap index item → no_pr dokumen Pembayaran.
+     * Digunakan saat Pembayaran baru dibuat agar setiap item bisa dilacak PR number-nya.
+     */
+    protected function populateItemPrNumbers(Pembayaran $pembayaran, string $sourceType, array $sourceData): void
+    {
+        $multiItemTypes = ['gps', 'gps_perpanjang', 'service_part', 'service_asuransi', 'service_incident'];
+        if (!in_array($sourceType, $multiItemTypes)) {
+            return; // single-item types tidak perlu
+        }
+
+        $itemCount = match ($sourceType) {
+            'gps', 'gps_perpanjang'             => count($sourceData['gps_items'] ?? []),
+            'service_part', 'service_incident'  => count($sourceData['parts'] ?? []),
+            'service_asuransi'                  => count($sourceData['kejadians'] ?? []),
+            default                             => 0,
+        };
+
+        if ($itemCount === 0) return;
+
+        $itemPrNumbers = [];
+        for ($i = 0; $i < $itemCount; $i++) {
+            $itemPrNumbers[$i] = $pembayaran->no_pr;
+        }
+
+        $sd = $pembayaran->source_data ?? [];
+        $sd['item_pr_numbers'] = $itemPrNumbers;
+        $pembayaran->update(['source_data' => $sd]);
     }
 
     /**
@@ -498,9 +535,11 @@ class PurchaseOrderApprovalService
 
         $typeCode = $typeMap[$sourceType] ?? 'PGL';
 
-        // Get last PR for this type
-        $lastPR = Pembayaran::where('source_type', $sourceType)
-            ->where('no_pr', 'like', "PR-{$typeCode}-%")
+        // Ambil nomor terbesar dari SEMUA Pembayaran dengan prefix ini,
+        // tanpa filter source_type agar tidak ada nomor yang terlewat/duplikat.
+        // Gunakan orderBy id desc sebagai proxy untuk nomor terbesar —
+        // nomor PR selalu increment seiring id, sehingga id terbesar = nomor terbesar.
+        $lastPR = Pembayaran::where('no_pr', 'like', "PR-{$typeCode}-%")
             ->orderBy('id', 'desc')
             ->first();
 
@@ -577,6 +616,73 @@ class PurchaseOrderApprovalService
         if (Storage::disk('public')->exists($tempDir)) {
             Storage::disk('public')->deleteDirectory($tempDir);
         }
+    }
+
+    /**
+     * Create a new PO document for resubmitted items.
+     *
+     * Saat item di-reject dan di-resubmit, alih-alih mengupdate PO lama,
+     * sistem membuat PO document baru dengan po_id baru (increment) yang
+     * hanya berisi item yang di-resubmit. PO lama tetap Disetujui dengan
+     * item yang sudah approved.
+     *
+     * @param PurchaseOrder $oldPo        PO lama (status Disetujui, ada item rejected)
+     * @param array         $newSourceData  source_data untuk PO baru (hanya berisi item rejected)
+     * @param string        $sourceType     source_type PO
+     * @return PurchaseOrder               PO baru yang dibuat
+     */
+    public function createResubmitPO(PurchaseOrder $oldPo, array $newSourceData, string $sourceType): PurchaseOrder
+    {
+        $vendor = $newSourceData['vendor'] ?? $oldPo->vendor ?? 'Vendor ' . ucfirst(str_replace('_', ' ', $sourceType));
+
+        // Determine item count for new PO
+        $totalItems = match ($sourceType) {
+            'gps', 'gps_perpanjang' => count($newSourceData['gps_items'] ?? []),
+            'service_part', 'service_incident' => count($newSourceData['parts'] ?? []),
+            'service_asuransi' => count($newSourceData['kejadians'] ?? []),
+            default => 1,
+        };
+
+        // Calculate nominal
+        $nominal = match ($sourceType) {
+            'gps', 'gps_perpanjang' => collect($newSourceData['gps_items'] ?? [])->sum(fn($i) => $i['biaya_sewa'] ?? 0),
+            'service_part', 'service_incident' => collect($newSourceData['parts'] ?? [])->sum(fn($p) => $p['biaya'] ?? 0),
+            'service_asuransi' => collect($newSourceData['kejadians'] ?? [])->sum(fn($k) => $k['biaya'] ?? 0),
+            default => $newSourceData['nominal'] ?? $newSourceData['biaya'] ?? 0,
+        };
+
+        // Create new PO document — po_id auto-generated via boot() with increment
+        $newPo = PurchaseOrder::create([
+            'tanggal_po'        => now()->toDateString(),
+            'vendor'            => $vendor,
+            'pemohon'           => $newSourceData['pemohon'] ?? $oldPo->pemohon ?? null,
+            'departemen'        => $newSourceData['departemen'] ?? $oldPo->departemen ?? null,
+            'terkait_rfq'       => $newSourceData['terkait_rfq'] ?? null,
+            'total_barang'      => $totalItems,
+            'total_harga'       => (int) $nominal,
+            'status_po'         => 'Pending',
+            'catatan'           => $newSourceData['keterangan'] ?? null,
+            'keterangan'        => $newSourceData['keterangan'] ?? null,
+            'source_type'       => $sourceType,
+            'source_data'       => $newSourceData,
+            'status'            => 'Pending',
+            'can_edit'          => false,
+            'terakhir_diajukan' => now(),
+        ]);
+
+        // Populate item_po_numbers for new PO — all items get new PO number
+        $multiItemTypes = ['gps', 'gps_perpanjang', 'service_part', 'service_asuransi', 'service_incident'];
+        if (in_array($sourceType, $multiItemTypes)) {
+            $itemPoNumbers = [];
+            for ($i = 0; $i < $totalItems; $i++) {
+                $itemPoNumbers[$i] = $newPo->po_id;
+            }
+            $sd = $newPo->source_data;
+            $sd['item_po_numbers'] = $itemPoNumbers;
+            $newPo->update(['source_data' => $sd]);
+        }
+
+        return $newPo;
     }
 
     /**

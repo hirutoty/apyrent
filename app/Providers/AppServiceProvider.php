@@ -14,7 +14,21 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // ── SQLite testing guard ──────────────────────────────────────────────
+        // 30+ migration files in this project use MySQL-only `ALTER TABLE ... MODIFY COLUMN`
+        // syntax incompatible with SQLite. Register a custom Migrator that silently skips
+        // MODIFY statements when running on SQLite (testing only).
+        // Production MySQL is unaffected.
+        if (app()->environment('testing')) {
+            $this->app->extend('migrator', function ($migrator, $app) {
+                return new \App\Database\SqliteCompatMigrator(
+                    $app['migration.repository'],
+                    $app['db'],
+                    $app['files'],
+                    $app['events']
+                );
+            });
+        }
     }
 
     public function boot(): void

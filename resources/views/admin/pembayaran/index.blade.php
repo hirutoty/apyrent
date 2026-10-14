@@ -1087,6 +1087,7 @@
                                                         <thead>
                                                             <tr class="bg-green-50/60 border-y border-green-100">
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">#</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">PR Number</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Type GPS</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Tgl Bayar</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Berlaku s/d</th>
@@ -1107,6 +1108,10 @@
                                                             @endphp
                                                             <tr class="border-t border-gray-50 {{ ($loop->index ?? 0)%2===0 ? 'bg-white' : 'bg-gray-50/40' }}">
                                                                 <td class="px-4 py-2 text-gray-400">{{ $loop->iteration }}</td>
+                                                                <td class="px-4 py-2">
+                                                                    @php $_gpsPrNum = $sd['item_pr_numbers'][$gi] ?? $d->no_pr; @endphp
+                                                                    <span class="font-mono text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{{ $_gpsPrNum }}</span>
+                                                                </td>
                                                                 <td class="px-4 py-2 font-medium text-gray-700">
                                                                     @if($gps)
                                                                         <span class="font-semibold">{{ $gps->nama_gps ?? '-' }}</span>
@@ -1213,6 +1218,7 @@
                                                         <thead>
                                                             <tr class="bg-orange-50/60 border-y border-orange-100">
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">#</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">PR Number</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Nama Part</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Kategori</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Kondisi</th>
@@ -1249,6 +1255,10 @@
                                                             @endphp
                                                             <tr class="border-t border-gray-50 {{ ($spi%2===0)?'bg-white':'bg-gray-50/40' }}">
                                                                 <td class="px-4 py-2 text-gray-400">{{ $spi + 1 }}</td>
+                                                                <td class="px-4 py-2">
+                                                                    @php $_spPrNum = $sd['item_pr_numbers'][$spi] ?? $d->no_pr; @endphp
+                                                                    <span class="font-mono text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{{ $_spPrNum }}</span>
+                                                                </td>
                                                                 <td class="px-4 py-2 font-medium text-gray-700">
                                                                     {{ $spart['nama_part'] ?? '-' }}
                                                                     @if(!empty($spart['part_number']) && $spart['part_number'] !== '-')
@@ -1593,6 +1603,7 @@
                                                                 <thead>
                                                                     <tr class="bg-blue-50 border-b border-blue-100">
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">PR Number</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Kejadian</th>
                                                                         <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                         <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
@@ -1608,6 +1619,10 @@
                                                                     @php $saKjDec = $saDecMap[$saKjIdx] ?? null; $saKjCounter++; @endphp
                                                                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                         <td class="px-3 py-2 text-gray-400">{{ $saKjCounter }}</td>
+                                                                        <td class="px-3 py-2">
+                                                                            @php $_saPrNum = $sd['item_pr_numbers'][$saKjIdx] ?? $d->no_pr; @endphp
+                                                                            <span class="font-mono text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{{ $_saPrNum }}</span>
+                                                                        </td>
                                                                         <td class="px-3 py-2 font-semibold text-gray-800">{{ $saKj['nama_kejadian'] ?? '-' }}</td>
                                                                         <td class="px-3 py-2 text-center">
                                                                             @php $saKjLamp = $saKj['lampiran'] ?? []; @endphp
@@ -1750,6 +1765,7 @@
                                                                 <thead>
                                                                     <tr class="bg-red-50 border-b border-red-100">
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">PR Number</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Part</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kategori</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
@@ -1776,6 +1792,10 @@
                                                                     @endphp
                                                                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                         <td class="px-3 py-2 text-gray-400">{{ $siPIdx + 1 }}</td>
+                                                                        <td class="px-3 py-2">
+                                                                            @php $_siPrNum = $sd['item_pr_numbers'][$siPIdx] ?? $d->no_pr; @endphp
+                                                                            <span class="font-mono text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{{ $_siPrNum }}</span>
+                                                                        </td>
                                                                         <td class="px-3 py-2 font-semibold text-gray-800">{{ $siPart['nama_part'] ?? '-' }}</td>
                                                                         <td class="px-3 py-2">
                                                                             @if($siCat)

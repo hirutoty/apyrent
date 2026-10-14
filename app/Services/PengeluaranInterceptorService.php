@@ -746,54 +746,111 @@ class PengeluaranInterceptorService
             $newSourceData   = $interceptedData['source_data'];
 
             if (!empty($oldItemDecisions)) {
-                // Bangun map index → decision dari item_decisions lama
+                // ── ALUR BARU: Partial approval → buat PO document baru ────────────
+                // Pisahkan index locked (approved) vs rejected
                 $oldDecMap = collect($oldItemDecisions)->keyBy('idx');
-
-                // Parts lama di PO (sebelum filter approved)
                 $oldAllParts = $oldSourceData['parts'] ?? [];
-
-                // Parts baru dari form (hanya yang ditolak, sudah di-filter controller)
                 $newParts = $newSourceData['parts'] ?? [];
 
-                // Index part yang rejected di PO lama
                 $rejectedIdx = collect($oldItemDecisions)
                     ->where('action', 'rejected')
                     ->pluck('idx')
                     ->values()
                     ->toArray();
 
-                // Index part yang sudah approved — akan di-lock agar tidak bisa diapprove ulang
                 $approvedIdx = collect($oldItemDecisions)
                     ->where('action', 'approved')
                     ->pluck('idx')
                     ->values()
                     ->toArray();
+                // Merge dengan locked_approved_idx yang sudah ada
+                $existingLocked = array_map('intval', $oldSourceData['locked_approved_idx'] ?? []);
+                $approvedIdx = array_values(array_unique(array_merge($approvedIdx, $existingLocked)));
 
-                // Gabung: mulai dari semua parts lama, replace yang rejected dengan versi baru dari form
-                $mergedParts = $oldAllParts; // copy semua (approved + rejected lama)
+                // Build parts for new PO (only rejected, updated with form data)
+                $newPartsForNewPO = [];
                 $newPartCursor = 0;
                 foreach ($rejectedIdx as $oldIdx) {
-                    if (isset($newParts[$newPartCursor])) {
-                        // Merge untuk preserve field lama yang tidak diubah (serial_number, dll)
-                        $mergedParts[$oldIdx] = array_merge($mergedParts[$oldIdx], $newParts[$newPartCursor]);
+                    if (isset($newParts[$newPartCursor]) && isset($oldAllParts[$oldIdx])) {
+                        $newPartsForNewPO[] = array_merge($oldAllParts[$oldIdx], $newParts[$newPartCursor]);
                         $newPartCursor++;
                     }
                 }
 
-                $newSourceData['parts'] = array_values($mergedParts);
-
-                // Preserve kilometer dari oldSourceData jika tidak diubah (kosong/0 di form)
+                // Preserve kilometer dari oldSourceData jika tidak diubah
                 $oldKilometer = (int)($oldSourceData['kilometer'] ?? 0);
                 $newKilometer = (int)($newSourceData['kilometer'] ?? 0);
                 if ($oldKilometer > 0 && $newKilometer === 0) {
                     $newSourceData['kilometer'] = $oldKilometer;
                 }
 
-                // Simpan daftar index yang sudah locked approved agar approveItems() bisa guard-nya.
-                // item_decisions di-reset supaya approver bisa putuskan ulang HANYA untuk part baru.
-                // Part approved tetap terlindungi via locked_approved_idx.
-                $newSourceData['locked_approved_idx'] = array_values($approvedIdx);
-                unset($newSourceData['item_decisions']);
+                // ── Update PO lama: hapus item rejected, keep only approved ──
+                $approvedParts = collect($oldAllParts)
+                    ->filter(fn($p, $i) => in_array((int)$i, $approvedIdx))
+                    ->values()->all();
+                $approvedItemPoNumbers = [];
+                foreach ($approvedIdx as $i => $origIdx) {
+                    $approvedItemPoNumbers[$i] = $oldSourceData['item_po_numbers'][$origIdx] ?? $po->po_id;
+                }
+                $nominalApprovedLocked = collect($approvedParts)->sum(fn($p) => (int)($p['biaya'] ?? 0));
+
+                $oldPoSourceData = array_merge($oldSourceData, [
+                    'parts'                   => $approvedParts,
+                    'item_decisions'          => [],
+                    'locked_approved_idx'     => [],
+                    'nominal_approved_locked' => $nominalApprovedLocked,
+                    'nominal_rejected'        => 0,
+                    'item_po_numbers'         => $approvedItemPoNumbers,
+                ]);
+
+                $po->update([
+                    'source_data'         => $oldPoSourceData,
+                    'total_harga'         => $nominalApprovedLocked,
+                    'total_barang'        => count($approvedParts),
+                    'can_edit'            => false,
+                ]);
+
+                // ── Create new PO document for rejected items ──
+                $newPoSourceData = array_merge($newSourceData, [
+                    'parts'           => $newPartsForNewPO,
+                    'item_decisions'  => [],
+                    'locked_approved_idx'     => [],
+                    'nominal_approved_locked' => 0,
+                    'nominal_rejected'        => 0,
+                    'temp_files'              => $mergedTempFiles,
+                    // Preserve linked record IDs
+                    'service_incident_id'     => $oldSourceData['service_incident_id'] ?? null,
+                    'service_asuransi_id'     => $oldSourceData['service_asuransi_id'] ?? null,
+                ]);
+
+                $newPo = \App\Models\PurchaseOrder::create([
+                    'tanggal_po'        => now()->toDateString(),
+                    'vendor'            => $vendor,
+                    'pemohon'           => $newSourceData['pemohon'] ?? $po->pemohon ?? null,
+                    'departemen'        => $newSourceData['departemen'] ?? $po->departemen ?? null,
+                    'total_barang'      => count($newPartsForNewPO),
+                    'total_harga'       => collect($newPartsForNewPO)->sum(fn($p) => (int)($p['biaya'] ?? 0)),
+                    'status_po'         => 'Pending',
+                    'catatan'           => $interceptedData['informasi'] ?? $newSourceData['keterangan'] ?? null,
+                    'keterangan'        => $newSourceData['keterangan'] ?? null,
+                    'source_type'       => $sourceType,
+                    'source_data'       => $newPoSourceData,
+                    'status'            => 'Pending',
+                    'can_edit'          => false,
+                    'terakhir_diajukan' => now(),
+                ]);
+
+                // Populate item_po_numbers for new PO
+                $itemPoNumbers = [];
+                for ($i = 0; $i < count($newPartsForNewPO); $i++) {
+                    $itemPoNumbers[$i] = $newPo->po_id;
+                }
+                $sd = $newPo->source_data;
+                $sd['item_po_numbers'] = $itemPoNumbers;
+                $newPo->update(['source_data' => $sd]);
+
+                DB::commit();
+                return $newPo;
             }
 
             $totalItems = $this->extractTotalItems($sourceType, $newSourceData);
@@ -889,7 +946,29 @@ class PengeluaranInterceptorService
                 'can_edit'          => false,
                 'terakhir_diajukan' => now(),
             ]);
-            
+
+            // ── Populate item_po_numbers: map each item index → PO number ──────────
+            // Setiap item di multi-item types (GPS, Service Part, Service Asuransi,
+            // Service Incident) mendapat PO number yang sama dengan dokumen PO saat
+            // pertama dibuat. Saat item di-reject dan di-resubmit, item tersebut
+            // akan pindah ke PO document baru dan mendapat PO number baru.
+            $multiItemTypes = ['gps', 'gps_perpanjang', 'service_part', 'service_asuransi', 'service_incident'];
+            if (in_array($sourceType, $multiItemTypes)) {
+                $itemCount = match ($sourceType) {
+                    'gps', 'gps_perpanjang' => count($data['source_data']['gps_items'] ?? []),
+                    'service_part', 'service_incident' => count($data['source_data']['parts'] ?? []),
+                    'service_asuransi' => count($data['source_data']['kejadians'] ?? []),
+                    default => 1,
+                };
+                $itemPoNumbers = [];
+                for ($i = 0; $i < $itemCount; $i++) {
+                    $itemPoNumbers[$i] = $po->po_id;
+                }
+                $sourceData = $po->source_data;
+                $sourceData['item_po_numbers'] = $itemPoNumbers;
+                $po->update(['source_data' => $sourceData]);
+            }
+
             DB::commit();
             
             return $po;

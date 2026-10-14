@@ -3818,12 +3818,23 @@ class PembayaranController extends Controller
             $resubmittedIndices = collect($request->items)->pluck('idx')->map('intval')->all();
 
             // ── Bangun map item_decisions yang sudah ada, pakai integer key ─
-            // PENTING: keyBy dengan string menyebabkan mismatch saat forget() dengan integer.
-            // Gunakan array biasa dengan integer key agar konsisten.
             $existingDecisions = [];
             foreach ($sourceData['item_decisions'] ?? [] as $dec) {
                 $existingDecisions[(int)($dec['idx'] ?? -1)] = $dec;
             }
+
+            // ── Identifikasi approved idx (item yang tidak ikut resubmit) ──
+            $approvedIdx = collect($existingDecisions)
+                ->where('action', 'approved')
+                ->keys()
+                ->map('intval')
+                ->values()
+                ->all();
+
+            // ── Deteksi PARTIAL vs FULL REJECT ─────────────────────────────
+            // PARTIAL: ada item yang sudah approved (harus dipertahankan di PR lama)
+            // FULL: semua item rejected (reset PR yang sama)
+            $isPartial = !empty($approvedIdx);
 
             // Update tiap item yang diedit di source_data
             foreach ($request->items as $item) {
@@ -3837,10 +3848,8 @@ class PembayaranController extends Controller
                         $sourceData['parts'][$idx]['nama_rekening'] = $item['nama_rekening'] ?? $sourceData['parts'][$idx]['nama_rekening'] ?? null;
                         $sourceData['parts'][$idx]['supplier_id']   = $item['supplier_id'] ?? $sourceData['parts'][$idx]['supplier_id'] ?? null;
                         $sourceData['parts'][$idx]['keterangan']    = $item['keterangan'] ?? $sourceData['parts'][$idx]['keterangan'] ?? null;
-                        // Hapus flag rejection lama
                         unset($sourceData['parts'][$idx]['status_approval']);
                         unset($sourceData['parts'][$idx]['catatan_penolakan']);
-                        // Sync limit_snapshot.service_biaya agar tampilan kolom Service vs Limit di PO konsisten
                         if (isset($sourceData['parts'][$idx]['limit_snapshot'])) {
                             $sourceData['parts'][$idx]['limit_snapshot']['service_biaya'] = (int) $item['biaya'];
                         }
@@ -3851,10 +3860,8 @@ class PembayaranController extends Controller
                         $sourceData['parts'][$idx]['nama_bank']     = $item['nama_bank'] ?? $sourceData['parts'][$idx]['nama_bank'] ?? null;
                         $sourceData['parts'][$idx]['no_rekening']   = $item['no_rekening'] ?? $sourceData['parts'][$idx]['no_rekening'] ?? null;
                         $sourceData['parts'][$idx]['nama_rekening'] = $item['nama_rekening'] ?? $sourceData['parts'][$idx]['nama_rekening'] ?? null;
-                        // Hapus flag rejection lama
                         unset($sourceData['parts'][$idx]['status_approval']);
                         unset($sourceData['parts'][$idx]['catatan_penolakan']);
-                        // Sync limit_snapshot.service_biaya
                         if (isset($sourceData['parts'][$idx]['limit_snapshot'])) {
                             $sourceData['parts'][$idx]['limit_snapshot']['service_biaya'] = (int) $item['biaya'];
                         }
@@ -3877,17 +3884,12 @@ class PembayaranController extends Controller
                 unset($existingDecisions[$idx]);
             }
 
-            // Simpan hanya keputusan approved yang tersisa (integer key sudah aman)
+            // Simpan hanya keputusan approved yang tersisa
             $sourceData['item_decisions'] = array_values(
                 array_filter($existingDecisions, fn($d) => ($d['action'] ?? '') === 'approved')
             );
 
-            $hasRejectedLeft = false; // tidak ada rejected tersisa setelah resubmit
-
-            // ── Hitung ulang nominal ────────────────────────────────────────
-            // nominal_approved = biaya item yang masih approved (tidak diresubmit)
-            // nominal_resubmit = biaya item yang baru diresubmit (pakai nilai baru)
-            // Gunakan integer key untuk lookup yang konsisten
+            // ── Hitung nominal ──────────────────────────────────────────────
             $approvedIdxMap  = array_flip(array_column($sourceData['item_decisions'], 'idx'));
             $nominalApproved = 0;
             $nominalResubmit = 0;
@@ -3923,286 +3925,206 @@ class PembayaranController extends Controller
             $sourceData['nominal_approved'] = $nominalApproved;
             $sourceData['nominal_rejected'] = 0;
 
-            // ── Update PR: status → Diajukan, nominal diperbarui ───────────
-            $pembayaran->update([
-                'source_data'       => $sourceData,
-                'status'            => 'Diajukan',
-                'nominal'           => $nominalBaru,
-                'can_edit'          => false,
-                'catatan'           => null,
-                'terakhir_diajukan' => now(),
-            ]);
+            if ($isPartial) {
+                // ── PARTIAL RESUBMIT: buat PR baru untuk item yang rejected ──
+                // PR lama hanya berisi item yang approved
+                // PR baru berisi item yang diresubmit (rejected)
 
-            // ── Sync PO terkait ─────────────────────────────────────────────
-            // Update total_harga, source_data, dan status PO agar tampil nominal baru
-            $po = \App\Models\PurchaseOrder::where('pembayaran_id', $pembayaran->id)->first();
-            if ($po) {
-                $poSourceData = $po->source_data ?? [];
-
-                // Update bagian source_data PO sesuai source_type
-                // PENTING: JANGAN replace/overwrite parts/kejadians dari PO dengan yang dari Pembayaran!
-                // Pembayaran hanya punya approved parts, sedangkan PO punya semua parts (approved + rejected).
-                // Yang perlu di-update hanya field tertentu (misal: biaya, keterangan) untuk parts yang diresubmit.
+                // Build source_data untuk PR lama (hanya approved items)
+                $oldSourceData = $sourceData;
                 if (in_array($srcType, ['service_part', 'service_incident'])) {
-                    // Ambil parts dari PO yang existing (complete: approved + rejected)
-                    $existingPoParts = $poSourceData['parts'] ?? [];
-                    // Update HANYA parts yang ada di pembayaran (yang diresubmit)
-                    // JANGAN overwrite semua — pertahankan parts yang tidak ada di pembayaran (rejected)
-                    foreach ($sourceData['parts'] as $idx => $part) {
-                        // Hanya update field tertentu, jangan replace seluruh part
-                        // Ini untuk kasus resubmit di mana biaya/keterangan mungkin berubah
-                        if (isset($existingPoParts[$idx])) {
-                            $existingPoParts[$idx] = array_merge($existingPoParts[$idx], $part);
-                        } else {
-                            $existingPoParts[$idx] = $part;
-                        }
+                    $oldSourceData['parts'] = collect($sourceData['parts'])
+                        ->filter(fn($p, $i) => in_array((int)$i, $approvedIdx))
+                        ->values()->all();
+                    // Update item_pr_numbers untuk PR lama: hanya approved items
+                    $oldPrNumbers = [];
+                    foreach ($approvedIdx as $i => $origIdx) {
+                        $oldPrNumbers[$i] = $sourceData['item_pr_numbers'][$origIdx] ?? $pembayaran->no_pr;
                     }
-                    $poSourceData['parts'] = $existingPoParts;
+                    $oldSourceData['item_pr_numbers'] = $oldPrNumbers;
                 } elseif ($srcType === 'service_asuransi') {
-                    // Sama untuk service_asuransi kejadians
-                    $existingPoKej = $poSourceData['kejadians'] ?? [];
-                    foreach ($sourceData['kejadians'] as $idx => $kej) {
-                        $existingPoKej[$idx] = $kej;
+                    $oldSourceData['kejadians'] = collect($sourceData['kejadians'])
+                        ->filter(fn($k, $i) => in_array((int)$i, $approvedIdx))
+                        ->values()->all();
+                    $oldPrNumbers = [];
+                    foreach ($approvedIdx as $i => $origIdx) {
+                        $oldPrNumbers[$i] = $sourceData['item_pr_numbers'][$origIdx] ?? $pembayaran->no_pr;
                     }
-                    $poSourceData['kejadians'] = $existingPoKej;
+                    $oldSourceData['item_pr_numbers'] = $oldPrNumbers;
                 } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
-                    // Merge gps_items: update item yang diresubmit, pertahankan yang approved
-                    $existingPoGps = $poSourceData['gps_items'] ?? [];
-                    foreach ($sourceData['gps_items'] as $idx => $gpsItem) {
-                        $existingPoGps[$idx] = $gpsItem;
+                    $oldSourceData['gps_items'] = collect($sourceData['gps_items'])
+                        ->filter(fn($g, $i) => in_array((int)$i, $approvedIdx))
+                        ->values()->all();
+                    $oldPrNumbers = [];
+                    foreach ($approvedIdx as $i => $origIdx) {
+                        $oldPrNumbers[$i] = $sourceData['item_pr_numbers'][$origIdx] ?? $pembayaran->no_pr;
                     }
-                    $poSourceData['gps_items'] = $existingPoGps;
+                    $oldSourceData['item_pr_numbers'] = $oldPrNumbers;
+                }
+                $oldSourceData['item_decisions']  = [];
+                $oldSourceData['nominal_approved'] = $nominalApproved;
+                $oldSourceData['nominal_rejected'] = 0;
+
+                // Update PR lama: hapus rejected items, keep approved only
+                $pembayaran->update([
+                    'source_data'  => $oldSourceData,
+                    'nominal'      => $nominalApproved,
+                    'can_edit'     => false,
+                ]);
+
+                // Build source_data untuk PR baru (hanya rejected/resubmitted items)
+                $newSourceData = $sourceData;
+                $newSourceData['item_decisions'] = [];
+                $newSourceData['nominal_approved'] = 0;
+                $newSourceData['nominal_rejected'] = 0;
+                // Preserve linked record IDs
+                $newSourceData['service_asuransi_id'] = $sourceData['service_asuransi_id'] ?? null;
+                $newSourceData['service_incident_id'] = $sourceData['service_incident_id'] ?? null;
+
+                if (in_array($srcType, ['service_part', 'service_incident'])) {
+                    $newSourceData['parts'] = collect($sourceData['parts'])
+                        ->filter(fn($p, $i) => in_array((int)$i, $resubmittedIndices))
+                        ->values()->all();
+                } elseif ($srcType === 'service_asuransi') {
+                    $newSourceData['kejadians'] = collect($sourceData['kejadians'])
+                        ->filter(fn($k, $i) => in_array((int)$i, $resubmittedIndices))
+                        ->values()->all();
+                } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+                    $newSourceData['gps_items'] = collect($sourceData['gps_items'])
+                        ->filter(fn($g, $i) => in_array((int)$i, $resubmittedIndices))
+                        ->values()->all();
                 }
 
-                // Reset item_decisions PO agar item yang diresubmit muncul kembali sebagai pending
-                $poSourceData['item_decisions']   = $sourceData['item_decisions'];
-                $poSourceData['nominal_approved'] = $nominalApproved;
-                // Pertahankan nominal_rejected yang sudah tersimpan dari proses approval PO.
-                // Nilainya di-set oleh approveItemsServicePart/approveItemsServiceAsuransi.
-                // Jangan di-reset ke 0 — summary card "Ditolak" membaca nilai ini.
-                // $poSourceData['nominal_rejected'] tetap dari nilai existing ($poSourceData).
+                // Generate no_pr baru
+                $newNoPr = $this->generateNewNoPr($srcType);
 
-                // Update nominal_approved_locked agar view PO bisa hitung nominal header dengan benar
-                // nominal_approved_locked = biaya item yang sudah approved dan tidak ikut resubmit
-                $poSourceData['nominal_approved_locked'] = $nominalApproved;
+                // Populate item_pr_numbers untuk PR baru
+                $newItemCount = match(true) {
+                    in_array($srcType, ['service_part', 'service_incident']) => count($newSourceData['parts'] ?? []),
+                    $srcType === 'service_asuransi'                          => count($newSourceData['kejadians'] ?? []),
+                    in_array($srcType, ['gps', 'gps_perpanjang'])            => count($newSourceData['gps_items'] ?? []),
+                    default                                                  => 0,
+                };
+                $newPrNumbers = [];
+                for ($i = 0; $i < $newItemCount; $i++) {
+                    $newPrNumbers[$i] = $newNoPr;
+                }
+                $newSourceData['item_pr_numbers'] = $newPrNumbers;
 
-                // Update locked_approved_idx = idx yang ada di item_decisions DAN action = 'approved'
-                // PENTING: JANGAN masukkan idx yang rejected ke locked_approved_idx!
-                $poSourceData['locked_approved_idx'] = array_values(
-                    array_column(
-                        array_filter($sourceData['item_decisions'], fn($d) => ($d['action'] ?? '') === 'approved'),
-                        'idx'
-                    )
+                // Buat PR baru
+                $newPembayaran = Pembayaran::create([
+                    'no_pr'               => $newNoPr,
+                    'tanggal'             => now(),
+                    'departemen'          => $pembayaran->departemen,
+                    'tipe_pembayaran'     => $pembayaran->tipe_pembayaran,
+                    'pemohon'             => $pembayaran->pemohon,
+                    'alasan_permintaan'   => $pembayaran->alasan_permintaan,
+                    'keterangan'          => $pembayaran->keterangan,
+                    'nominal'             => $nominalResubmit,
+                    'nominal_original'    => $pembayaran->nominal_original,
+                    'nama_bank'           => $pembayaran->nama_bank,
+                    'no_rekening'         => $pembayaran->no_rekening,
+                    'nama_pemilik'        => $pembayaran->nama_pemilik,
+                    'status'              => 'Diajukan',
+                    'source_type'         => $srcType,
+                    'source_data'         => $newSourceData,
+                    'can_edit'            => false,
+                    'terakhir_diajukan'   => now(),
+                ]);
+
+                // Sync PO terkait — PR baru tidak terhubung ke PO lama
+                // PR lama sudah mengarah ke PO via pembayaran_id di PO
+                // Sync service tables untuk PR baru
+                $this->syncServiceTablesAfterResubmit(
+                    $newPembayaran, $srcType, $newSourceData, $request->items, $resubmittedIndices
                 );
 
-                $po->update([
-                    'source_data' => $poSourceData,
-                    'total_harga' => $nominalBaru,
-                    'can_edit'    => false,
-                    // Tidak ubah status PO — hanya update nominal dan source_data
-                ]);
-            }
+                DB::commit();
 
-            // ── Sync tabel service sesuai source_type ──────────────────────
-            if ($srcType === 'service_asuransi') {
-                // Update biaya kejadian yang diresubmit di tabel service_asuransi_kejadians
-                $saId = $sourceData['service_asuransi_id'] ?? null;
-                if (!$saId) {
-                    // Fallback: cari via pembayaran_id
-                    $sa = \App\Models\ServiceAsuransi::where('pembayaran_id', $pembayaran->id)->first();
-                    $saId = $sa?->id;
-                }
-                if ($saId) {
-                    // Update biaya total service_asuransi = approved + resubmit
-                    \App\Models\ServiceAsuransi::where('id', $saId)->update([
-                        'biaya'       => $nominalBaru,
-                        'persetujuan' => 'Diajukan ke Pembayaran',
-                    ]);
-
-                    // Update biaya per kejadian yang diresubmit
-                    foreach ($request->items as $item) {
-                        $idx      = (int) $item['idx'];
-                        $kej      = $sourceData['kejadians'][$idx] ?? [];
-                        $namaKej  = $kej['nama_kejadian'] ?? null;
-                        $biayaBaru = (int) $item['biaya'];
-
-                        if ($namaKej) {
-                            \App\Models\ServiceAsuransiKejadian::where('service_asuransi_id', $saId)
-                                ->where('nama_kejadian', $namaKej)
-                                ->whereIn('status', ['ditolak', 'diajukan'])
-                                ->update([
-                                    'biaya'             => $biayaBaru,
-                                    'status'            => 'diajukan',
-                                    'catatan_penolakan' => null,
-                                ]);
-                        }
-                    }
+                if ($srcType === 'service_part') {
+                    return redirect()
+                        ->route('service-history.index', ['highlight_pembayaran' => $newPembayaran->id])
+                        ->with('success', 'Item berhasil diajukan ulang dengan PR baru ' . $newPembayaran->no_pr . '.');
                 }
 
-            } elseif ($srcType === 'service_incident') {
-                // Sync ke service_incidents + service_incident_parts (mirip pola service_asuransi)
-                $siId = $sourceData['service_incident_id'] ?? null;
-                if (!$siId) {
-                    // Fallback: cari via pembayaran_id
-                    $si = \App\Models\ServiceIncident::where('pembayaran_id', $pembayaran->id)->first();
-                    $siId = $si?->id;
-                }
-                if ($siId) {
-                    // Reset persetujuan incident ke Diajukan ke Pembayaran
-                    \App\Models\ServiceIncident::where('id', $siId)
-                        ->update(['persetujuan' => 'Diajukan ke Pembayaran']);
-
-                    // Fallback: pastikan semua incident terkait ikut direset
-                    \App\Models\ServiceIncident::where('pembayaran_id', $pembayaran->id)
-                        ->whereIn('persetujuan', ['Ditolak', 'Ditolak Pembayaran'])
-                        ->update(['persetujuan' => 'Diajukan ke Pembayaran']);
-
-                    // Update biaya + bank per part yang diresubmit di service_incident_parts
-                    foreach ($request->items as $item) {
-                        $idx      = (int) $item['idx'];
-                        // Ambil data terbaru dari source_data yang sudah diupdate di atas
-                        $part     = $sourceData['parts'][$idx] ?? [];
-                        $namaPart = $part['nama_part'] ?? null;
-                        \Log::info("resubmit service_incident part update", [
-                            'siId'         => $siId,
-                            'idx'          => $idx,
-                            'nama_part'    => $namaPart,
-                            'biaya_baru'   => (int) $item['biaya'],
-                            'nama_bank'    => $item['nama_bank'] ?? null,
-                            'no_rekening'  => $item['no_rekening'] ?? null,
-                        ]);
-                        if ($namaPart) {
-                            $affected = \App\Models\ServiceIncidentPart::where('service_incident_id', $siId)
-                                ->where('nama_part', $namaPart)
-                                // Tidak filter persetujuan agar bisa menangkap semua status
-                                // (Ditolak Pembayaran, Diajukan ke Pembayaran, Pending)
-                                ->update([
-                                    'biaya'         => (int) $item['biaya'],
-                                    'nama_bank'     => $item['nama_bank']     ?? $part['nama_bank']     ?? null,
-                                    'no_rekening'   => $item['no_rekening']   ?? $part['no_rekening']   ?? null,
-                                    'nama_rekening' => $item['nama_rekening'] ?? $part['nama_rekening'] ?? null,
-                                    'persetujuan'   => 'Diajukan ke Pembayaran',
-                                ]);
-                            \Log::info("resubmit service_incident part affected rows: " . $affected);
-                        }
-                    }
-
-                    // Recalculate total_biaya incident dari parts yang aktif
-                    $totalBiayaBaru = \App\Models\ServiceIncidentPart::where('service_incident_id', $siId)
-                        ->whereNotIn('persetujuan', ['Ditolak Pembayaran'])
-                        ->sum('biaya');
-                    \App\Models\ServiceIncident::where('id', $siId)
-                        ->update(['total_biaya' => $totalBiayaBaru]);
-                }
-
-            } elseif ($srcType === 'service_part') {
-                // Reset persetujuan service_history & parts agar muncul kembali di antrian
-                \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)
-                    ->update(['persetujuan' => 'Diajukan ke Pembayaran']);
-
-                $sh = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
-                if ($sh) {
-                    // Update biaya parts yang diresubmit
-                    foreach ($request->items as $item) {
-                        $idx      = (int) $item['idx'];
-                        $part     = $sourceData['parts'][$idx] ?? [];
-                        $namaPart = $part['nama_part'] ?? null;
-                        if ($namaPart) {
-                            \App\Models\ServicePart::where('service_history_id', $sh->id)
-                                ->where('nama_part', $namaPart)
-                                ->whereIn('persetujuan', ['Ditolak Pembayaran', 'Diajukan ke Pembayaran'])
-                                ->update([
-                                    'biaya'       => (int) $item['biaya'],
-                                    'persetujuan' => 'Diajukan ke Pembayaran',
-                                ]);
-                        }
-                    }
-
-                    // Update total_biaya service_history
-                    $totalBiayaBaru = $sh->parts()
-                        ->whereNotIn('persetujuan', ['Ditolak Pembayaran'])
-                        ->sum('biaya');
-                    $sh->update(['total_biaya' => $totalBiayaBaru]);
-                }
-            } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
-                // Update record GpsKendaraan yang diresubmit: biaya_sewa + bank info
-                // Strategi lookup (3 tingkat):
-                //   1. gps_record_ids[idx]         → tersedia untuk source_type='gps' (buat baru)
-                //   2. gps_items[idx][gps_kendaraan_id] → tersedia untuk source_type='gps_perpanjang'
-                //   3. pembayaran_id + gps_id + type → fallback universal
-                $gpsRecordIds = $sourceData['gps_record_ids'] ?? [];
-                $kendaraanId  = $sourceData['kendaraan_id'] ?? null;
-
-                foreach ($request->items as $item) {
-                    $idx      = (int) $item['idx'];
-                    $gpsItem  = $sourceData['gps_items'][$idx] ?? [];
-                    $updateData = [
-                        'biaya_sewa'   => (int) $item['biaya'],
-                        'nama_bank'    => $item['nama_bank']    ?? $gpsItem['nama_bank']    ?? null,
-                        'no_rekening'  => $item['no_rekening']  ?? $gpsItem['no_rekening']  ?? null,
-                        'nama_pemilik' => $item['nama_pemilik'] ?? $gpsItem['nama_pemilik'] ?? null,
-                        'persetujuan'  => 'Diajukan ke Pembayaran',
-                    ];
-
-                    $updated = false;
-
-                    // Cara 1: gps_record_ids (source_type='gps' alur baru)
-                    $recordId = $gpsRecordIds[$idx] ?? null;
-                    if ($recordId) {
-                        $rows = \App\Models\GpsKendaraan::where('id', $recordId)->update($updateData);
-                        if ($rows > 0) {
-                            $updated = true;
-                        }
-                    }
-
-                    // Cara 2: gps_kendaraan_id per item (source_type='gps_perpanjang')
-                    if (!$updated && !empty($gpsItem['gps_kendaraan_id'])) {
-                        $rows = \App\Models\GpsKendaraan::where('id', (int) $gpsItem['gps_kendaraan_id'])
-                            ->update($updateData);
-                        if ($rows > 0) {
-                            $updated = true;
-                        }
-                    }
-
-                    // Cara 3: fallback via pembayaran_id + gps_id + type
-                    if (!$updated && !empty($gpsItem['gps_id'])) {
-                        $existing = \App\Models\GpsKendaraan::where('pembayaran_id', $pembayaran->id)
-                            ->where('gps_id', $gpsItem['gps_id'])
-                            ->where('type', $gpsItem['type'] ?? null)
-                            ->whereIn('persetujuan', ['Ditolak Pembayaran', 'Ditolak', 'Diajukan ke Pembayaran'])
-                            ->first();
-
-                        // Fallback lebih luas: cari via kendaraan_id + gps_id + type
-                        if (!$existing && $kendaraanId) {
-                            $existing = \App\Models\GpsKendaraan::where('kendaraan_id', $kendaraanId)
-                                ->where('gps_id', $gpsItem['gps_id'])
-                                ->where('type', $gpsItem['type'] ?? null)
-                                ->whereIn('persetujuan', ['Ditolak Pembayaran', 'Ditolak', 'Diajukan ke Pembayaran'])
-                                ->first();
-                        }
-
-                        if ($existing) {
-                            $existing->update($updateData);
-                        } else {
-                            \Log::warning("resubmitRejectedItems GPS: record tidak ditemukan untuk pembayaran #{$pembayaran->id} idx:{$idx} gps_id:{$gpsItem['gps_id']} type:{$gpsItem['type']}");
-                        }
-                    }
-                }
-            }
-
-            DB::commit();
-
-            // Redirect: service_incident → pembayaran.index (samakan SA)
-            // service_part → service history
-            if ($srcType === 'service_part') {
                 return redirect()
-                    ->route('service-history.index', ['highlight_pembayaran' => $pembayaran->id])
-                    ->with('success', 'Item berhasil diajukan ulang. Item yang ditolak pada PR ' . $pembayaran->no_pr . ' sudah kembali ke antrian approval.');
-            }
+                    ->route('pembayaran.index')
+                    ->with('success', 'Item ditolak berhasil diajukan ulang. PR baru ' . $newPembayaran->no_pr . ' dibuat.');
 
-            return redirect()
-                ->route('pembayaran.index')
-                ->with('success', 'Item ditolak berhasil diajukan ulang. Item yang ditolak pada PR ' . $pembayaran->no_pr . ' sudah kembali ke antrian approval.');
+            } else {
+                // ── FULL REJECT: reset PR yang sama ke Diajukan (alur lama) ──
+                $pembayaran->update([
+                    'source_data'       => $sourceData,
+                    'status'            => 'Diajukan',
+                    'nominal'           => $nominalBaru,
+                    'can_edit'          => false,
+                    'catatan'           => null,
+                    'terakhir_diajukan' => now(),
+                ]);
+
+                // ── Sync PO terkait ───────────────────────────────────────────
+                $po = \App\Models\PurchaseOrder::where('pembayaran_id', $pembayaran->id)->first();
+                if ($po) {
+                    $poSourceData = $po->source_data ?? [];
+
+                    if (in_array($srcType, ['service_part', 'service_incident'])) {
+                        $existingPoParts = $poSourceData['parts'] ?? [];
+                        foreach ($sourceData['parts'] as $idx => $part) {
+                            if (isset($existingPoParts[$idx])) {
+                                $existingPoParts[$idx] = array_merge($existingPoParts[$idx], $part);
+                            } else {
+                                $existingPoParts[$idx] = $part;
+                            }
+                        }
+                        $poSourceData['parts'] = $existingPoParts;
+                    } elseif ($srcType === 'service_asuransi') {
+                        $existingPoKej = $poSourceData['kejadians'] ?? [];
+                        foreach ($sourceData['kejadians'] as $idx => $kej) {
+                            $existingPoKej[$idx] = $kej;
+                        }
+                        $poSourceData['kejadians'] = $existingPoKej;
+                    } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+                        $existingPoGps = $poSourceData['gps_items'] ?? [];
+                        foreach ($sourceData['gps_items'] as $idx => $gpsItem) {
+                            $existingPoGps[$idx] = $gpsItem;
+                        }
+                        $poSourceData['gps_items'] = $existingPoGps;
+                    }
+
+                    $poSourceData['item_decisions']          = $sourceData['item_decisions'];
+                    $poSourceData['nominal_approved']        = $nominalApproved;
+                    $poSourceData['nominal_approved_locked'] = $nominalApproved;
+                    $poSourceData['locked_approved_idx']     = array_values(
+                        array_column(
+                            array_filter($sourceData['item_decisions'], fn($d) => ($d['action'] ?? '') === 'approved'),
+                            'idx'
+                        )
+                    );
+
+                    $po->update([
+                        'source_data' => $poSourceData,
+                        'total_harga' => $nominalBaru,
+                        'can_edit'    => false,
+                    ]);
+                }
+
+                // Sync service tables
+                $this->syncServiceTablesAfterResubmit(
+                    $pembayaran, $srcType, $sourceData, $request->items, $resubmittedIndices
+                );
+
+                DB::commit();
+
+                if ($srcType === 'service_part') {
+                    return redirect()
+                        ->route('service-history.index', ['highlight_pembayaran' => $pembayaran->id])
+                        ->with('success', 'Item berhasil diajukan ulang. Item yang ditolak pada PR ' . $pembayaran->no_pr . ' sudah kembali ke antrian approval.');
+                }
+
+                return redirect()
+                    ->route('pembayaran.index')
+                    ->with('success', 'Item ditolak berhasil diajukan ulang. Item yang ditolak pada PR ' . $pembayaran->no_pr . ' sudah kembali ke antrian approval.');
+            }
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -4210,7 +4132,169 @@ class PembayaranController extends Controller
             return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Generate no_pr baru untuk PR resubmit.
+     * Format: PR-SVC-001, PR-GPS-001, dst (sama dengan generateNoPRFromSourceType di PurchaseOrderApprovalService)
+     */
+    private function generateNewNoPr(string $sourceType): string
+    {
+        $typeMap = [
+            'gps'               => 'GPS',
+            'gps_perpanjang'    => 'GPS',
+            'asuransi_kendaraan'=> 'ASR',
+            'pajak'             => 'PJK',
+            'kir'               => 'KIR',
+            'stnk'              => 'STN',
+            'service_part'      => 'SVC',
+            'service_asuransi'  => 'SAS',
+            'service_incident'  => 'SIN',
+        ];
+
+        $typeCode = $typeMap[$sourceType] ?? 'PGL';
+
+        $lastPR = \App\Models\Pembayaran::where('no_pr', 'like', "PR-{$typeCode}-%")
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $increment = 1;
+        if ($lastPR) {
+            preg_match('/PR-' . $typeCode . '-(\d+)/', $lastPR->no_pr, $matches);
+            if (isset($matches[1])) {
+                $increment = intval($matches[1]) + 1;
+            }
+        }
+
+        return sprintf('PR-%s-%03d', $typeCode, $increment);
+    }
+
+    /**
+     * Sync tabel service setelah resubmit.
+     * Dipanggil dari resubmitRejectedItems untuk partial dan full reject.
+     */
+    private function syncServiceTablesAfterResubmit(
+        \App\Models\Pembayaran $pembayaran,
+        string $srcType,
+        array $sourceData,
+        $requestItems,
+        array $resubmittedIndices
+    ): void {
+        if ($srcType === 'service_asuransi') {
+            $saId = $sourceData['service_asuransi_id'] ?? null;
+            if (!$saId) {
+                $sa = \App\Models\ServiceAsuransi::where('pembayaran_id', $pembayaran->id)->first();
+                $saId = $sa?->id;
+            }
+            if ($saId) {
+                $totalNominal = collect($sourceData['kejadians'] ?? [])->sum(fn($k) => $k['biaya'] ?? 0);
+                \App\Models\ServiceAsuransi::where('id', $saId)->update([
+                    'biaya'       => $totalNominal,
+                    'persetujuan' => 'Diajukan ke Pembayaran',
+                ]);
+                foreach ($requestItems as $item) {
+                    $idx     = (int) $item['idx'];
+                    $kej     = $sourceData['kejadians'][$idx] ?? [];
+                    $namaKej = $kej['nama_kejadian'] ?? null;
+                    if ($namaKej) {
+                        \App\Models\ServiceAsuransiKejadian::where('service_asuransi_id', $saId)
+                            ->where('nama_kejadian', $namaKej)
+                            ->whereIn('status', ['ditolak', 'diajukan'])
+                            ->update(['biaya' => (int) $item['biaya'], 'status' => 'diajukan', 'catatan_penolakan' => null]);
+                    }
+                }
+            }
+
+        } elseif ($srcType === 'service_incident') {
+            $siId = $sourceData['service_incident_id'] ?? null;
+            if (!$siId) {
+                $si = \App\Models\ServiceIncident::where('pembayaran_id', $pembayaran->id)->first();
+                $siId = $si?->id;
+            }
+            if ($siId) {
+                \App\Models\ServiceIncident::where('id', $siId)->update(['persetujuan' => 'Diajukan ke Pembayaran']);
+                \App\Models\ServiceIncident::where('pembayaran_id', $pembayaran->id)
+                    ->whereIn('persetujuan', ['Ditolak', 'Ditolak Pembayaran'])
+                    ->update(['persetujuan' => 'Diajukan ke Pembayaran']);
+                foreach ($requestItems as $item) {
+                    $idx      = (int) $item['idx'];
+                    $part     = $sourceData['parts'][$idx] ?? [];
+                    $namaPart = $part['nama_part'] ?? null;
+                    if ($namaPart) {
+                        \App\Models\ServiceIncidentPart::where('service_incident_id', $siId)
+                            ->where('nama_part', $namaPart)
+                            ->update([
+                                'biaya'         => (int) $item['biaya'],
+                                'nama_bank'     => $item['nama_bank']     ?? $part['nama_bank']     ?? null,
+                                'no_rekening'   => $item['no_rekening']   ?? $part['no_rekening']   ?? null,
+                                'nama_rekening' => $item['nama_rekening'] ?? $part['nama_rekening'] ?? null,
+                                'persetujuan'   => 'Diajukan ke Pembayaran',
+                            ]);
+                    }
+                }
+                $totalBiayaBaru = \App\Models\ServiceIncidentPart::where('service_incident_id', $siId)
+                    ->whereNotIn('persetujuan', ['Ditolak Pembayaran'])->sum('biaya');
+                \App\Models\ServiceIncident::where('id', $siId)->update(['total_biaya' => $totalBiayaBaru]);
+            }
+
+        } elseif ($srcType === 'service_part') {
+            \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)
+                ->update(['persetujuan' => 'Diajukan ke Pembayaran']);
+            $sh = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
+            if ($sh) {
+                foreach ($requestItems as $item) {
+                    $idx      = (int) $item['idx'];
+                    $part     = $sourceData['parts'][$idx] ?? [];
+                    $namaPart = $part['nama_part'] ?? null;
+                    if ($namaPart) {
+                        \App\Models\ServicePart::where('service_history_id', $sh->id)
+                            ->where('nama_part', $namaPart)
+                            ->whereIn('persetujuan', ['Ditolak Pembayaran', 'Diajukan ke Pembayaran'])
+                            ->update(['biaya' => (int) $item['biaya'], 'persetujuan' => 'Diajukan ke Pembayaran']);
+                    }
+                }
+                $totalBiayaBaru = $sh->parts()->whereNotIn('persetujuan', ['Ditolak Pembayaran'])->sum('biaya');
+                $sh->update(['total_biaya' => $totalBiayaBaru]);
+            }
+
+        } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
+            $gpsRecordIds = $sourceData['gps_record_ids'] ?? [];
+            $kendaraanId  = $sourceData['kendaraan_id'] ?? null;
+            foreach ($requestItems as $item) {
+                $idx     = (int) $item['idx'];
+                $gpsItem = $sourceData['gps_items'][$idx] ?? [];
+                $updateData = [
+                    'biaya_sewa'   => (int) $item['biaya'],
+                    'nama_bank'    => $item['nama_bank']    ?? $gpsItem['nama_bank']    ?? null,
+                    'no_rekening'  => $item['no_rekening']  ?? $gpsItem['no_rekening']  ?? null,
+                    'nama_pemilik' => $item['nama_pemilik'] ?? $gpsItem['nama_pemilik'] ?? null,
+                    'persetujuan'  => 'Diajukan ke Pembayaran',
+                ];
+                $updated  = false;
+                $recordId = $gpsRecordIds[$idx] ?? null;
+                if ($recordId && \App\Models\GpsKendaraan::where('id', $recordId)->update($updateData) > 0) {
+                    $updated = true;
+                }
+                if (!$updated && !empty($gpsItem['gps_kendaraan_id'])) {
+                    if (\App\Models\GpsKendaraan::where('id', (int) $gpsItem['gps_kendaraan_id'])->update($updateData) > 0) {
+                        $updated = true;
+                    }
+                }
+                if (!$updated && !empty($gpsItem['gps_id'])) {
+                    $existing = \App\Models\GpsKendaraan::where('pembayaran_id', $pembayaran->id)
+                        ->where('gps_id', $gpsItem['gps_id'])
+                        ->where('type', $gpsItem['type'] ?? null)
+                        ->whereIn('persetujuan', ['Ditolak Pembayaran', 'Ditolak', 'Diajukan ke Pembayaran'])
+                        ->first();
+                    if (!$existing && $kendaraanId) {
+                        $existing = \App\Models\GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                            ->where('gps_id', $gpsItem['gps_id'])
+                            ->where('type', $gpsItem['type'] ?? null)
+                            ->whereIn('persetujuan', ['Ditolak Pembayaran', 'Ditolak', 'Diajukan ke Pembayaran'])
+                            ->first();
+                    }
+                    if ($existing) $existing->update($updateData);
+                }
+            }
+        }
+    }
 }
-
-
-

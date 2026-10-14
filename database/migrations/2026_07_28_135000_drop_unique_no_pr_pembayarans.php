@@ -9,7 +9,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Cek keberadaan index via information_schema, lalu drop kalau ada
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            // SQLite: cek index via PRAGMA
+            $indices = DB::select("PRAGMA index_list('pembayarans')");
+            $exists  = collect($indices)->contains(fn($i) => ($i->name ?? '') === 'pembayarans_no_pr_unique');
+            if ($exists) {
+                Schema::table('pembayarans', function (Blueprint $table) {
+                    $table->dropUnique('pembayarans_no_pr_unique');
+                });
+            }
+            return;
+        }
+
+        // MySQL: cek via information_schema
         $indexExists = DB::selectOne("
             SELECT COUNT(*) as cnt
             FROM information_schema.statistics

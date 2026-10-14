@@ -1232,9 +1232,13 @@
                                                                 <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                     <td class="px-3 py-2 text-gray-400">{{ $pIdx + 1 }}</td>
                                                                     
-                                                                    {{-- PO Number --}}
+                                                                    {{-- PO Number per item --}}
                                                                     <td class="px-3 py-2">
-                                                                        <span class="font-mono text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">{{ $po->po_id }}</span>
+                                                                        @php
+                                                                            $_itemOrigIdx = $part['_orig_idx'] ?? $pIdx;
+                                                                            $_itemPONum = $sourceData['item_po_numbers'][$_itemOrigIdx] ?? $po->po_id;
+                                                                        @endphp
+                                                                        <span class="font-mono text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">{{ $_itemPONum }}</span>
                                                                     </td>
                                                                     
                                                                     {{-- Tanggal PO --}}
@@ -1505,9 +1509,13 @@
                                                                 <tr class="border-t border-gray-50 {{ $kjRowBg }}">
                                                                     <td class="px-3 py-2 text-gray-400">{{ $kjIdx + 1 }}</td>
                                                                     
-                                                                    {{-- PO Number --}}
+                                                                    {{-- PO Number per item --}}
                                                                     <td class="px-3 py-2">
-                                                                        <span class="font-mono text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">{{ $po->po_id }}</span>
+                                                                        @php
+                                                                            $_kjOrigIdx = $kj['_orig_idx'] ?? $kjIdx;
+                                                                            $_kjPONum = $sourceData['item_po_numbers'][$_kjOrigIdx] ?? $po->po_id;
+                                                                        @endphp
+                                                                        <span class="font-mono text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">{{ $_kjPONum }}</span>
                                                                     </td>
                                                                     
                                                                     {{-- Tanggal PO --}}
@@ -1611,6 +1619,7 @@
                                                         <thead>
                                                             <tr class="bg-green-50 border-b border-green-100">
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">PO Number</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Type GPS</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Berlaku s/d</th>
@@ -1634,6 +1643,12 @@
                                                                 @endphp
                                                                 <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                     <td class="px-3 py-2 text-gray-400">{{ $giIdx + 1 }}</td>
+                                                                    <td class="px-3 py-2">
+                                                                        @php
+                                                                            $_gpsPONum = $sourceData['item_po_numbers'][$gpsOrigIdx] ?? $po->po_id;
+                                                                        @endphp
+                                                                        <span class="font-mono text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">{{ $_gpsPONum }}</span>
+                                                                    </td>
                                                                     <td class="px-3 py-2">
                                                                         <span class="font-semibold text-gray-800">{{ $gpsModel->nama_gps ?? '-' }}</span>
                                                                         <span class="text-gray-400 ml-1">({{ $gItem['type'] ?? '-' }})</span>
@@ -1679,7 +1694,7 @@
                                                                 </tr>
                                                             @endforeach
                                                             <tr class="border-t-2 border-green-200 bg-green-50/50">
-                                                                <td colspan="8" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="9" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
@@ -2248,6 +2263,10 @@ function buildDetailContent(data) {
             } else if (item.type && item.type !== '-') {
                 html += '<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700">' + item.type + '</span>';
             }
+            // PO Number per item
+            if (item.po_number) {
+                html += '<span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100">' + item.po_number + '</span>';
+            }
             html += '<span class="text-sm font-semibold text-gray-800">' + itemName + '</span>';
             if (item.part_number && item.part_number !== '-') {
                 html += '<span class="font-mono text-gray-400 text-[10px]">(' + item.part_number + ')</span>';
@@ -2593,6 +2612,7 @@ function renderApproveItems(data) {
             + '<div class="flex-1 min-w-0">'
             + '<div class="flex items-center gap-2 flex-wrap">'
             + '<span class="text-xs text-gray-400">#' + (idx + 1) + '</span>'
+            + (item.po_number ? '<span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100">' + item.po_number + '</span>' : '')
             + '<span class="font-semibold text-gray-800 text-sm">' + itemTitle + '</span>'
             + '<span class="ml-auto text-xs font-bold text-emerald-600">Rp ' + formatNumber(itemNominal) + '</span>'
             + '</div>'
