@@ -614,6 +614,9 @@ class PurchaseOrderController extends Controller
                 'po_number'        => $sourceData['item_po_numbers'][$origIdx] ?? null,
                 'nama_kejadian'    => $kej['nama_kejadian'] ?? '-',
                 'biaya'            => (int) ($kej['biaya'] ?? 0),
+                'tanggal_service'  => $kej['tanggal_service'] ?? null,
+                'periode_mulai'    => $kej['periode_mulai'] ?? null,
+                'periode_selesai'  => $kej['periode_selesai'] ?? null,
                 'lampiran'         => $lampiran,
                 'action'           => $decEntry['action'] ?? null,
                 'catatan_penolakan'=> $decEntry['catatan'] ?? null,
@@ -1984,7 +1987,14 @@ class PurchaseOrderController extends Controller
                     foreach ($kej['lampiran'] ?? [] as $lf) {
                         $lampiranExisting[] = $lf;
                     }
-                    return array_merge($kej, ['lampiran_existing' => $lampiranExisting]);
+                    // PENTING: Kirim field dengan nama 'tanggal_service' ke frontend
+                    // (form input pakai name tersebut), tapi source_data menyimpan dengan key 'tanggal'
+                    return array_merge($kej, [
+                        'lampiran_existing' => $lampiranExisting,
+                        'tanggal_service'   => $kej['tanggal'] ?? ($kej['tanggal_service'] ?? null),
+                        'periode_mulai'     => $kej['periode_mulai'] ?? null,
+                        'periode_selesai'   => $kej['periode_selesai'] ?? null,
+                    ]);
                 }, $kejadians, array_keys($kejadians));
 
                 return response()->json([
@@ -2475,7 +2485,7 @@ class PurchaseOrderController extends Controller
                 }
             }
 
-            // Bangun ulang kejadians dengan lampiran lama dipertahankan
+            // Bangun ulang kejadians dengan lampiran lama dipertahankan + field baru
             $newKejadians = array_map(function ($kej, $idx) use ($tempFiles) {
                 $lampiranLama = array_values(array_filter(
                     array_map(function ($lf) {
@@ -2491,9 +2501,14 @@ class PurchaseOrderController extends Controller
                 ));
                 $newLampiran = $tempFiles['kejadians'][$idx] ?? [];
                 return [
-                    'nama_kejadian' => $kej['nama_kejadian'] ?? '',
-                    'biaya'         => (int)($kej['biaya'] ?? 0),
-                    'lampiran'      => array_merge($lampiranLama, $newLampiran),
+                    'nama_kejadian'   => $kej['nama_kejadian'] ?? '',
+                    'biaya'           => (int)($kej['biaya'] ?? 0),
+                    // PENTING: simpan dengan key 'tanggal' agar konsisten dengan tabel DB (service_asuransi_kejadians.tanggal)
+                    // Fallback dari tanggal_service untuk backward compatibility dengan data lama
+                    'tanggal'         => $kej['tanggal_service'] ?? $kej['tanggal'] ?? null,
+                    'periode_mulai'   => $kej['periode_mulai'] ?? null,
+                    'periode_selesai' => $kej['periode_selesai'] ?? null,
+                    'lampiran'        => array_merge($lampiranLama, $newLampiran),
                 ];
             }, $kejadians, array_keys($kejadians));
 
@@ -2543,10 +2558,17 @@ class PurchaseOrderController extends Controller
                 foreach ($newKejadians as $newIdx => $newKej) {
                     $origIdx = $rejectedIdx[$newIdx] ?? null;
                     if ($origIdx !== null && isset($allKejadians[$origIdx])) {
-                        $newKejadiansForNewPO[] = array_merge($allKejadians[$origIdx], [
-                            'nama_kejadian' => $newKej['nama_kejadian'],
-                            'biaya'         => $newKej['biaya'],
-                            'lampiran'      => $newKej['lampiran'] ?? ($allKejadians[$origIdx]['lampiran'] ?? []),
+                        // PENTING: Gunakan data BARU dari form, jangan fallback ke lama
+                        // Fallback hanya jika field baru NULL (tidak diisi sama sekali)
+                        $oldKej = $allKejadians[$origIdx];
+                        $newKejadiansForNewPO[] = array_merge($oldKej, [
+                            'nama_kejadian'   => $newKej['nama_kejadian'],
+                            'biaya'           => $newKej['biaya'],
+                            // Prioritaskan data baru. Fallback ke tanggal_service (data lama) hanya jika null
+                            'tanggal'         => $newKej['tanggal'] ?? ($oldKej['tanggal'] ?? ($oldKej['tanggal_service'] ?? null)),
+                            'periode_mulai'   => $newKej['periode_mulai'] ?? ($oldKej['periode_mulai'] ?? null),
+                            'periode_selesai' => $newKej['periode_selesai'] ?? ($oldKej['periode_selesai'] ?? null),
+                            'lampiran'        => $newKej['lampiran'] ?? ($oldKej['lampiran'] ?? []),
                         ]);
                     }
                 }

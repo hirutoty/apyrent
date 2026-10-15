@@ -1192,17 +1192,17 @@
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Tanggal Service <span class="text-red-400">*</span></label>
-                    <input type="date" name="kejadians[${idx}][tanggal]" required value="${kej.tanggal || ''}"
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Tanggal Service <span class="text-gray-400 font-normal">(Opsional)</span></label>
+                    <input type="date" name="kejadians[${idx}][tanggal]" value="${kej.tanggal || ''}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                 </div>
                 <div>
-                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Mulai</label>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Mulai <span class="text-gray-400 font-normal">(Opsional)</span></label>
                     <input type="date" name="kejadians[${idx}][periode_mulai]" value="${kej.periode_mulai || ''}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                 </div>
                 <div>
-                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Selesai</label>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Selesai <span class="text-gray-400 font-normal">(Opsional)</span></label>
                     <input type="date" name="kejadians[${idx}][periode_selesai]" value="${kej.periode_selesai || ''}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                 </div>

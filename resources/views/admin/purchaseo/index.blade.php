@@ -1469,7 +1469,9 @@
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">PO Number</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tanggal PO</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tanggal Pasang</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Service</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Periode Mulai</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Periode Selesai</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Kejadian</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
@@ -1503,8 +1505,11 @@
                                                                         default    => 'odd:bg-white even:bg-gray-50/40',
                                                                     };
                                                                     
-                                                                    // Tanggal Pasang dari kejadian (item), bukan dari PO level
-                                                                    $tglPasang = $kj['tanggal_pasang'] ?? null;
+                                                                    // Field tanggal untuk Service Asuransi
+                                                                    // PENTING: Key di source_data adalah 'tanggal', bukan 'tanggal_service'
+                                                                    $tglService     = $kj['tanggal'] ?? ($kj['tanggal_service'] ?? null);
+                                                                    $periodeMulai   = $kj['periode_mulai'] ?? null;
+                                                                    $periodeSelesai = $kj['periode_selesai'] ?? null;
                                                                 @endphp
                                                                 <tr class="border-t border-gray-50 {{ $kjRowBg }}">
                                                                     <td class="px-3 py-2 text-gray-400">{{ $kjIdx + 1 }}</td>
@@ -1523,9 +1528,19 @@
                                                                         {{ $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-' }}
                                                                     </td>
                                                                     
-                                                                    {{-- Tanggal Pasang (per item) --}}
+                                                                    {{-- Tanggal Service (per kejadian) --}}
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">
-                                                                        {{ $tglPasang ? \Carbon\Carbon::parse($tglPasang)->format('d M Y') : '-' }}
+                                                                        {{ $tglService ? \Carbon\Carbon::parse($tglService)->format('d M Y') : '-' }}
+                                                                    </td>
+                                                                    
+                                                                    {{-- Periode Mulai --}}
+                                                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                                                        {{ $periodeMulai ? \Carbon\Carbon::parse($periodeMulai)->format('d M Y') : '-' }}
+                                                                    </td>
+                                                                    
+                                                                    {{-- Periode Selesai --}}
+                                                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                                                        {{ $periodeSelesai ? \Carbon\Carbon::parse($periodeSelesai)->format('d M Y') : '-' }}
                                                                     </td>
                                                                     
                                                                     {{-- Nama Kejadian --}}
@@ -1584,7 +1599,7 @@
                                                                 </tr>
                                                             @endforeach
                                                             <tr class="border-t-2 border-blue-200 bg-blue-50/50">
-                                                                <td colspan="7" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="9" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
@@ -2192,13 +2207,15 @@ function buildDetailContent(data) {
 
     if (kLabel || details.tanggal_service || details.tanggal_bayar) {
         const isService   = ['service_part','service_incident','service_asuransi'].includes(details.type);
-        const accentColor = details.type === 'service_asuransi' ? 'blue' : (isService ? 'orange' : 'green');
+        const isServiceAsr = details.type === 'service_asuransi';
+        const accentColor = isServiceAsr ? 'blue' : (isService ? 'orange' : 'green');
         html += '<div class="bg-' + accentColor + '-50/50 border border-' + accentColor + '-100 rounded-xl px-4 py-3">'
             + '<p class="text-[10px] font-bold text-' + accentColor + '-600 uppercase tracking-wide mb-2">'
             + '<i class="fa fa-car mr-1"></i> Kendaraan & Service</p>'
             + '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">';
         if (kLabel)                 html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kendaraan</p><p class="font-semibold text-gray-800">' + kLabel + '</p></div>';
-        if (details.tanggal_service)html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Service</p><p class="text-gray-700">' + fmtDate(details.tanggal_service) + '</p></div>';
+        // PENTING: Untuk Service Asuransi, JANGAN tampilkan Tgl Service di header (sudah ada per-item)
+        if (details.tanggal_service && !isServiceAsr) html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Service</p><p class="text-gray-700">' + fmtDate(details.tanggal_service) + '</p></div>';
         if (details.tanggal_bayar)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + fmtDate(details.tanggal_bayar) + '</p></div>';
         if (details.tanggal_habis)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + fmtDate(details.tanggal_habis) + '</p></div>';
         if (details.kilometer && details.kilometer !== '-') html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kilometer</p><p class="text-gray-700">' + details.kilometer + ' km</p></div>';
@@ -2290,6 +2307,30 @@ function buildDetailContent(data) {
             // Biaya di kanan
             html += '<span class="text-sm font-bold flex-shrink-0 ' + (item.action === 'rejected' ? 'text-red-500' : (isRejectedTab ? 'text-red-500' : 'text-emerald-600')) + '">Rp ' + itemBiaya.toLocaleString('id-ID') + '</span>'
                 + '</div>';
+
+            // ── Service Asuransi: Tanggal Service, Periode Mulai, Periode Selesai ──
+            if (isServiceAsr && (item.tanggal_service || item.periode_mulai || item.periode_selesai)) {
+                html += '<div class="mt-1 mb-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 grid grid-cols-3 gap-2 text-[10px]">';
+                if (item.tanggal_service) {
+                    html += '<div>'
+                        + '<p class="text-blue-400 uppercase mb-0.5">Tgl Service</p>'
+                        + '<p class="font-semibold text-gray-700">' + fmtDate(item.tanggal_service) + '</p>'
+                        + '</div>';
+                }
+                if (item.periode_mulai) {
+                    html += '<div>'
+                        + '<p class="text-blue-400 uppercase mb-0.5">Periode Mulai</p>'
+                        + '<p class="font-semibold text-gray-700">' + fmtDate(item.periode_mulai) + '</p>'
+                        + '</div>';
+                }
+                if (item.periode_selesai) {
+                    html += '<div>'
+                        + '<p class="text-blue-400 uppercase mb-0.5">Periode Selesai</p>'
+                        + '<p class="font-semibold text-gray-700">' + fmtDate(item.periode_selesai) + '</p>'
+                        + '</div>';
+                }
+                html += '</div>';
+            }
 
             // ── Limit Snapshot (Service grid) ──────────────────────
             const snap = item.limit_snapshot || null;
@@ -3432,6 +3473,28 @@ function renderRsaKejadian(container, idx, kej) {
                     <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp) <span class="text-red-400">*</span></label>
                     <input type="number" name="kejadians[${idx}][biaya]" min="0" value="${kej.biaya || 0}" required
                         onchange="updateRsaTotalBiaya()" oninput="updateRsaTotalBiaya()"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+            </div>
+            
+            <!-- Field tambahan: Tanggal Service, Periode Mulai, Periode Selesai -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Tanggal Service</label>
+                    <input type="date" name="kejadians[${idx}][tanggal_service]"
+                        value="${kej.tanggal_service || ''}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Mulai</label>
+                    <input type="date" name="kejadians[${idx}][periode_mulai]"
+                        value="${kej.periode_mulai || ''}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Selesai</label>
+                    <input type="date" name="kejadians[${idx}][periode_selesai]"
+                        value="${kej.periode_selesai || ''}"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                 </div>
             </div>

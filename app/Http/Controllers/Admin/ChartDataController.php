@@ -259,7 +259,10 @@ class ChartDataController extends Controller
             'pajak-kendaraan' => \App\Models\PajakKendaraan::query(),
             'stnk' => \App\Models\StnkHistory::query(),
             'service-history'  => \App\Models\ServiceHistory::query(),
-            'service-asuransi' => \App\Models\ServiceAsuransi::query(),
+            'service-asuransi' => \App\Models\ServiceAsuransiKejadian::query()
+                ->join('service_asuransi', 'service_asuransi_kejadians.service_asuransi_id', '=', 'service_asuransi.id')
+                ->where('service_asuransi_kejadians.status', 'disetujui')
+                ->selectRaw('service_asuransi_kejadians.*, service_asuransi.status as status, service_asuransi_kejadians.biaya as biaya, service_asuransi_kejadians.tanggal as tanggal_service'),
             'service-incident' => \App\Models\ServiceIncident::query(),
             'pembayaran'       => \App\Models\Pembayaran::query(),
             'purchase-order'  => \App\Models\PurchaseOrder::query(),
@@ -2231,7 +2234,15 @@ class ChartDataController extends Controller
                     ['where' => ['status' => 'Diajukan'],                          'column' => 'nominal', 'aggregation' => 'sum', 'label' => 'Diajukan'],
                     ['where' => ['status' => 'Pending'],                           'column' => 'nominal', 'aggregation' => 'sum', 'label' => 'Pending'],
                     ['where' => ['status' => 'Disetujui'],                         'column' => 'nominal', 'aggregation' => 'sum', 'label' => 'Disetujui'],
-                    ['where' => ['status' => 'Ditolak'],                           'column' => 'nominal', 'aggregation' => 'sum', 'label' => 'Ditolak'],
+                    [
+                        'label' => 'Ditolak',
+                        'where' => [
+                            '__raw' => "(status = 'Ditolak' OR (status = 'Disetujui' AND JSON_SEARCH(JSON_EXTRACT(source_data, '$.item_decisions[*].action'), 'one', 'rejected') IS NOT NULL))",
+                        ],
+                        'expr'   => "CASE WHEN status = 'Ditolak' THEN COALESCE(nominal_original, nominal) ELSE IFNULL(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_rejected')) AS DECIMAL(15,2)), 0) END",
+                        'column' => 'nominal', 
+                        'aggregation' => 'sum',
+                    ],
                 ],
                 'aggregation' => 'sum',
                 'dateColumn'  => 'tanggal',
@@ -2302,9 +2313,9 @@ class ChartDataController extends Controller
                 ],
                 [
                     'label'  => 'Nominal Ditolak',
-                    'type'   => 'sum_where',
-                    'column' => 'nominal',
-                    'where'  => ['status' => 'Ditolak'],
+                    'type'   => 'sum_expr',
+                    'expr'   => "CASE WHEN status = 'Ditolak' THEN COALESCE(nominal_original, nominal) ELSE IFNULL(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_rejected')) AS DECIMAL(15,2)), 0) END",
+                    'where'  => ['__raw' => "(status = 'Ditolak' OR (status = 'Disetujui' AND JSON_SEARCH(JSON_EXTRACT(source_data, '$.item_decisions[*].action'), 'one', 'rejected') IS NOT NULL))"],
                     'format' => 'currency',
                     'color'  => '#ef4444',
                     'iconBg' => '#fee2e2',
