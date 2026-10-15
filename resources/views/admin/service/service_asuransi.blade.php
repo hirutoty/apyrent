@@ -160,7 +160,6 @@
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Asuransi</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Keterangan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">KM</th>
-                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Status</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Persetujuan</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Status Kendaraan</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-400 px-5 py-4">Aksi</th>
@@ -237,8 +236,7 @@
                                         {{ number_format($d->kendaraan->kilometer_sekarang ?? $d->kilometer ?? 0, 0, ',', '.') }} km
                                     </td>
 
-                                    {{-- STATUS --}}
-                                    <td class="px-5 py-4 whitespace-nowrap">
+                                    {{-- <td class="px-5 py-4 whitespace-nowrap">
                                         @php $st = $d->status ?? 'bermasalah'; @endphp
                                         @if($st === 'tidak_aktif')
                                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border bg-slate-100 text-slate-500 border-slate-300">
@@ -257,7 +255,7 @@
                                             {{ $st === 'selesai' ? 'Selesai' : 'Bermasalah' }}
                                         </button>
                                         @endif
-                                    </td>
+                                    </td> --}}
 
                                     {{-- PERSETUJUAN --}}
                                     <td class="px-5 py-4 whitespace-nowrap">
