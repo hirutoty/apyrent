@@ -14,17 +14,25 @@ class ServiceAsuransiKejadian extends Model
     protected $fillable = [
         'service_asuransi_id',
         'nama_kejadian',
+        'tanggal',
+        'periode_mulai',
+        'periode_selesai',
         'biaya',
         'lampiran',
         'bukti_bayar',
         'status',
         'catatan_penolakan',
+        'tanggal_approval',
     ];
 
     protected $casts = [
-        'biaya'       => 'integer',
-        'lampiran'    => 'array',
-        'bukti_bayar' => 'array',
+        'tanggal'          => 'date',
+        'periode_mulai'    => 'date',
+        'periode_selesai'  => 'date',
+        'tanggal_approval' => 'datetime',
+        'biaya'            => 'integer',
+        'lampiran'         => 'array',
+        'bukti_bayar'      => 'array',
     ];
 
     public function serviceAsuransi()

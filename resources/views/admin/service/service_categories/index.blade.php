@@ -20,26 +20,7 @@
     </div>
 
     {{-- NAV TABS --}}
-    <div>
-        <nav class="inline-flex gap-1 bg-gray-100 rounded-xl p-1">
-            @php
-                $navItems = [
-                    ['label' => 'Service History',  'url' => '/admin/service-history',    'icon' => 'bi bi-clock-history'],
-                    ['label' => 'Service Asuransi', 'url' => '/admin/service-asuransi',   'icon' => 'bi bi-shield-fill-check'],
-                    ['label' => 'Reminder Service', 'url' => '/admin/reminder-service',   'icon' => 'bi bi-bell-fill'],
-                    ['label' => 'Kategori Service', 'url' => '/admin/service-categories', 'icon' => 'bi bi-tags-fill'],
-                ];
-            @endphp
-            @foreach ($navItems as $item)
-                @php $isActiveTab = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
-                <a href="{{ $item['url'] }}"
-                    class="flex items-center gap-2 px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-lg transition-all duration-150
-                        {{ $isActiveTab ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60' }}">
-                    <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
-                </a>
-            @endforeach
-        </nav>
-    </div>
+    @include('admin.service._nav_tabs', ['activeTab' => 'categories'])
 
     {{-- FLASH MESSAGES --}}
     @if(session('success'))

@@ -39,6 +39,7 @@ class ServicePart extends Model
         'approval_by',
         'approval_at',
         'persetujuan',
+        'tanggal_approval',
         'nama_rekening',
         'nama_bank',
         'no_rekening',
@@ -56,6 +57,7 @@ class ServicePart extends Model
         'replaced_at'       => 'datetime',
         'is_request'        => 'boolean',
         'approval_at'       => 'datetime',
+        'tanggal_approval'  => 'datetime',
     ];
 
     /*

@@ -15,7 +15,7 @@ class AsuransiKendaraan extends Model
         'kendaraan_id',
         'asuransi_id',
         'jenis_asuransi_id',
-        'status_kendaraan',
+        'status_aktif',        // ← Rename dari status_kendaraan
         'tgl_mulai',
         'tgl_berakhir',
         'durasi_bulan',
@@ -25,6 +25,7 @@ class AsuransiKendaraan extends Model
         'tanggal_buat',
         'pembayaran_id',
         'persetujuan',
+        'tanggal_approval',    // ← Tambah: tanggal saat pembayaran disetujui
         'nama_rekening',
         'nama_bank',
         'no_rekening',
@@ -33,8 +34,10 @@ class AsuransiKendaraan extends Model
     protected $casts = [
         'tgl_mulai' => 'date',
         'tgl_berakhir' => 'date',
-        'biaya' => 'decimal:2',
         'tanggal_bayar' => 'date',
+        'tanggal_buat' => 'date',
+        'biaya' => 'decimal:2',
+        'tanggal_approval' => 'datetime',  // ← Cast sebagai datetime
     ];
 
     /**

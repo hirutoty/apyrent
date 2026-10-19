@@ -574,7 +574,7 @@
             </div>
 
             {{-- Info Rekening --}}
-            @if($pembayaran->nama_bank || $pembayaran->no_rekening)
+            @if($pembayaran->nama_bank || $pembayaran->no_rekening || $pembayaran->nama_rekening)
             <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                 <div class="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
                     <span class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -583,6 +583,12 @@
                     <h2 class="text-sm font-bold text-gray-800">Info Rekening</h2>
                 </div>
                 <div class="p-5 space-y-3">
+                    @if($pembayaran->nama_rekening)
+                    <div>
+                        <p class="text-xs text-gray-400 mb-0.5">Nama Rekening</p>
+                        <p class="text-sm font-medium text-gray-700">{{ $pembayaran->nama_rekening }}</p>
+                    </div>
+                    @endif
                     @if($pembayaran->nama_bank)
                     <div>
                         <p class="text-xs text-gray-400 mb-0.5">Bank</p>
@@ -593,12 +599,6 @@
                     <div>
                         <p class="text-xs text-gray-400 mb-0.5">No. Rekening</p>
                         <p class="text-sm font-mono font-medium text-gray-700">{{ $pembayaran->no_rekening }}</p>
-                    </div>
-                    @endif
-                    @if($pembayaran->nama_rekening)
-                    <div>
-                        <p class="text-xs text-gray-400 mb-0.5">Atas Nama</p>
-                        <p class="text-sm font-medium text-gray-700">{{ $pembayaran->nama_rekening }}</p>
                     </div>
                     @endif
                     @if($pembayaran->nama_penerima)

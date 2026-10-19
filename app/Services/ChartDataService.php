@@ -43,7 +43,52 @@ class ChartDataService
             ];
         }
 
-        // Build aggregation query
+        // Handle custom groupBy with customData (untuk PO partial approval/rejection)
+        if ($groupBy === 'custom' && isset($config['customData'])) {
+            $chartLabels = [];
+            $chartData = [];
+            $chartColors = [];
+
+            foreach ($config['customData'] as $item) {
+                $label = $item['label'] ?? 'Unknown';
+                $where = $item['where'] ?? [];
+                $color = $item['color'] ?? '#6366f1';
+
+                // Clone query untuk setiap custom item
+                $itemQuery = clone $query;
+
+                // Apply where conditions
+                foreach ($where as $key => $value) {
+                    if ($key === '__raw') {
+                        $itemQuery->whereRaw($value);
+                    } else {
+                        $itemQuery->where($key, $value);
+                    }
+                }
+
+                // Get count
+                $count = $itemQuery->count();
+
+                // Only add to chart if count > 0
+                if ($count > 0) {
+                    $chartLabels[] = $label;
+                    $chartData[] = (float) $count;
+                    $chartColors[] = $color;
+                }
+            }
+
+            return [
+                'labels' => $chartLabels,
+                'datasets' => [
+                    [
+                        'data' => $chartData,
+                        'backgroundColor' => $chartColors
+                    ]
+                ]
+            ];
+        }
+
+        // Build aggregation query (default behavior untuk Pembayaran, dll)
         $results = $query
             ->select(
                 $groupBy,
@@ -116,6 +161,25 @@ class ChartDataService
         } else {
             $data = $this->getCategoryBarData($query, $groupBy, $valueColumns, $aggregation, $labels);
         }
+
+        // Debug logging for bar chart data
+        \Log::info('Bar Chart Data Generated', [
+            'filterType' => $filterType,
+            'groupBy' => $groupBy,
+            'dataset_count' => count($data['datasets'] ?? []),
+            'dataset_labels' => array_map(fn($d) => $d['label'] ?? 'unlabeled', $data['datasets'] ?? []),
+            'has_ditolak' => in_array('Ditolak', array_map(fn($d) => $d['label'] ?? '', $data['datasets'] ?? [])),
+            'data_preview' => array_map(function($d) {
+                $firstValues = array_slice($d['data'] ?? [], 0, 3);
+                $sum = array_sum($d['data'] ?? []);
+                return [
+                    'label' => $d['label'] ?? 'unlabeled',
+                    'total_points' => count($d['data'] ?? []),
+                    'first_3_values' => $firstValues,
+                    'sum' => $sum,
+                ];
+            }, $data['datasets'] ?? []),
+        ]);
 
         // Pass colors to JS
         if (!empty($colors)) {
@@ -199,7 +263,23 @@ class ChartDataService
             // Jika ada expr (CASE WHEN ...), gunakan selectRaw
             if (isset($column['expr'])) {
                 $expr = $column['expr'];
-                return (float)$q->selectRaw("SUM($expr) as _val")->value('_val') ?? 0;
+                $result = (float)$q->selectRaw("SUM($expr) as _val")->value('_val') ?? 0;
+                
+                // Debug logging for Ditolak dataset - log semua, termasuk yang 0
+                if (isset($column['label']) && $column['label'] === 'Ditolak') {
+                    $count = (clone $q)->count();
+                    $allRecords = (clone $q)->select('id', 'status', 'total_harga')->limit(5)->get();
+                    \Log::info('Resolving Ditolak column', [
+                        'label' => $column['label'],
+                        'result' => $result,
+                        'count_matching_records' => $count,
+                        'sample_records' => $allRecords->toArray(),
+                        'expr' => $expr,
+                        'where_raw' => $column['where']['__raw'] ?? null,
+                    ]);
+                }
+                
+                return $result;
             }
             $col = $column['column'] ?? 'id';
             $agg = $column['aggregation'] ?? 'sum';
@@ -361,7 +441,17 @@ class ChartDataService
             $columnData = [];
             for ($m = 1; $m <= 12; $m++) {
                 $periodQuery  = (clone $query)->whereMonth($dateColumn, $m)->whereYear($dateColumn, $year);
-                $columnData[] = $this->resolveColumnValue($periodQuery, $column);
+                $value = $this->resolveColumnValue($periodQuery, $column);
+                $columnData[] = $value;
+                
+                // Debug logging for Ditolak dataset in October
+                if (isset($column['label']) && $column['label'] === 'Ditolak' && $m === 10 && $value != 0) {
+                    \Log::info('Ditolak found in October', [
+                        'month' => $m,
+                        'value' => $value,
+                        'count' => (clone $periodQuery)->count(),
+                    ]);
+                }
             }
             $datasets[] = [
                 'label' => $this->columnLabel($column, $index, $labels),

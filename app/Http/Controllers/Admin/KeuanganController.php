@@ -291,4 +291,122 @@ if ($request->filled('jenis')) {
             $filename
         );
     }
+
+    /**
+     * Get detail cashflow untuk modal popup
+     */
+    public function getDetail($id)
+    {
+        $keuangan = Keuangan::findOrFail($id);
+        
+        $detail = [
+            'id' => $keuangan->id,
+            'tanggal' => $keuangan->tanggal->format('d M Y'),
+            'reference' => $keuangan->reference,
+            'kategori' => $keuangan->kategori,
+            'keterangan' => $keuangan->keterangan,
+            'nominal' => $keuangan->pengeluaran > 0 ? $keuangan->pengeluaran : $keuangan->pemasukan,
+            'type' => $keuangan->pengeluaran > 0 ? 'pengeluaran' : 'pemasukan',
+            'metode' => $keuangan->metode,
+            'user' => $keuangan->user->nama ?? $keuangan->user->email ?? '-',
+            'divisi' => $keuangan->divisi,
+        ];
+        
+        // Load detail from source if available
+        if ($keuangan->source_type && $keuangan->source_id) {
+            $detail['source'] = $this->loadSourceDetail($keuangan->source_type, $keuangan->source_id);
+        }
+        
+        return response()->json($detail);
+    }
+    
+    /**
+     * Load detail dari source record (service_part, service_incident, dll)
+     */
+    private function loadSourceDetail(string $sourceType, int $sourceId)
+    {
+        switch ($sourceType) {
+            case 'service_part':
+                $part = \App\Models\ServicePart::with(['kendaraan', 'serviceHistory', 'category', 'supplier'])->find($sourceId);
+                if (!$part) return null;
+                
+                return [
+                    'type' => 'Service Kendaraan',
+                    'kendaraan' => $part->kendaraan->merk . ' - ' . $part->kendaraan->nopol,
+                    'nama_part' => $part->nama_part,
+                    'kategori' => $part->category->nama ?? '-',
+                    'serial_number' => $part->serial_number ?? '-',
+                    'tgl_pasang' => $part->tgl_pasang ? \Carbon\Carbon::parse($part->tgl_pasang)->format('d M Y') : '-',
+                    'kilometer_pasang' => number_format($part->kilometer_pasang ?? 0, 0, ',', '.') . ' km',
+                    'biaya' => number_format($part->biaya, 0, ',', '.'),
+                    'kondisi' => $part->kondisi,
+                    'supplier' => $part->supplier->nama ?? '-',
+                    'nama_bank' => $part->nama_bank ?? '-',
+                    'no_rekening' => $part->no_rekening ?? '-',
+                    'nama_rekening' => $part->nama_rekening ?? '-',
+                    'bukti' => $part->bukti_bayar ?? [],
+                ];
+                
+            case 'service_asuransi_kejadian':
+                $kejadian = \App\Models\ServiceAsuransiKejadian::with(['serviceAsuransi.kendaraan', 'serviceAsuransi.jenisAsuransi'])->find($sourceId);
+                if (!$kejadian) return null;
+                
+                return [
+                    'type' => 'Service Asuransi',
+                    'kendaraan' => $kejadian->serviceAsuransi->kendaraan->merk . ' - ' . $kejadian->serviceAsuransi->kendaraan->nopol,
+                    'nama_asuransi' => $kejadian->serviceAsuransi->nama_asuransi ?? '-',
+                    'jenis_asuransi' => $kejadian->serviceAsuransi->jenisAsuransi->nama ?? '-',
+                    'nama_kejadian' => $kejadian->nama_kejadian,
+                    'biaya' => number_format($kejadian->biaya, 0, ',', '.'),
+                    'tanggal_service' => $kejadian->serviceAsuransi->tanggal_service ? \Carbon\Carbon::parse($kejadian->serviceAsuransi->tanggal_service)->format('d M Y') : '-',
+                    'periode' => ($kejadian->serviceAsuransi->periode_mulai ? \Carbon\Carbon::parse($kejadian->serviceAsuransi->periode_mulai)->format('d M Y') : '-') . ' - ' . ($kejadian->serviceAsuransi->periode_selesai ? \Carbon\Carbon::parse($kejadian->serviceAsuransi->periode_selesai)->format('d M Y') : '-'),
+                    'lampiran' => $kejadian->lampiran ?? [],
+                    'bukti' => $kejadian->bukti_bayar ?? [],
+                ];
+                
+            case 'service_incident_part':
+                $part = \App\Models\ServiceIncidentPart::with(['serviceIncident.kendaraan', 'category', 'supplier'])->find($sourceId);
+                if (!$part) return null;
+                
+                return [
+                    'type' => 'Service Insiden',
+                    'kendaraan' => $part->serviceIncident->kendaraan->merk . ' - ' . $part->serviceIncident->kendaraan->nopol,
+                    'tanggal_service' => $part->serviceIncident->tanggal_service ? \Carbon\Carbon::parse($part->serviceIncident->tanggal_service)->format('d M Y') : '-',
+                    'keluhan' => $part->serviceIncident->keluhan ?? '-',
+                    'nama_part' => $part->nama_part,
+                    'kategori' => $part->category->nama ?? '-',
+                    'biaya' => number_format($part->biaya, 0, ',', '.'),
+                    'kondisi' => $part->kondisi,
+                    'supplier' => $part->supplier->nama ?? '-',
+                    'nama_bank' => $part->nama_bank ?? '-',
+                    'no_rekening' => $part->no_rekening ?? '-',
+                    'nama_rekening' => $part->nama_rekening ?? '-',
+                    'lampiran' => $part->lampiran ?? [],
+                    'bukti' => $part->bukti_bayar ?? [],
+                ];
+                
+            case 'gps_kendaraan':
+                $gps = \App\Models\GpsKendaraan::with(['kendaraan', 'gps'])->find($sourceId);
+                if (!$gps) return null;
+                
+                return [
+                    'type' => 'GPS',
+                    'kendaraan' => $gps->kendaraan->merk . ' - ' . $gps->kendaraan->nopol,
+                    'nama_gps' => $gps->gps->nama_gps ?? '-',
+                    'type_gps' => $gps->type,
+                    'tanggal_pasang' => $gps->tanggal_pasang ? \Carbon\Carbon::parse($gps->tanggal_pasang)->format('d M Y') : '-',
+                    'tanggal_habis' => $gps->tanggal_habis ? \Carbon\Carbon::parse($gps->tanggal_habis)->format('d M Y') : '-',
+                    'durasi_bulan' => $gps->durasi_bulan . ' bulan',
+                    'biaya_sewa' => number_format($gps->biaya_sewa, 0, ',', '.'),
+                    'status_sewa' => $gps->status_sewa,
+                    'nama_bank' => $gps->nama_bank ?? '-',
+                    'no_rekening' => $gps->no_rekening ?? '-',
+                    'nama_pemilik' => $gps->nama_pemilik ?? '-',
+                    'bukti' => $gps->bukti_bayar ? [$gps->bukti_bayar] : [],
+                ];
+                
+            default:
+                return null;
+        }
+    }
 }

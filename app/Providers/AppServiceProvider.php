@@ -6,8 +6,6 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Pagination\Paginator;
-use App\Models\Kendaraan;
-use App\Models\ServiceHistory;
 use App\Models\Setting;
 
 
@@ -16,7 +14,21 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // ── SQLite testing guard ──────────────────────────────────────────────
+        // 30+ migration files in this project use MySQL-only `ALTER TABLE ... MODIFY COLUMN`
+        // syntax incompatible with SQLite. Register a custom Migrator that silently skips
+        // MODIFY statements when running on SQLite (testing only).
+        // Production MySQL is unaffected.
+        if (app()->environment('testing')) {
+            $this->app->extend('migrator', function ($migrator, $app) {
+                return new \App\Database\SqliteCompatMigrator(
+                    $app['migration.repository'],
+                    $app['db'],
+                    $app['files'],
+                    $app['events']
+                );
+            });
+        }
     }
 
     public function boot(): void
@@ -29,32 +41,8 @@ class AppServiceProvider extends ServiceProvider
         });
 
         View::composer('*', function ($view) {
-
-            $warningIds = [];
-
-            $kendaraanList = Kendaraan::all();
-
-            foreach ($kendaraanList as $k) {
-
-                $limit = $k->limit_biaya_bulanan_service ?? 0;
-
-                $total = ServiceHistory::where('kendaraan_id', $k->id)
-                    ->whereMonth('tanggal_service', now()->month)
-                    ->whereYear('tanggal_service', now()->year)
-                    ->sum('total_biaya');
-
-                $sisa = $limit - $total;
-
-                if ($sisa <= 0 || ($limit > 0 && $sisa <= ($limit * 0.1))) {
-                    $warningIds[] = $k->id;
-                }
-            }
-
             $setting = Setting::first();
-
             View::share('globalSetting', $setting);
-
-            $view->with('serviceWarning', $warningIds);
         });
     }
 }

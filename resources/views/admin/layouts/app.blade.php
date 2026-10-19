@@ -291,6 +291,8 @@
         /* ── Nav group (dropdown) ── */
         .nav-group {
             margin-bottom: 2px;
+            position: relative;
+            z-index: 10000 !important;
         }
 
         .nav-group-toggle {
@@ -315,6 +317,8 @@
             max-height: 0;
             overflow: hidden;
             transition: max-height 280ms ease;
+            position: relative;
+            z-index: 10001 !important;
         }
 
         .nav-subgroup-label {
@@ -343,6 +347,11 @@
             background: #f87171;
             margin-left: auto;
             flex-shrink: 0;
+        }
+
+        /* ── Ensure sidebar has higher z-index than page modals ── */
+        #sidebar {
+            z-index: 9999 !important;
         }
     </style>
 
@@ -414,11 +423,7 @@
         {{-- Navigation --}}
         @php
             $role = auth()->user()->role;
-
-            // Warning flags dipakai di dalam grup "Operasi" (bagian Service)
-            $hasWarning = isset($serviceWarning) && count($serviceWarning) > 0;
             $isKirWarning = isset($kirWarning) && $kirWarning;
-            $operasiHasWarning = $hasWarning || $isKirWarning;
         @endphp
 
         <nav id="sidebar-nav" class="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
@@ -572,9 +577,6 @@
                         class="nav-group-toggle w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all text-[13px] font-semibold">
                         <i class="bi bi-gear-wide-connected w-4 text-center shrink-0"></i>
                         <span class="flex-1 text-left">Operasi</span>
-                        @if ($operasiHasWarning)
-                            <span class="nav-group-warning-dot notif-dot"></span>
-                        @endif
                         <i class="bi bi-chevron-down text-[10px] nav-group-chevron"></i>
                     </button>
                     <div class="nav-group-content">
@@ -643,23 +645,16 @@
 
                             {{-- Sub: Service --}}
                             @if ($role == 'superadmin' || $role == 'produksi')
-                                
-
                                 @php
                                     $isActive = request()->is('admin/service-history*') || request()->is('admin/service-detail*') || request()->is('admin/reminder-service*');
                                 @endphp
 
                                 <a href="/admin/service-history"
                                     class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all font-medium
-                            {{ $hasWarning ? 'bg-red-500/20 text-red-200 hover:bg-red-500/30' : ($isActive ? 'bg-sidebar-hover text-white' : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white') }}">
+                            {{ $isActive ? 'bg-sidebar-hover text-white' : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white' }}">
                                     <i class="bi bi-clock-history w-4 text-center shrink-0"></i>
                                     Service Kendaraan
-                                    @if ($hasWarning)
-                                        <i class="fas fa-triangle-exclamation text-red-400 animate-pulse ml-auto"></i>
-                                    @endif
                                 </a>
-
-                               
                             @endif
 
                             {{-- Sub: Data Leasing --}}
@@ -1415,6 +1410,42 @@
             group.classList.add('open');
             content.style.maxHeight = content.scrollHeight + 'px';
         }
+
+        // ── FIX: Reinitialize sidebar dropdown with higher priority (prevent interference) ──
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add event listeners with capture phase for higher priority
+            document.querySelectorAll('.nav-group-toggle').forEach(function(toggleBtn) {
+                // Clone to remove existing listeners
+                const newToggleBtn = toggleBtn.cloneNode(true);
+                toggleBtn.parentNode.replaceChild(newToggleBtn, toggleBtn);
+                
+                // Add new listener with capture phase
+                newToggleBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    
+                    const group = this.closest('.nav-group');
+                    const content = group.querySelector('.nav-group-content');
+                    const isOpen = group.classList.contains('open');
+
+                    if (isOpen) {
+                        content.style.maxHeight = '0px';
+                        group.classList.remove('open');
+                    } else {
+                        group.classList.add('open');
+                        content.style.maxHeight = content.scrollHeight + 'px';
+                    }
+                }, true); // Use capture phase for higher priority
+            });
+
+            // Ensure sidebar nav links are also clickable with high priority
+            document.querySelectorAll('#sidebar-nav .nav-link').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    // Allow navigation, just ensure it's not blocked
+                    e.stopPropagation();
+                }, true);
+            });
+        });
 
         // ── Active nav link + auto-open parent group ──
         (function() {

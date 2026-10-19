@@ -120,6 +120,7 @@
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Lampiran</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Status</th>
                         <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Persetujuan</th>
+                        <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Tgl Approval</th>
                         <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">Aksi</th>
                     </tr>
                 </thead>
@@ -219,14 +220,15 @@
                             </td>
                             {{-- Status --}}
                             <td class="px-4 py-3.5">
-                                @if($item->status === 'aktif')
+                                @php
+                                    $statusAktifValue = $item->status_aktif ?? 'tidak_aktif';
+                                @endphp
+                                @if($statusAktifValue === 'aktif')
                                     <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Aktif</span>
-                                @elseif($item->status === 'expired')
+                                @elseif($statusAktifValue === 'expired')
                                     <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Expired</span>
-                                @elseif($item->status === 'tidak_aktif')
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Tidak Aktif</span>
                                 @else
-                                    <span class="text-gray-400 text-xs">-</span>
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Tidak Aktif</span>
                                 @endif
                             </td>
                             {{-- Persetujuan --}}
@@ -251,6 +253,17 @@
                                     </span>
                                 @else
                                     <span class="text-gray-400 text-xs">-</span>
+                                @endif
+                            </td>
+                            {{-- Tanggal Approval --}}
+                            <td class="px-4 py-3.5 text-xs text-gray-600">
+                                @if($item->tanggal_approval)
+                                    <span class="inline-flex items-center gap-1">
+                                        <i class="fa fa-calendar text-[10px] text-gray-400"></i>
+                                        {{ \Carbon\Carbon::parse($item->tanggal_approval)->translatedFormat('j M Y') }}
+                                    </span>
+                                @else
+                                    <span class="text-gray-400">-</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3.5">
@@ -308,7 +321,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="13" class="px-5 py-12 text-center">
+                            <td colspan="15" class="px-5 py-12 text-center">
                                 <div class="flex flex-col items-center gap-3">
                                     <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                         <i class="fa fa-id-card text-2xl text-gray-300"></i>

@@ -255,18 +255,45 @@ class ChartDataController extends Controller
             'data-leasing' => \App\Models\DataLeasing::query(),
             'asuransi' => \App\Models\Asuransi::query(),
             'gps' => \App\Models\Gps::query(),
-            'kir' => \App\Models\Kir::query(),
-            'pajak-kendaraan' => \App\Models\PajakKendaraan::query(),
+            'kir' => \App\Models\Kir::query()
+                ->whereNotNull('persetujuan')
+                ->where('persetujuan', '!=', 'Pending')
+                ->where(function ($q) {
+                    $q->where('persetujuan', '!=', 'Ditolak')
+                      ->orWhereNotNull('pembayaran_id');
+                }),
+            'pajak-kendaraan' => \App\Models\PajakKendaraan::query()
+                ->whereNotNull('persetujuan')
+                ->where('persetujuan', '!=', 'Pending')
+                ->where(function ($q) {
+                    $q->where('persetujuan', '!=', 'Ditolak')
+                      ->orWhereNotNull('pembayaran_id');
+                }),
             'stnk' => \App\Models\StnkHistory::query(),
             'service-history'  => \App\Models\ServiceHistory::query(),
-            'service-asuransi' => \App\Models\ServiceAsuransi::query(),
+            'service-asuransi' => \App\Models\ServiceAsuransiKejadian::query()
+                ->join('service_asuransi', 'service_asuransi_kejadians.service_asuransi_id', '=', 'service_asuransi.id')
+                ->where('service_asuransi_kejadians.status', 'disetujui')
+                ->selectRaw('service_asuransi_kejadians.*, service_asuransi.status as status, service_asuransi_kejadians.biaya as biaya, service_asuransi_kejadians.tanggal as tanggal_service'),
             'service-incident' => \App\Models\ServiceIncident::query(),
             'pembayaran'       => \App\Models\Pembayaran::query(),
             'purchase-order'  => \App\Models\PurchaseOrder::query(),
             'kendaraan' => \App\Models\Kendaraan::query(),
             'kendaraan-show' => \App\Models\ServiceHistory::query(),
-            'asuransi-kendaraan' => \App\Models\AsuransiKendaraan::query(),
-            'gps-kendaraan' => \App\Models\GpsKendaraan::query(),
+            'asuransi-kendaraan' => \App\Models\AsuransiKendaraan::query()
+                ->whereNotNull('persetujuan')
+                ->where('persetujuan', '!=', 'Pending')
+                ->where(function ($q) {
+                    $q->where('persetujuan', '!=', 'Ditolak')
+                      ->orWhereNotNull('pembayaran_id');
+                }),
+            'gps-kendaraan' => \App\Models\GpsKendaraan::query()
+                ->whereNotNull('persetujuan')
+                ->where('persetujuan', '!=', 'Pending')
+                ->where(function ($q) {
+                    $q->where('persetujuan', '!=', 'Ditolak')
+                      ->orWhereNotNull('pembayaran_id');
+                }),
             // Member & Pelanggan
             'member' => \App\Models\Member::query(),
             'pelanggan' => \App\Models\Pelanggan::query(),
@@ -2231,7 +2258,15 @@ class ChartDataController extends Controller
                     ['where' => ['status' => 'Diajukan'],                          'column' => 'nominal', 'aggregation' => 'sum', 'label' => 'Diajukan'],
                     ['where' => ['status' => 'Pending'],                           'column' => 'nominal', 'aggregation' => 'sum', 'label' => 'Pending'],
                     ['where' => ['status' => 'Disetujui'],                         'column' => 'nominal', 'aggregation' => 'sum', 'label' => 'Disetujui'],
-                    ['where' => ['status' => 'Ditolak'],                           'column' => 'nominal', 'aggregation' => 'sum', 'label' => 'Ditolak'],
+                    [
+                        'label' => 'Ditolak',
+                        'where' => [
+                            '__raw' => "(status = 'Ditolak' OR (status = 'Disetujui' AND JSON_SEARCH(JSON_EXTRACT(source_data, '$.item_decisions[*].action'), 'one', 'rejected') IS NOT NULL))",
+                        ],
+                        'expr'   => "CASE WHEN status = 'Ditolak' THEN COALESCE(nominal_original, nominal) ELSE IFNULL(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_rejected')) AS DECIMAL(15,2)), 0) END",
+                        'column' => 'nominal', 
+                        'aggregation' => 'sum',
+                    ],
                 ],
                 'aggregation' => 'sum',
                 'dateColumn'  => 'tanggal',
@@ -2241,14 +2276,15 @@ class ChartDataController extends Controller
                 'format'      => 'currency',
             ],
             'line' => [
-                'title'       => 'Trend Nominal Pembayaran',
+                'title'       => 'Tren Pembayaran',
                 'groupBy'     => 'month',
-                'valueColumn' => 'nominal',
-                'aggregation' => 'sum',
+                'valueColumn' => 'id',  // Changed from 'nominal' to 'id' for count
+                'aggregation' => 'count',  // Changed from 'sum' to 'count'
                 'dateColumn'  => 'tanggal',
                 'limit'       => 12,
-                'label'       => 'Nominal',
+                'label'       => 'Total PR',  // Changed from 'Nominal' to 'Total PR'
                 'color'       => '#8b5cf6',
+                'format'      => 'number',  // Changed from 'currency' to 'number'
             ],
             'stats' => [
                 [
@@ -2301,9 +2337,9 @@ class ChartDataController extends Controller
                 ],
                 [
                     'label'  => 'Nominal Ditolak',
-                    'type'   => 'sum_where',
-                    'column' => 'nominal',
-                    'where'  => ['status' => 'Ditolak'],
+                    'type'   => 'sum_expr',
+                    'expr'   => "CASE WHEN status = 'Ditolak' THEN COALESCE(nominal_original, nominal) ELSE IFNULL(CAST(JSON_UNQUOTE(JSON_EXTRACT(source_data, '$.nominal_rejected')) AS DECIMAL(15,2)), 0) END",
+                    'where'  => ['__raw' => "(status = 'Ditolak' OR (status = 'Disetujui' AND JSON_SEARCH(JSON_EXTRACT(source_data, '$.item_decisions[*].action'), 'one', 'rejected') IS NOT NULL))"],
                     'format' => 'currency',
                     'color'  => '#ef4444',
                     'iconBg' => '#fee2e2',
@@ -2496,7 +2532,7 @@ class ChartDataController extends Controller
             'dateColumn' => 'tgl_mulai',
             'pie' => [
                 'title' => 'Distribusi Status Asuransi',
-                'groupBy' => 'status_kendaraan',
+                'groupBy' => 'status_aktif',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
                 'labels' => [
@@ -2548,7 +2584,7 @@ class ChartDataController extends Controller
                     'label' => 'Aktif',
                     'type' => 'count_where',
                     'column' => 'id',
-                    'where' => ['status_kendaraan' => 'aktif'],
+                    'where' => ['status_aktif' => 'aktif'],
                     'format' => 'number',
                     'color' => '#10b981',
                     'iconBg' => '#d1fae5',
@@ -2558,7 +2594,7 @@ class ChartDataController extends Controller
                     'label' => 'Expired',
                     'type' => 'count_where',
                     'column' => 'id',
-                    'where' => ['status_kendaraan' => 'expired'],
+                    'where' => ['status_aktif' => 'expired'],
                     'format' => 'number',
                     'color' => '#ef4444',
                     'iconBg' => '#fee2e2',
@@ -3357,10 +3393,34 @@ class ChartDataController extends Controller
             'dateColumn' => 'tanggal_po',
             'pie' => [
                 'title'       => 'Distribusi Status PO',
-                'groupBy'     => 'status',
+                'groupBy'     => 'custom',  // Use custom calculation untuk handle partial approval/rejection
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
-                'labels'      => [],
+                'customData'  => [
+                    // Pending: PO dengan status Pending (tidak include partial approved items yang sudah locked)
+                    [
+                        'label' => 'Pending',
+                        'where' => ['status' => 'Pending'],
+                        'color' => '#f59e0b',
+                    ],
+                    // Disetujui: PO dengan status Disetujui OR PO Pending dengan locked approved items
+                    [
+                        'label' => 'Disetujui',
+                        'where' => [
+                            '__raw' => "(status = 'Disetujui' OR (status = 'Pending' AND JSON_LENGTH(JSON_EXTRACT(source_data, '$.locked_approved_idx')) > 0))",
+                        ],
+                        'color' => '#10b981',
+                    ],
+                    // Ditolak: PO dengan status Ditolak OR PO Disetujui dengan rejected items (partial reject)
+                    [
+                        'label' => 'Ditolak',
+                        'where' => [
+                            '__raw' => "(status = 'Ditolak' OR (status = 'Disetujui' AND JSON_SEARCH(JSON_EXTRACT(source_data, '$.item_decisions[*].action'), 'one', 'rejected') IS NOT NULL))",
+                        ],
+                        'color' => '#ef4444',
+                    ],
+                ],
+                'labels'      => ['Pending', 'Disetujui', 'Ditolak'],
                 'colors'      => ['#f59e0b', '#10b981', '#ef4444'],
             ],
             'bar' => [

@@ -433,17 +433,6 @@ function addPartRow(data = null) {
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100">
             </div>
 
-            <!-- Kondisi -->
-            <div>
-                <label class="text-xs font-semibold text-gray-500 mb-1 block">Kondisi</label>
-                <select name="parts[${idx}][kondisi]"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-100">
-                    <option value="Baik">Baik</option>
-                    <option value="Rusak">Rusak</option>
-                    <option value="Perlu Ganti">Perlu Ganti</option>
-                </select>
-            </div>
-
             <!-- Status Part DIHAPUS — otomatis Proses -->
             <input type="hidden" name="parts[${idx}][status]" value="Proses">
 

@@ -8,7 +8,7 @@
 
     @php
         $totalAsuransi = $data->total();
-        $totalAktif = $data->where('status_kendaraan', 'aktif')->count();
+        $totalAktif = $data->where('status_aktif', 'aktif')->count();
         $soon = $data
             ->filter(
                 fn($d) => $d->tgl_berakhir &&
@@ -228,6 +228,8 @@
                                 Lampiran</th>
                             <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Persetujuan</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Tgl Approval</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Aksi</th>
                         </tr>
@@ -244,7 +246,7 @@
                                 $isSoon = !$isExpired && $sisaHari <= $reminder;
                             @endphp
                             <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors duration-100 {{ $isExpired ? 'bg-red-50' : '' }}"
-                                data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . ($d->kendaraan->merk ?? '') . ' ' . ($d->asuransi->nama_asuransi ?? '') . ' ' . ($d->jenisAsuransi->nama_jenis ?? '') . ' ' . $d->status_kendaraan) }}"
+                                data-search="{{ strtolower(($d->kendaraan->nopol ?? '') . ' ' . ($d->kendaraan->merk ?? '') . ' ' . ($d->asuransi->nama_asuransi ?? '') . ' ' . ($d->jenisAsuransi->nama_jenis ?? '') . ' ' . ($d->status_aktif ?? '')) }}"
                                 data-tgl-berakhir="{{ $d->tgl_berakhir ? \Carbon\Carbon::parse($d->tgl_berakhir)->format('Y-m') : '' }}">
 
                                 {{-- No --}}
@@ -269,12 +271,15 @@
 
                                 {{-- Status --}}
                                 <td class="px-4 py-3.5">
-                                    @if ($d->status_kendaraan == 'aktif')
+                                    @php
+                                        $statusAktifValue = $d->status_aktif ?? 'tidak_aktif';
+                                    @endphp
+                                    @if ($statusAktifValue == 'aktif')
                                         <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Aktif</span>
-                                    @elseif ($d->status_kendaraan == 'tidak_aktif')
-                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Tidak Aktif</span>
-                                    @else
+                                    @elseif ($statusAktifValue == 'expired')
                                         <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Expired</span>
+                                    @else
+                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Tidak Aktif</span>
                                     @endif
                                 </td>
 
@@ -394,6 +399,18 @@
                                         </span>
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
+                                    @endif
+                                </td>
+
+                                {{-- Tanggal Approval --}}
+                                <td class="px-4 py-3.5 text-xs text-gray-600">
+                                    @if($d->tanggal_approval)
+                                        <span class="inline-flex items-center gap-1">
+                                            <i class="fa fa-calendar text-[10px] text-gray-400"></i>
+                                            {{ \Carbon\Carbon::parse($d->tanggal_approval)->translatedFormat('j M Y') }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-400">-</span>
                                     @endif
                                 </td>
 

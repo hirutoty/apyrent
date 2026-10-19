@@ -89,8 +89,14 @@
             @else
                 <input type="hidden" name="edit_pembayaran" value="{{ $editPembayaranId }}">
             @endif
-            {{-- Kirim kendaraan_id agar validasi request tidak gagal --}}
-            <input type="hidden" name="kendaraan_id" value="{{ $pajak->kendaraan_id }}">
+            {{-- Kirim semua data pajak lama agar tidak ada yang kosong --}}
+            <input type="hidden" name="kendaraan_id"  value="{{ $pajak->kendaraan_id }}">
+            <input type="hidden" name="jenis_pajak"   value="{{ $pajak->jenis_pajak }}">
+            <input type="hidden" name="nominal"       value="{{ $pajak->nominal }}">
+            <input type="hidden" name="jatuh_tempo"   value="{{ $pajak->jatuh_tempo ? \Carbon\Carbon::parse($pajak->jatuh_tempo)->format('Y-m-d') : '' }}">
+            <input type="hidden" name="tanggal_bayar" value="{{ $pajak->tanggal_bayar ? \Carbon\Carbon::parse($pajak->tanggal_bayar)->format('Y-m-d') : '' }}">
+            <input type="hidden" name="nama_bank"     value="{{ $pajak->nama_bank }}">
+            <input type="hidden" name="no_rekening"   value="{{ $pajak->no_rekening }}">
 
             <div class="space-y-4">
                 <div>

@@ -27,9 +27,18 @@ class Kir extends Model
         'pembayaran_id',
         'persetujuan',
         'status',
+        'status_aktif',        // ← Tambah: untuk tracking aktif/nonaktif/expired
+        'tanggal_approval',    // ← Tambah: tanggal saat pembayaran disetujui
         'nama_bank',
         'no_rekening',
         'nama_rekening',
+    ];
+
+    protected $casts = [
+        'masa_berlaku' => 'date',
+        'tanggal_bayar' => 'date',
+        'tanggal_buat' => 'date',
+        'tanggal_approval' => 'datetime',  // ← Cast sebagai datetime
     ];
 
     /**

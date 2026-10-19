@@ -29,29 +29,7 @@
     </div>
 
     {{-- NAV TABS --}}
-    <div>
-        <nav class="inline-flex gap-1 bg-gray-100 rounded-xl p-1">
-            @php
-                $navItems = [
-                    ['label' => 'Service History',  'url' => '/admin/service-history',    'icon' => 'bi bi-clock-history', 'role' => null],
-                    ['label' => 'Service Asuransi', 'url' => '/admin/service-asuransi',   'icon' => 'bi bi-shield-fill-check', 'role' => null],
-                    ['label' => 'Service Incident', 'url' => '/admin/service-incident',   'icon' => 'bi bi-exclamation-triangle-fill', 'role' => null],
-                    ['label' => 'Reminder Service', 'url' => '/admin/reminder-service',   'icon' => 'bi bi-bell-fill', 'role' => null],
-                    ['label' => 'Kategori Service', 'url' => '/admin/service-categories', 'icon' => 'bi bi-tags-fill', 'role' => 'superadmin'],
-                ];
-            @endphp
-            @foreach ($navItems as $item)
-                @if(!isset($item['role']) || (isset($item['role']) && auth()->user()->role === $item['role']))
-                    @php $isActiveTab = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
-                    <a href="{{ $item['url'] }}"
-                        class="flex items-center gap-2 px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-lg transition-all duration-150
-                            {{ $isActiveTab ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60' }}">
-                        <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
-                    </a>
-                @endif
-            @endforeach
-        </nav>
-    </div>
+    @include('admin.service._nav_tabs', ['activeTab' => 'history'])
 
     {{-- CHART FILTER --}}
     <x-chart-filter id="serviceHistoryChartFilter" defaultFilter="month" :showCustomRange="true"
@@ -201,7 +179,7 @@
                                 <div class="text-xs text-gray-500 font-mono">{{ $d->kendaraan?->nopol ?? '-' }}</div>
                             </td>
                             <td class="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
-                                {{ number_format($d->kilometer, 0, ',', '.') }} km
+                                {{ number_format($d->kendaraan->kilometer_sekarang ?? $d->kilometer, 0, ',', '.') }} km
                             </td>
                             <td class="px-4 py-4">
                                 @if ($partCount > 0)
@@ -258,7 +236,7 @@
 
                         {{-- EXPANDABLE PARTS ROW --}}
                         <tr id="{{ $rowId }}" style="display:none;" class="bg-slate-50 border-t border-slate-100">
-                            <td colspan="9" class="px-6 py-4">
+                            <td colspan="10" class="px-6 py-4">
                                 @if ($partCount > 0)
                                     {{-- Keluhan header --}}
                                     @if ($d->keluhan)
@@ -291,6 +269,7 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Kondisi</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Status</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Persetujuan</th>
+                                                    <th class="text-left px-3 py-2 font-semibold min-w-[100px]">Tgl Approval</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Keterangan Limit</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Info Pembayaran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Lampiran</th>
@@ -468,6 +447,16 @@
                                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200"><i class="fa fa-clock text-[9px]"></i> Pending</span>
                                                             @endif
                                                         </td>
+                                                        {{-- Tanggal Approval --}}
+                                                        <td class="px-3 py-2">
+                                                            @if($part->tanggal_approval)
+                                                                <span class="text-xs text-green-600 font-medium">
+                                                                    {{ \Carbon\Carbon::parse($part->tanggal_approval)->format('d M Y H:i') }}
+                                                                </span>
+                                                            @else
+                                                                <span class="text-gray-300 text-xs">—</span>
+                                                            @endif
+                                                        </td>
                                                         {{-- Keterangan Limit --}}
                                                         <td class="px-3 py-2">
                                                             @php
@@ -528,7 +517,7 @@
                                                                     @foreach($buktiBayarData as $file)
                                                                         @php
                                                                             $fp  = $file['path'] ?? '';
-                                                                            $fu  = str_starts_with($fp, 'pembayaran/') ? \Illuminate\Support\Facades\Storage::url($fp) : asset($fp);
+                                                                            $fu  = asset($fp);
                                                                             $rn  = $file['original_name'] ?? $file['name'] ?? basename($fp);
                                                                             $fn  = preg_replace('/^\d+_\d+_/', '', $rn) ?: $rn;
                                                                         @endphp
@@ -762,7 +751,7 @@
 
                     @empty
                         <tr>
-                            <td colspan="9" class="px-5 py-16 text-center">
+                            <td colspan="10" class="px-5 py-16 text-center">
                                 <div class="flex flex-col items-center gap-3">
                                     <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
                                         <i class="fa fa-screwdriver-wrench text-2xl text-gray-300"></i>

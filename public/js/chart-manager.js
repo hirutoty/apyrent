@@ -514,6 +514,20 @@ class ChartManager {
             return processedData;
         }
 
+        // Debug logging for bar chart
+        if (type === 'bar') {
+            const datasetSums = data.datasets.map(d => ({
+                label: d.label,
+                dataLength: (d.data || []).length,
+                sum: (d.data || []).reduce((a, b) => a + b, 0),
+                first3: (d.data || []).slice(0, 3),
+                last3: (d.data || []).slice(-3)
+            }));
+            console.log('[ChartManager] Processing bar chart data:');
+            console.table(datasetSums);
+            console.log('Full datasets:', data.datasets);
+        }
+
         data.datasets.forEach((dataset, index) => {
             const processedDataset = { ...dataset };
 
@@ -544,6 +558,11 @@ class ChartManager {
 
             processedData.datasets.push(processedDataset);
         });
+
+        // Debug: confirm processed datasets
+        if (type === 'bar') {
+            console.log('[ChartManager] Processed datasets:', processedData.datasets.length, processedData.datasets.map(d => d.label));
+        }
 
         return processedData;
     }

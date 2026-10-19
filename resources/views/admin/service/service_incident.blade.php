@@ -22,29 +22,7 @@
     </div>
 
     {{-- NAV TABS --}}
-    <div>
-        <nav class="inline-flex gap-1 bg-gray-100 rounded-xl p-1">
-            @php
-                $navItems = [
-                    ['label' => 'Service History',  'url' => '/admin/service-history',    'icon' => 'bi bi-clock-history',              'role' => null],
-                    ['label' => 'Service Asuransi', 'url' => '/admin/service-asuransi',   'icon' => 'bi bi-shield-fill-check',          'role' => null],
-                    ['label' => 'Service Incident', 'url' => '/admin/service-incident',   'icon' => 'bi bi-exclamation-triangle-fill',  'role' => null],
-                    ['label' => 'Reminder Service', 'url' => '/admin/reminder-service',   'icon' => 'bi bi-bell-fill',                  'role' => null],
-                    ['label' => 'Kategori Service', 'url' => '/admin/service-categories', 'icon' => 'bi bi-tags-fill',                  'role' => 'superadmin'],
-                ];
-            @endphp
-            @foreach ($navItems as $item)
-                @if(!isset($item['role']) || auth()->user()->role === $item['role'])
-                    @php $isActiveTab = request()->is(ltrim($item['url'], '/')) || request()->is(ltrim($item['url'], '/') . '/*'); @endphp
-                    <a href="{{ $item['url'] }}"
-                        class="flex items-center gap-2 px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-lg transition-all duration-150
-                            {{ $isActiveTab ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60' }}">
-                        <i class="{{ $item['icon'] }}"></i> {{ $item['label'] }}
-                    </a>
-                @endif
-            @endforeach
-        </nav>
-    </div>
+    @include('admin.service._nav_tabs', ['activeTab' => 'incident'])
 
     {{-- CHART FILTER --}}
     <x-chart-filter id="serviceIncidentChartFilter" defaultFilter="month" :showCustomRange="true"
@@ -169,7 +147,7 @@
                                 {{ \Carbon\Carbon::parse($d->tanggal_service)->format('d M Y') }}
                             </td>
                             <td class="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
-                                {{ number_format($d->kilometer, 0, ',', '.') }} km
+                                {{ number_format($d->kendaraan->kilometer_sekarang ?? $d->kilometer, 0, ',', '.') }} km
                             </td>
                             {{-- KETERANGAN (slug otomatis) --}}
                             <td class="px-4 py-4 text-sm text-gray-500 max-w-[160px]">
@@ -224,9 +202,9 @@
                                                     <th class="text-left px-3 py-2 font-semibold">Part No.</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Posisi</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Tgl Pasang</th>
-                                                    <th class="text-left px-3 py-2 font-semibold">Kondisi</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Status</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Persetujuan</th>
+                                                    <th class="text-left px-3 py-2 font-semibold min-w-[100px]">Tgl Approval</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Info Pembayaran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Lampiran</th>
                                                     <th class="text-left px-3 py-2 font-semibold">Bukti Bayar</th>
@@ -260,18 +238,6 @@
                                                         </td>
                                                         <td class="px-3 py-2 whitespace-nowrap text-gray-600">
                                                             {{ $part->tgl_pasang ? \Carbon\Carbon::parse($part->tgl_pasang)->format('d M Y') : '—' }}
-                                                        </td>
-                                                        <td class="px-3 py-2">
-                                                            @php
-                                                                $kondisiColor = match($part->kondisi) {
-                                                                    'Rusak'       => 'bg-red-100 text-red-700',
-                                                                    'Perlu Ganti' => 'bg-amber-100 text-amber-700',
-                                                                    default       => 'bg-emerald-100 text-emerald-700',
-                                                                };
-                                                            @endphp
-                                                            <span class="px-1.5 py-0.5 rounded text-xs font-medium {{ $kondisiColor }}">
-                                                                {{ $part->kondisi }}
-                                                            </span>
                                                         </td>
                                                         {{-- STATUS per part --}}
                                                         <td class="px-3 py-2">
@@ -318,6 +284,16 @@
                                                                 <span class="text-gray-300">—</span>
                                                             @endif
                                                         </td>
+                                                        {{-- Tanggal Approval --}}
+                                                        <td class="px-3 py-2">
+                                                            @if($part->tanggal_approval)
+                                                                <span class="text-xs text-green-600 font-medium">
+                                                                    {{ \Carbon\Carbon::parse($part->tanggal_approval)->format('d M Y H:i') }}
+                                                                </span>
+                                                            @else
+                                                                <span class="text-gray-300 text-xs">—</span>
+                                                            @endif
+                                                        </td>
                                                         {{-- Info Pembayaran --}}
                                                         <td class="px-3 py-2">
                                                             @if($part->nama_rekening || $part->nama_bank || $part->no_rekening)
@@ -342,20 +318,42 @@
                                                                 <span class="text-gray-300">—</span>
                                                             @endif
                                                         </td>
-                                                        {{-- LAMPIRAN (dari temp_files saat create) --}}
+                                                        {{-- LAMPIRAN per part (dari field bukti atau fallback ke temp_files pembayaran) --}}
                                                         <td class="px-3 py-2">
                                                             @php
                                                                 $buktiData = $part->bukti;
                                                                 if (is_string($buktiData)) $buktiData = json_decode($buktiData, true);
+                                                                
+                                                                // Fallback: ambil dari pembayaran temp_files jika bukti kosong
+                                                                if (empty($buktiData) && $d->pembayaran_id) {
+                                                                    $pembayaran = \App\Models\Pembayaran::find($d->pembayaran_id);
+                                                                    if ($pembayaran && $pembayaran->source_data) {
+                                                                        // Cari index part yang match
+                                                                        $partIndex = null;
+                                                                        $sourceDataParts = $pembayaran->source_data['parts'] ?? [];
+                                                                        foreach ($sourceDataParts as $spIdx => $sp) {
+                                                                            if (trim(strtolower($sp['nama_part'] ?? '')) === trim(strtolower($part->nama_part ?? ''))) {
+                                                                                $partIndex = $spIdx;
+                                                                                break;
+                                                                            }
+                                                                        }
+                                                                        
+                                                                        // Ambil dari temp_files per part
+                                                                        if ($partIndex !== null) {
+                                                                            $tempFiles = $pembayaran->source_data['temp_files'] ?? [];
+                                                                            $buktiData = $tempFiles['parts'][$partIndex]['bukti'] ?? null;
+                                                                        }
+                                                                    }
+                                                                }
                                                             @endphp
                                                             @if($buktiData && is_array($buktiData) && count($buktiData) > 0)
                                                                 <div class="flex flex-col gap-1">
                                                                     @foreach($buktiData as $file)
                                                                         <a href="{{ asset($file['path'] ?? '') }}" target="_blank"
                                                                             class="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline truncate max-w-[130px]"
-                                                                            title="{{ $file['name'] ?? '' }}">
+                                                                            title="{{ $file['name'] ?? $file['original_name'] ?? $file['stored_name'] ?? '' }}">
                                                                             <i class="fa fa-paperclip text-[10px] flex-shrink-0"></i>
-                                                                            <span class="truncate">{{ $file['name'] ?? basename($file['path'] ?? '') }}</span>
+                                                                            <span class="truncate">{{ $file['name'] ?? $file['original_name'] ?? $file['stored_name'] ?? basename($file['path'] ?? '') }}</span>
                                                                         </a>
                                                                     @endforeach
                                                                 </div>
@@ -412,7 +410,7 @@
                                             </tbody>
                                             <tfoot>
                                                 <tr class="bg-orange-50 border-t-2 border-orange-200">
-                                                    <td colspan="14" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
+                                                    <td colspan="15" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total Biaya Parts:</td>
                                                     <td class="px-3 py-2 text-right text-xs font-bold text-emerald-700">
                                                         Rp {{ number_format($d->parts->sum('biaya'), 0, ',', '.') }}
                                                     </td>
@@ -420,6 +418,29 @@
                                             </tfoot>
                                         </table>
                                     </div>
+
+                                    {{-- Tombol Tandai Terpasang jika ada part status tidak_aktif + Disetujui --}}
+                                    @php
+                                        $partsTidakAktif = $d->parts->where('persetujuan', 'Disetujui')->where('status', 'tidak_aktif');
+                                    @endphp
+                                    @if($partsTidakAktif->isNotEmpty())
+                                        <div class="mt-3 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                                            <div class="flex-1">
+                                                <p class="text-xs font-semibold text-blue-800">Service Selesai?</p>
+                                                <p class="text-[11px] text-blue-600 mt-0.5">
+                                                    Ada {{ $partsTidakAktif->count() }} part yang belum ditandai terpasang. 
+                                                    Klik tombol ini setelah part fisik dipasang untuk mengembalikan status kendaraan ke "Tersedia".
+                                                </p>
+                                            </div>
+                                            <form action="{{ route('service-incident.terpasang', $d->id) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button type="submit"
+                                                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors whitespace-nowrap shadow-sm">
+                                                    <i class="fa fa-check-circle text-sm"></i> Tandai Terpasang
+                                                </button>
+                                            </form>
+                                        </div>
+                                    @endif
 
                                     {{-- Lampiran --}}
                                     @if ($d->attachments->isNotEmpty())

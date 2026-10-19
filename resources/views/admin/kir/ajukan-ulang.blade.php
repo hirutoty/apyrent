@@ -99,6 +99,9 @@
             <input type="hidden" name="tanggal_bayar" value="{{ $kir->tanggal_bayar ? \Carbon\Carbon::parse($kir->tanggal_bayar)->format('Y-m-d') : '' }}">
             <input type="hidden" name="masa_berlaku"  value="{{ $kir->masa_berlaku ? \Carbon\Carbon::parse($kir->masa_berlaku)->format('Y-m-d') : '' }}">
             <input type="hidden" name="biaya"         value="{{ $kir->biaya }}">
+            <input type="hidden" name="nama_rekening" value="{{ $kir->nama_rekening }}">
+            <input type="hidden" name="nama_bank"     value="{{ $kir->nama_bank }}">
+            <input type="hidden" name="no_rekening"   value="{{ $kir->no_rekening }}">
 
             <div class="space-y-4">
                 <div>

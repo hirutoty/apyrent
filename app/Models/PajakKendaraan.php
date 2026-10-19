@@ -27,12 +27,15 @@ class PajakKendaraan extends Model
         'no_rekening',
         'pembayaran_id',
         'persetujuan',
+        'tanggal_approval',    // ← Tambah: tanggal saat pembayaran disetujui
     ];
 
     protected $casts = [
         'jatuh_tempo' => 'date',
         'tanggal_bayar' => 'date',
+        'tanggal_buat' => 'date',
         'nominal' => 'decimal:2',
+        'tanggal_approval' => 'datetime',  // ← Cast sebagai datetime
     ];
 
     /**

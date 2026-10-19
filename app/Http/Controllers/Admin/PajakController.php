@@ -307,14 +307,15 @@ class PajakController extends Controller
                 'nominal'       => $request->nominal,
                 'jatuh_tempo'   => $request->jatuh_tempo,
                 'tanggal_bayar' => $request->tanggal_bayar,
-                'tanggal_buat'  => $request->tanggal_bayar,
+                'tanggal_buat'  => $request->tanggal_bayar ?? now()->toDateString(),
                 'status'        => 'belum_bayar',
-                'status_aktif'  => 'tidak_aktif',
+                'status_aktif'  => 'tidak_aktif',      // ← status aktif: belum aktif sampai pembayaran disetujui
                 'keterangan'    => 'tambah-pajak-' . ($kendaraan->merk ?? '') . '-' . ($kendaraan->nopol ?? ''),
                 'nama_pemilik'  => $request->nama_pemilik,
                 'nama_bank'     => $request->nama_bank,
                 'no_rekening'   => $request->no_rekening,
                 'persetujuan'   => 'Pending',
+                'tanggal_approval' => null,            // ← tanggal approval: diisi saat pembayaran disetujui
             ]);
 
             // Step 2: Simpan lampiran
@@ -447,10 +448,34 @@ class PajakController extends Controller
                     'nominal'           => $request->nominal,
                     'nama_bank'         => $request->nama_bank     ?? $pembayaran->nama_bank,
                     'no_rekening'       => $request->no_rekening   ?? $pembayaran->no_rekening,
+                    'nama_rekening'     => $request->nama_pemilik  ?? $pembayaran->nama_rekening,
                     'status'            => 'Diajukan',
                     'can_edit'          => false,
                     'terakhir_diajukan' => now(),
                 ]);
+
+                // Update PO terkait jika ada
+                $po = \App\Models\PurchaseOrder::where('source_type', 'pajak')
+                    ->where(function ($q) use ($pajak) {
+                        $q->whereJsonContains('source_data->existing_record_id', $pajak->id)
+                          ->orWhere('source_data->existing_record_id', (string) $pajak->id);
+                    })
+                    ->first();
+                if ($po) {
+                    $poSourceData = $po->source_data ?? [];
+                    $poSourceData = array_merge($poSourceData, [
+                        'nominal'       => $request->nominal,
+                        'tanggal_bayar' => $request->tanggal_bayar,
+                        'jatuh_tempo'   => $request->jatuh_tempo   ?? $pajak->jatuh_tempo,
+                        'nama_bank'     => $request->nama_bank     ?? ($poSourceData['nama_bank'] ?? null),
+                        'no_rekening'   => $request->no_rekening   ?? ($poSourceData['no_rekening'] ?? null),
+                        'nama_pemilik'  => $request->nama_pemilik  ?? ($poSourceData['nama_pemilik'] ?? null),
+                    ]);
+                    $po->update([
+                        'source_data' => $poSourceData,
+                        'total_harga' => $request->nominal,
+                    ]);
+                }
             }
 
             return response()->json([

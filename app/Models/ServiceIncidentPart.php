@@ -33,6 +33,7 @@ class ServiceIncidentPart extends Model
         'bukti_bayar',
         'keterangan_limit',
         'persetujuan',
+        'tanggal_approval',
         'nama_rekening',
         'nama_bank',
         'no_rekening',
@@ -42,14 +43,15 @@ class ServiceIncidentPart extends Model
     ];
 
     protected $casts = [
-        'tgl_pasang'       => 'date',
-        'tanggal_limit'    => 'date',
-        'kilometer_pasang' => 'integer',
-        'biaya'            => 'integer',
-        'interval_nilai'   => 'integer',
-        'bukti'            => 'array',
-        'bukti_bayar'      => 'array',
-        'replaced_at'      => 'datetime',
+        'tgl_pasang'        => 'date',
+        'tanggal_limit'     => 'date',
+        'kilometer_pasang'  => 'integer',
+        'biaya'             => 'integer',
+        'interval_nilai'    => 'integer',
+        'bukti'             => 'array',
+        'bukti_bayar'       => 'array',
+        'replaced_at'       => 'datetime',
+        'tanggal_approval'  => 'datetime',
     ];
 
     public function serviceIncident()

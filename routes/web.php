@@ -49,6 +49,23 @@ use App\Http\Controllers\Admin\VirtualController;
 use App\Http\Controllers\Admin\BukubesarController;
 use App\Http\Controllers\Admin\GpsKendaraanHistoryController;
 use App\Http\Controllers\Admin\PajakController;
+
+// ── Serve Temp Files Route (with authentication) ────────────
+Route::get('/storage/{path}', function ($path) {
+    // Only authenticated users can access temp files
+    if (!auth()->check()) {
+        abort(403, 'Unauthorized');
+    }
+    
+    $fullPath = storage_path('app/public/' . $path);
+    
+    if (!file_exists($fullPath)) {
+        abort(404);
+    }
+    
+    return response()->file($fullPath);
+})->where('path', '.*')->middleware('auth');
+
 use App\Http\Controllers\Admin\PajakHistoryController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StnkController;
@@ -203,6 +220,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('keuangan.export.pdf');
   Route::get('/keuangan/export/excel', [KeuanganController::class, 'exportExcel'])
     ->name('keuangan.export.excel');
+  Route::get('/keuangan/{id}/detail', [KeuanganController::class, 'getDetail'])
+    ->name('keuangan.detail');
     
   Route::get(
     'gps-kendaraan/export/pdf',
@@ -495,6 +514,10 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::get('pembayaran/{pembayaran}/rejected-items', [PembayaranController::class, 'rejectedItems'])
     ->name('pembayaran.rejected-items');
 
+  // Get source data untuk modal edit (pajak, kir, asuransi_kendaraan)
+  Route::get('pembayaran/{pembayaran}/source-data', [PembayaranController::class, 'getSourceData'])
+    ->name('pembayaran.source-data');
+
   Route::get('pembayaran/{pembayaran}/approval-items', [PembayaranController::class, 'approvalItems'])
     ->name('pembayaran.approval-items');
 
@@ -636,6 +659,8 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
       ->name('service-asuransi.ajukan-ulang');
   Route::post('service-asuransi/{id}/ajukan-ulang-submit', [ServiceAsuransiController::class, 'ajukanUlangSubmit'])
       ->name('service-asuransi.ajukan-ulang-submit');
+  Route::post('service-asuransi/{id}/reset-status-kendaraan', [ServiceAsuransiController::class, 'resetStatusKendaraan'])
+      ->name('service-asuransi.reset-status-kendaraan');
 
   // Reminder Service
   Route::resource('reminder-service', ReminderServiceController::class);

@@ -401,7 +401,6 @@
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Tanggal</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Departemen</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Pemohon</th>
-                                        <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Keluhan</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Items</th>
                                         <th class="text-right text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Nominal</th>
                                         <th class="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-3 py-2.5">Status</th>
@@ -550,19 +549,6 @@
                                             @endif
                                         </td>
                                         <td class="px-3 py-3">
-                                            @php
-                                                $_sd_ket = is_array($d->source_data) ? $d->source_data : (json_decode($d->source_data, true) ?? []);
-                                                $ketPmb = $d->keterangan
-                                                    ?: ($_sd_ket['keluhan'] ?? null)
-                                                    ?: ($_sd_ket['alasan_permintaan'] ?? null);
-                                            @endphp
-                                            @if($ketPmb)
-                                                <span class="text-xs text-gray-600">{{ $ketPmb }}</span>
-                                            @else
-                                                <span class="text-xs text-gray-300">—</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-3 py-3">
                                             @if(!empty($d->badge_stats))
                                                 {{-- Task 2: Render badge per-item untuk source_type yang support per-item decision --}}
                                                 <div class="flex flex-col gap-1">
@@ -643,19 +629,26 @@
                                                     }
                                                 } else {
                                                     if (!$_decMap->isEmpty() && in_array($_srcType, ['gps', 'gps_perpanjang'])) {
-                                                        // GPS dengan item_decisions: filter per approved/rejected
+                                                        // GPS dengan item_decisions: filter per approved/rejected/pending
                                                         $_nomApprRow = collect($_sd['gps_items'] ?? [])
                                                             ->filter(fn($g, $i) => ($_decMap[(int)$i]['action'] ?? '') === 'approved')
                                                             ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
                                                         $_nomRejRow  = collect($_sd['gps_items'] ?? [])
                                                             ->filter(fn($g, $i) => ($_decMap[(int)$i]['action'] ?? '') !== 'approved' && $_decMap->has((int)$i))
                                                             ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
+                                                        // Item pending = belum ada entry di item_decisions
+                                                        $_nomPendRow = collect($_sd['gps_items'] ?? [])
+                                                            ->filter(fn($g, $i) => !$_decMap->has((int)$i))
+                                                            ->sum(fn($g) => $g['biaya_sewa'] ?? 0);
                                                         if (in_array($tab ?? '', ['Ditolak'])) {
                                                             $_rowNominal = $_nomRejRow;
                                                         } elseif (in_array($tab ?? '', ['Disetujui'])) {
                                                             $_rowNominal = $_nomApprRow;
+                                                        } elseif (in_array($tab ?? '', ['Diajukan', 'Pending']) && $_nomPendRow > 0) {
+                                                            // Tab Diajukan/Pending (PR partial GPS resubmit): hanya harga item pending
+                                                            $_rowNominal = $_nomPendRow;
                                                         } else {
-                                                            $_rowNominal = $_nomApprRow + $_nomRejRow;
+                                                            $_rowNominal = $_nomApprRow + $_nomRejRow + $_nomPendRow;
                                                         }
                                                         // Fallback: item_decisions mungkin tidak punya key 'idx' (data lama)
                                                         if ($_rowNominal == 0) {
@@ -725,7 +718,7 @@
                                         <td class="px-3 py-3" onclick="event.stopPropagation()">
                                             <div class="flex items-center justify-center gap-1 flex-wrap">
 
-                                                <button type="button" onclick="openDetailModal({{ $d->id }}, '{{ $tab }}')"
+                                                <button type="button" onclick="event.stopPropagation(); openDetailModal({{ $d->id }}, '{{ $tab }}')"
                                                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-colors">
                                                     <i class="fa fa-eye text-[10px]"></i> Detail
                                                 </button>
@@ -797,19 +790,12 @@
                                                                 default              => route('pembayaran.edit-rejected', $d->id),
                                                             };
                                                         @endphp
-                                                        @if(in_array($d->source_type, ['service_asuransi', 'service_part', 'service_incident', 'gps', 'gps_perpanjang']))
-                                                            {{-- service_asuransi, service_part, service_incident, gps Ditolak penuh: modal inline per-item --}}
-                                                            <button type="button"
-                                                                onclick="openResubmitRejectedModal({{ $d->id }})"
-                                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
-                                                                <i class="fa fa-rotate-right text-[10px]"></i> Edit & Ajukan Ulang
-                                                            </button>
-                                                        @else
-                                                        <a href="{{ $resubmitRoute }}"
+                                                        {{-- Semua tipe pakai modal inline --}}
+                                                        <button type="button"
+                                                            onclick="openResubmitPembayaranModal({{ $d->id }}, '{{ $d->source_type }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
-                                                            <i class="fa fa-edit text-[10px]"></i> Edit & Ajukan Ulang
-                                                        </a>
-                                                        @endif
+                                                            <i class="fa fa-rotate-right text-[10px]"></i> Edit & Ajukan Ulang
+                                                        </button>
                                                     @elseif($tab === 'Ditolak' && $d->status === 'Disetujui' && $_prHasRejected && $d->can_edit && in_array($d->source_type, ['service_part','service_incident','service_asuransi','gps','gps_perpanjang']))
                                                         {{-- PR Disetujui tapi ada item yang ditolak (muncul di tab Ditolak): bisa ajukan ulang --}}
                                                         <button type="button"
@@ -918,21 +904,8 @@
                                                         </p>
                                                     </div>
                                                     @php $kend = isset($sd['kendaraan_id']) ? \App\Models\Kendaraan::find($sd['kendaraan_id']) : null; @endphp
-                                                    @if($kend && !in_array($d->source_type, ['service_asuransi', 'service_part', 'service_incident']))
-                                                    <div class="px-4 py-2.5 grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50/50 border-b border-gray-100">
-                                                        <div><p class="text-[10px] text-gray-400 uppercase">Kendaraan</p><p class="text-xs font-semibold text-gray-700">{{ $kend->nopol }} — {{ $kend->merk }}</p></div>
-                                                        @if(isset($sd['tanggal_bayar']))<div><p class="text-[10px] text-gray-400 uppercase">Tgl Bayar</p><p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') }}</p></div>@endif
-                                                        @if(isset($sd['tanggal_habis']))<div><p class="text-[10px] text-gray-400 uppercase">Berlaku s/d</p><p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_habis'])->format('d M Y') }}</p></div>@endif
-                                                    </div>
-                                                    @endif
                                                     {{-- Pajak --}}
                                                     @if(in_array($d->source_type,['pajak','pajak_perpanjang']))
-                                                    <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                        <div><p class="text-[10px] text-gray-400 uppercase">Jenis Pajak</p><p class="text-xs font-semibold text-gray-700">{{ $sd['jenis_pajak'] ?? '-' }}</p></div>
-                                                        @if(isset($sd['tahun_pajak']))<div><p class="text-[10px] text-gray-400 uppercase">Tahun</p><p class="text-xs text-gray-700">{{ $sd['tahun_pajak'] }}</p></div>@endif
-                                                        @if(isset($sd['tanggal_jatuh_tempo']))<div><p class="text-[10px] text-gray-400 uppercase">Jatuh Tempo</p><p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_jatuh_tempo'])->format('d M Y') }}</p></div>@endif
-                                                        <div><p class="text-[10px] text-gray-400 uppercase">Nominal</p><p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['nominal']??$d->nominal??0,0,',','.') }}</p></div>
-                                                    </div>
                                                     @php
                                                         // Lampiran dari temp_files (baru) atau DB attachments (lama)
                                                         $pajakLampiran = $sd['temp_files']['attachments'] ?? [];
@@ -950,29 +923,65 @@
                                                             }
                                                         }
                                                     @endphp
-                                                    @if(!empty($pajakLampiran))
-                                                    <div class="px-4 pb-3 flex flex-wrap gap-2 border-t border-blue-100 pt-2">
-                                                        <p class="w-full text-[10px] font-semibold text-gray-400 uppercase mb-0.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>
-                                                        @foreach($pajakLampiran as $plf)
-                                                            @php $plfUrl = $plf['public_url'] ?? (isset($plf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($plf['path']) : null); @endphp
-                                                            @if($plfUrl)
-                                                                <a href="{{ $plfUrl }}" target="_blank"
-                                                                    class="text-xs text-blue-600 hover:underline truncate max-w-[200px]"
-                                                                    title="{{ $plf['original_name'] ?? '' }}">{{ $plf['original_name'] ?? 'file' }}</a>
-                                                            @endif
-                                                        @endforeach
-                                                    </div>
-                                                    @endif
+                                                    
+                                                    {{-- Tabel Detail 1 Baris --}}
+                                                    <table class="w-full text-xs">
+                                                        <thead>
+                                                            <tr class="bg-gray-50 border-b border-gray-100">
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Pajak</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jatuh Tempo</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Rekening</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-center px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
+                                                                <th class="text-right px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nominal</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr class="border-t border-gray-50">
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['jenis_pajak'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['jatuh_tempo']) ? \Carbon\Carbon::parse($sd['jatuh_tempo'])->format('d M Y') : '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_bank'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
+                                                                
+                                                                {{-- Kolom Lampiran --}}
+                                                                <td class="px-4 py-2 text-center">
+                                                                    @if(!empty($pajakLampiran))
+                                                                        <div class="flex flex-col gap-0.5 items-center">
+                                                                        @foreach($pajakLampiran as $plf)
+                                                                            @php
+                                                                                $plfUrl = $plf['public_url'] ?? (isset($plf['path']) ? asset($plf['path']) : null);
+                                                                                $plfExt = strtolower(pathinfo($plf['original_name'] ?? '', PATHINFO_EXTENSION));
+                                                                                $plfIcon = in_array($plfExt, ['jpg','jpeg','png','gif']) ? 'fa-image text-blue-400'
+                                                                                    : ($plfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                                                                            @endphp
+                                                                            @if($plfUrl)
+                                                                                <a href="{{ $plfUrl }}" target="_blank"
+                                                                                    class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline truncate max-w-[140px]"
+                                                                                    title="{{ $plf['original_name'] ?? '' }}">
+                                                                                    <i class="fa {{ $plfIcon }} text-[10px]"></i>
+                                                                                    <span class="truncate">{{ $plf['original_name'] ?? 'file' }}</span>
+                                                                                </a>
+                                                                            @endif
+                                                                        @endforeach
+                                                                        </div>
+                                                                    @else
+                                                                        <span class="text-gray-300 text-[10px]">—</span>
+                                                                    @endif
+                                                                </td>
+                                                                
+                                                                <td class="px-4 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($sd['nominal']??$d->nominal??0,0,',','.') }}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
                                                     {{-- Asuransi --}}
                                                     @elseif(in_array($d->source_type,['asuransi_kendaraan','asuransi_kendaraan_perpanjang']))
-                                                    @php $asr = isset($sd['asuransi_id']) ? \App\Models\Asuransi::find($sd['asuransi_id']) : null; $jAsr = isset($sd['jenis_asuransi_id']) ? \App\Models\JenisAsuransi::find($sd['jenis_asuransi_id']) : null; @endphp
-                                                    <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                        <div><p class="text-[10px] text-gray-400 uppercase">Perusahaan</p><p class="text-xs font-semibold text-gray-700">{{ $asr->nama_asuransi ?? '-' }}</p></div>
-                                                        <div><p class="text-[10px] text-gray-400 uppercase">Jenis</p><p class="text-xs text-gray-700">{{ $jAsr->nama_jenis ?? '-' }}</p></div>
-                                                        @if(isset($sd['no_polis']))<div><p class="text-[10px] text-gray-400 uppercase">No. Polis</p><p class="text-xs font-mono text-gray-700">{{ $sd['no_polis'] }}</p></div>@endif
-                                                        <div><p class="text-[10px] text-gray-400 uppercase">Premi</p><p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['premi']??$d->nominal??0,0,',','.') }}</p></div>
-                                                    </div>
                                                     @php
+                                                        $asr = isset($sd['asuransi_id']) ? \App\Models\Asuransi::find($sd['asuransi_id']) : null;
+                                                        $jAsr = isset($sd['jenis_asuransi_id']) ? \App\Models\JenisAsuransi::find($sd['jenis_asuransi_id']) : null;
                                                         $asrLampiran = $sd['temp_files']['attachments'] ?? [];
                                                         if (empty($asrLampiran)) {
                                                             $asrExistingId = $sd['existing_record_id'] ?? null;
@@ -983,23 +992,62 @@
                                                             }
                                                         }
                                                     @endphp
-                                                    @if(!empty($asrLampiran))
-                                                    <div class="px-4 pb-3 flex flex-wrap gap-2 border-t border-purple-100 pt-2">
-                                                        <p class="w-full text-[10px] font-semibold text-gray-400 uppercase mb-0.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>
-                                                        @foreach($asrLampiran as $alf)
-                                                            @php $alfUrl = $alf['public_url'] ?? (isset($alf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($alf['path']) : null); @endphp
-                                                            @if($alfUrl)<a href="{{ $alfUrl }}" target="_blank" class="text-xs text-blue-600 hover:underline truncate max-w-[200px]" title="{{ $alf['original_name']??'' }}">{{ $alf['original_name']??'file' }}</a>@endif
-                                                        @endforeach
-                                                    </div>
-                                                    @endif
+                                                    
+                                                    {{-- Tabel Detail 1 Baris --}}
+                                                    <table class="w-full text-xs">
+                                                        <thead>
+                                                            <tr class="bg-gray-50 border-b border-gray-100">
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Perusahaan</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Asuransi</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Polis</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Rekening</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-center px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
+                                                                <th class="text-right px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Premi</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr class="border-t border-gray-50">
+                                                                <td class="px-4 py-2 text-gray-700">{{ $asr->nama_asuransi ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $jAsr->nama_jenis ?? '-' }}</td>
+                                                                <td class="px-4 py-2 font-mono text-gray-700">{{ $sd['no_polis'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_bank'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
+                                                                
+                                                                {{-- Kolom Lampiran --}}
+                                                                <td class="px-4 py-2 text-center">
+                                                                    @if(!empty($asrLampiran))
+                                                                        <div class="flex flex-col gap-0.5 items-center">
+                                                                        @foreach($asrLampiran as $alf)
+                                                                            @php
+                                                                                $alfUrl = $alf['public_url'] ?? (isset($alf['path']) ? asset($alf['path']) : null);
+                                                                                $alfExt = strtolower(pathinfo($alf['original_name'] ?? '', PATHINFO_EXTENSION));
+                                                                                $alfIcon = in_array($alfExt, ['jpg','jpeg','png','gif']) ? 'fa-image text-blue-400'
+                                                                                    : ($alfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                                                                            @endphp
+                                                                            @if($alfUrl)
+                                                                                <a href="{{ $alfUrl }}" target="_blank"
+                                                                                    class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline truncate max-w-[140px]"
+                                                                                    title="{{ $alf['original_name'] ?? '' }}">
+                                                                                    <i class="fa {{ $alfIcon }} text-[10px]"></i>
+                                                                                    <span class="truncate">{{ $alf['original_name'] ?? 'file' }}</span>
+                                                                                </a>
+                                                                            @endif
+                                                                        @endforeach
+                                                                        </div>
+                                                                    @else
+                                                                        <span class="text-gray-300 text-[10px]">—</span>
+                                                                    @endif
+                                                                </td>
+                                                                
+                                                                <td class="px-4 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($sd['biaya']??$sd['premi']??$d->nominal??0,0,',','.') }}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
                                                     {{-- KIR --}}
                                                     @elseif(in_array($d->source_type,['kir','kir_perpanjang']))
-                                                    <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                        @if(isset($sd['no_kir']))<div><p class="text-[10px] text-gray-400 uppercase">No. KIR</p><p class="text-xs font-mono text-gray-700">{{ $sd['no_kir'] }}</p></div>@endif
-                                                        @if(isset($sd['tanggal_kir']))<div><p class="text-[10px] text-gray-400 uppercase">Tgl KIR</p><p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_kir'])->format('d M Y') }}</p></div>@endif
-                                                        @if(isset($sd['tanggal_habis_kir']))<div><p class="text-[10px] text-gray-400 uppercase">Berlaku s/d</p><p class="text-xs text-gray-700">{{ \Carbon\Carbon::parse($sd['tanggal_habis_kir'])->format('d M Y') }}</p></div>@endif
-                                                        <div><p class="text-[10px] text-gray-400 uppercase">Biaya</p><p class="text-xs font-bold text-emerald-600">Rp {{ number_format($sd['biaya']??$d->nominal??0,0,',','.') }}</p></div>
-                                                    </div>
                                                     @php
                                                         $kirLampiran = $sd['temp_files']['attachments'] ?? [];
                                                         if (empty($kirLampiran)) {
@@ -1011,15 +1059,62 @@
                                                             }
                                                         }
                                                     @endphp
-                                                    @if(!empty($kirLampiran))
-                                                    <div class="px-4 pb-3 flex flex-wrap gap-2 border-t border-teal-100 pt-2">
-                                                        <p class="w-full text-[10px] font-semibold text-gray-400 uppercase mb-0.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>
-                                                        @foreach($kirLampiran as $klf)
-                                                            @php $klfUrl = $klf['public_url'] ?? (isset($klf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($klf['path']) : null); @endphp
-                                                            @if($klfUrl)<a href="{{ $klfUrl }}" target="_blank" class="text-xs text-blue-600 hover:underline truncate max-w-[200px]" title="{{ $klf['original_name']??'' }}">{{ $klf['original_name']??'file' }}</a>@endif
-                                                        @endforeach
-                                                    </div>
-                                                    @endif
+                                                    
+                                                    {{-- Tabel Detail 1 Baris --}}
+                                                    <table class="w-full text-xs">
+                                                        <thead>
+                                                            <tr class="bg-gray-50 border-b border-gray-100">
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. KIR</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Uji</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Masa Berlaku</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Rekening</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-center px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
+                                                                <th class="text-right px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr class="border-t border-gray-50">
+                                                                <td class="px-4 py-2 font-mono text-gray-700">{{ $sd['no_kir'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['status'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['masa_berlaku']) ? \Carbon\Carbon::parse($sd['masa_berlaku'])->format('d M Y') : '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_bank'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
+                                                                
+                                                                {{-- Kolom Lampiran --}}
+                                                                <td class="px-4 py-2 text-center">
+                                                                    @if(!empty($kirLampiran))
+                                                                        <div class="flex flex-col gap-0.5 items-center">
+                                                                        @foreach($kirLampiran as $klf)
+                                                                            @php
+                                                                                $klfUrl = $klf['public_url'] ?? (isset($klf['path']) ? asset($klf['path']) : null);
+                                                                                $klfExt = strtolower(pathinfo($klf['original_name'] ?? '', PATHINFO_EXTENSION));
+                                                                                $klfIcon = in_array($klfExt, ['jpg','jpeg','png','gif']) ? 'fa-image text-blue-400'
+                                                                                    : ($klfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                                                                            @endphp
+                                                                            @if($klfUrl)
+                                                                                <a href="{{ $klfUrl }}" target="_blank"
+                                                                                    class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline truncate max-w-[140px]"
+                                                                                    title="{{ $klf['original_name'] ?? '' }}">
+                                                                                    <i class="fa {{ $klfIcon }} text-[10px]"></i>
+                                                                                    <span class="truncate">{{ $klf['original_name'] ?? 'file' }}</span>
+                                                                                </a>
+                                                                            @endif
+                                                                        @endforeach
+                                                                        </div>
+                                                                    @else
+                                                                        <span class="text-gray-300 text-[10px]">—</span>
+                                                                    @endif
+                                                                </td>
+                                                                
+                                                                <td class="px-4 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($sd['biaya']??$d->nominal??0,0,',','.') }}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
                                                     {{-- STNK --}}
                                                     @elseif($d->source_type === 'stnk')
                                                     <div class="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1042,7 +1137,7 @@
                                                     <div class="px-4 pb-3 flex flex-wrap gap-2 border-t border-indigo-100 pt-2">
                                                         <p class="w-full text-[10px] font-semibold text-gray-400 uppercase mb-0.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>
                                                         @foreach($stnkLampiran as $slf)
-                                                            @php $slfUrl = $slf['public_url'] ?? (isset($slf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($slf['path']) : null); @endphp
+                                                            @php $slfUrl = $slf['public_url'] ?? (isset($slf['path']) ? asset($slf['path']) : null); @endphp
                                                             @if($slfUrl)<a href="{{ $slfUrl }}" target="_blank" class="text-xs text-blue-600 hover:underline truncate max-w-[200px]" title="{{ $slf['original_name']??'' }}">{{ $slf['original_name']??'file' }}</a>@endif
                                                         @endforeach
                                                     </div>
@@ -1064,7 +1159,11 @@
                                                                     ->filter(fn($g, $i) => ($itemDecMap[(int)$i]['action'] ?? '') !== 'approved' && $itemDecMap->has((int)$i))
                                                                     ->all();
                                                             } else {
-                                                                $filteredGpsItems = $gpsItems; // semua (tab Semua/lainnya)
+                                                                // Tab Diajukan/Pending: hanya tampilkan item yang BELUM diputuskan
+                                                                // Item yang sudah approved di item_decisions tidak boleh muncul di sini
+                                                                $filteredGpsItems = collect($gpsItems)
+                                                                    ->filter(fn($g, $i) => ($itemDecMap[(int)$i]['action'] ?? '') !== 'approved')
+                                                                    ->all();
                                                             }
                                                         } else {
                                                             $filteredGpsItems = $gpsItems;
@@ -1076,6 +1175,7 @@
                                                         <thead>
                                                             <tr class="bg-green-50/60 border-y border-green-100">
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">#</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">PR Number</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Type GPS</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Tgl Bayar</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Berlaku s/d</th>
@@ -1096,6 +1196,10 @@
                                                             @endphp
                                                             <tr class="border-t border-gray-50 {{ ($loop->index ?? 0)%2===0 ? 'bg-white' : 'bg-gray-50/40' }}">
                                                                 <td class="px-4 py-2 text-gray-400">{{ $loop->iteration }}</td>
+                                                                <td class="px-4 py-2">
+                                                                    @php $_gpsPrNum = $sd['item_pr_numbers'][$gi] ?? $d->no_pr; @endphp
+                                                                    <span class="font-mono text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{{ $_gpsPrNum }}</span>
+                                                                </td>
                                                                 <td class="px-4 py-2 font-medium text-gray-700">
                                                                     @if($gps)
                                                                         <span class="font-semibold">{{ $gps->nama_gps ?? '-' }}</span>
@@ -1119,7 +1223,7 @@
                                                                     @if(!empty($gpsLamp))
                                                                         <div class="flex flex-col gap-0.5">
                                                                         @foreach($gpsLamp as $gf)
-                                                                            @php $gfUrl = isset($gf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($gf['path']) : null; @endphp
+                                                                            @php $gfUrl = isset($gf['path']) ? asset($gf['path']) : null; @endphp
                                                                             @if($gfUrl)
                                                                                 <a href="{{ $gfUrl }}" target="_blank"
                                                                                     class="text-[11px] text-blue-600 hover:underline truncate max-w-[120px]"
@@ -1202,6 +1306,7 @@
                                                         <thead>
                                                             <tr class="bg-orange-50/60 border-y border-orange-100">
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">#</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">PR Number</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Nama Part</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Kategori</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Kondisi</th>
@@ -1238,6 +1343,10 @@
                                                             @endphp
                                                             <tr class="border-t border-gray-50 {{ ($spi%2===0)?'bg-white':'bg-gray-50/40' }}">
                                                                 <td class="px-4 py-2 text-gray-400">{{ $spi + 1 }}</td>
+                                                                <td class="px-4 py-2">
+                                                                    @php $_spPrNum = $sd['item_pr_numbers'][$spi] ?? $d->no_pr; @endphp
+                                                                    <span class="font-mono text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{{ $_spPrNum }}</span>
+                                                                </td>
                                                                 <td class="px-4 py-2 font-medium text-gray-700">
                                                                     {{ $spart['nama_part'] ?? '-' }}
                                                                     @if(!empty($spart['part_number']) && $spart['part_number'] !== '-')
@@ -1535,7 +1644,7 @@
                                                                     $lfExt  = strtolower($lf['extension'] ?? pathinfo($lfPath, PATHINFO_EXTENSION));
                                                                     $lfIsImg = in_array($lfExt, ['jpg','jpeg','png','webp','gif']);
                                                                     $lfIcon  = $lfIsImg ? 'fa-image text-blue-400' : ($lfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
-                                                                    $lfUrl   = $lfPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($lfPath) : null;
+                                                                    $lfUrl   = $lfPath ? asset($lfPath) : null;
                                                                 @endphp
                                                                 @if($lfUrl)
                                                                     <a href="{{ $lfUrl }}" target="_blank"
@@ -1562,7 +1671,7 @@
                                                         @php
                                                             $sbPath = $saBukti['path'] ?? '';
                                                             $sbName = $saBukti['original_name'] ?? basename($sbPath);
-                                                            $sbUrl  = $sbPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($sbPath) : null;
+                                                            $sbUrl  = $sbPath ? asset($sbPath) : null;
                                                         @endphp
                                                         @if($sbUrl)
                                                         <div class="mb-3">
@@ -1582,6 +1691,7 @@
                                                                 <thead>
                                                                     <tr class="bg-blue-50 border-b border-blue-100">
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">PR Number</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Kejadian</th>
                                                                         <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                         <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
@@ -1597,6 +1707,10 @@
                                                                     @php $saKjDec = $saDecMap[$saKjIdx] ?? null; $saKjCounter++; @endphp
                                                                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                         <td class="px-3 py-2 text-gray-400">{{ $saKjCounter }}</td>
+                                                                        <td class="px-3 py-2">
+                                                                            @php $_saPrNum = $sd['item_pr_numbers'][$saKjIdx] ?? $d->no_pr; @endphp
+                                                                            <span class="font-mono text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{{ $_saPrNum }}</span>
+                                                                        </td>
                                                                         <td class="px-3 py-2 font-semibold text-gray-800">{{ $saKj['nama_kejadian'] ?? '-' }}</td>
                                                                         <td class="px-3 py-2 text-center">
                                                                             @php $saKjLamp = $saKj['lampiran'] ?? []; @endphp
@@ -1604,7 +1718,7 @@
                                                                                 <div class="flex flex-wrap gap-0.5 justify-center">
                                                                                 @foreach($saKjLamp as $kjf)
                                                                                     @php
-                                                                                        $kjfUrl  = isset($kjf['path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($kjf['path']) : null;
+                                                                                        $kjfUrl  = isset($kjf['path']) ? asset($kjf['path']) : null;
                                                                                         $kjfExt  = strtolower($kjf['extension'] ?? pathinfo($kjf['path'] ?? '', PATHINFO_EXTENSION));
                                                                                         $kjfIcon = in_array($kjfExt, ['jpg','jpeg','png','gif']) ? 'fa-image text-blue-400' : ($kjfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
                                                                                     @endphp
@@ -1739,6 +1853,7 @@
                                                                 <thead>
                                                                     <tr class="bg-red-50 border-b border-red-100">
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">PR Number</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Part</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kategori</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
@@ -1765,6 +1880,10 @@
                                                                     @endphp
                                                                     <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                         <td class="px-3 py-2 text-gray-400">{{ $siPIdx + 1 }}</td>
+                                                                        <td class="px-3 py-2">
+                                                                            @php $_siPrNum = $sd['item_pr_numbers'][$siPIdx] ?? $d->no_pr; @endphp
+                                                                            <span class="font-mono text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{{ $_siPrNum }}</span>
+                                                                        </td>
                                                                         <td class="px-3 py-2 font-semibold text-gray-800">{{ $siPart['nama_part'] ?? '-' }}</td>
                                                                         <td class="px-3 py-2">
                                                                             @if($siCat)
@@ -1879,8 +1998,8 @@
                                                 @endif
 
                                                 {{-- Rekening Bank --}}
-                                                {{-- Untuk service_part/service_incident: info bank sudah tampil per-part di tabel di atas --}}
-                                                @if(!in_array($d->source_type, ['service_part', 'service_incident']))
+                                                {{-- Untuk service_part/service_incident/pajak/kir/asuransi: info bank sudah tampil di tabel di atas --}}
+                                                @if(!in_array($d->source_type, ['service_part', 'service_incident', 'pajak', 'pajak_perpanjang', 'kir', 'kir_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang']))
                                                 @if($d->nama_bank || $d->no_rekening || $d->nama_rekening)
                                                 <div class="mx-4 mb-3 mt-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
                                                     <p class="text-[10px] font-semibold text-amber-600 uppercase tracking-wider mb-2"><i class="bi bi-bank mr-1"></i> Rekening Bank</p>
@@ -2045,8 +2164,8 @@
                         file:text-xs file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
             </div>
             <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan <span class="text-red-500">*</span></label>
-                <textarea name="catatan" rows="2" required placeholder="Catatan persetujuan (wajib diisi)..."
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan <span class="text-gray-400 font-normal">(opsional)</span></label>
+                <textarea name="catatan" rows="2" placeholder="Catatan persetujuan (opsional)..."
                     class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-100 focus:border-green-400"></textarea>
             </div>
             <div class="flex gap-2 pt-1">
@@ -2411,12 +2530,102 @@
             </div>
 
             {{-- Footer --}}
+            <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0 rounded-b-2xl">
+                <div class="flex-1">
+                    <p class="text-xs text-gray-500 font-medium">Total yang akan diajukan</p>
+                    <p id="rrm-total-display" class="text-lg font-bold text-amber-600">Rp 0</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="closeResubmitRejectedModal()"
+                        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit" id="rrm-submit-btn"
+                        class="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-colors shadow-sm">
+                        <i class="fa fa-paper-plane text-xs"></i>
+                        Ajukan Ulang
+                    </button>
+                </div>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+{{-- ============================================================
+     MODAL: Edit & Ajukan Ulang Pembayaran Ditolak
+     (untuk pajak / kir / asuransi yang ditolak)
+============================================================ --}}
+<div id="resubmitPembayaranModal"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+     onclick="if(event.target===this) closeResubmitPembayaranModal()">
+
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh]">
+
+        {{-- Header --}}
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div>
+                <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+                        <i class="fa fa-rotate-right text-amber-600 text-sm"></i>
+                    </span>
+                    Edit &amp; Ajukan Ulang
+                </h2>
+                <p class="text-xs text-gray-400 mt-0.5 ml-10">
+                    No PR: <span id="rpm-no-pr" class="font-mono font-semibold text-gray-600">—</span>
+                </p>
+            </div>
+            <button type="button" onclick="closeResubmitPembayaranModal()"
+                class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
+                <i class="fa fa-times text-lg"></i>
+            </button>
+        </div>
+
+        {{-- Loading state --}}
+        <div id="rpm-loading" class="flex-1 flex items-center justify-center py-16">
+            <div class="text-center text-gray-400">
+                <i class="fa fa-spinner fa-spin text-2xl mb-3 block text-blue-400"></i>
+                <p class="text-sm">Memuat data...</p>
+            </div>
+        </div>
+
+        {{-- Error state --}}
+        <div id="rpm-error" class="hidden flex-1 flex items-center justify-center py-16 px-6">
+            <div class="text-center text-red-500">
+                <i class="fa fa-exclamation-triangle text-2xl mb-3 block"></i>
+                <p class="text-sm" id="rpm-error-msg">Gagal memuat data.</p>
+            </div>
+        </div>
+
+        {{-- Form --}}
+        <form id="rpm-form" method="POST" action="" enctype="multipart/form-data" class="hidden flex-1 flex flex-col overflow-hidden">
+            @csrf
+
+            {{-- Catatan penolakan --}}
+            <div id="rpm-catatan-wrap" class="hidden px-6 pt-4 flex-shrink-0">
+                <div class="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                    <i class="fa fa-exclamation-circle text-red-500 mt-0.5 flex-shrink-0"></i>
+                    <div>
+                        <p class="text-xs font-semibold text-red-700 mb-0.5">Catatan Penolakan</p>
+                        <p id="rpm-catatan" class="text-xs text-red-600"></p>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Form fields --}}
+            <div class="flex-1 overflow-y-auto px-6 py-4">
+                <div id="rpm-form-fields" class="space-y-4">
+                    {{-- Diisi via JS --}}
+                </div>
+            </div>
+
+            {{-- Footer --}}
             <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0 rounded-b-2xl">
-                <button type="button" onclick="closeResubmitRejectedModal()"
+                <button type="button" onclick="closeResubmitPembayaranModal()"
                     class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors">
                     Batal
                 </button>
-                <button type="submit" id="rrm-submit-btn"
+                <button type="submit" id="rpm-submit-btn"
                     class="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-colors shadow-sm">
                     <i class="fa fa-paper-plane text-xs"></i>
                     Ajukan Ulang
@@ -2434,6 +2643,12 @@ window.__rrmSuppliers = @json($suppliers->map(fn($s) => ['id' => $s->id, 'nama' 
 
 @push('scripts')
 <script>
+// ══════════════════════════════════════════════════════════════
+// ISOLATE PEMBAYARAN PAGE SCRIPTS TO PREVENT GLOBAL CONFLICTS
+// ══════════════════════════════════════════════════════════════
+(function() {
+'use strict';
+
 // ── DATA PENDING (untuk modal bulk) ──────────────────────────
 const ALL_PENDING = {!! json_encode($allPendingJson) !!};
 
@@ -2753,7 +2968,9 @@ document.getElementById('modalBulkReject')?.addEventListener('click', e => { if 
 // ── DETAIL MODAL ──────────────────────────────────────────────
 function openDetailModal(id, currentTab) {
     const modal = document.getElementById('detailModal');
-    modal.classList.remove('hidden'); modal.classList.add('flex');
+    modal.classList.remove('hidden');
+    // Tambah delay kecil sebelum menambahkan flex untuk menghindari race condition dengan backdrop click
+    setTimeout(() => modal.classList.add('flex'), 10);
     document.getElementById('d_no_pr').textContent = '';
     document.getElementById('d_jenis_badge').textContent = '';
     document.getElementById('d_loading').classList.remove('hidden');
@@ -2761,22 +2978,36 @@ function openDetailModal(id, currentTab) {
     document.getElementById('d_content').innerHTML = '';
 
     fetch('/admin/pembayaran/' + id + '/details')
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) populateDetailModal(data.pembayaran, currentTab || 'semua');
-            else closeDetailModal();
+        .then(r => {
+            console.log('Response status:', r.status);
+            return r.json();
         })
-        .catch(() => closeDetailModal());
+        .then(data => {
+            console.log('Response data:', data);
+            if (data.success) {
+                populateDetailModal(data.pembayaran, currentTab || 'semua');
+            } else {
+                console.error('API returned success=false:', data);
+                alert('Gagal memuat detail: ' + (data.message || 'Unknown error'));
+                closeDetailModal();
+            }
+        })
+        .catch(err => {
+            console.error('Fetch error:', err);
+            alert('Terjadi kesalahan saat memuat detail.');
+            closeDetailModal();
+        });
 }
 
 function populateDetailModal(pr, activeTab) {
-    activeTab = activeTab || 'semua';
-    document.getElementById('d_no_pr').textContent = pr.no_pr || '-';
-    document.getElementById('d_jenis_badge').textContent = pr.source_type_name || 'Belanja';
-    document.getElementById('d_loading').classList.add('hidden');
+    try {
+        activeTab = activeTab || 'semua';
+        document.getElementById('d_no_pr').textContent = pr.no_pr || '-';
+        document.getElementById('d_jenis_badge').textContent = pr.source_type_name || 'Belanja';
+        document.getElementById('d_loading').classList.add('hidden');
 
-    const content = document.getElementById('d_content');
-    content.classList.remove('hidden');
+        const content = document.getElementById('d_content');
+        content.classList.remove('hidden');
 
     // ── Helper: file chip ────────────────────────────────────
     function fileChip(url, name, colorClass) {
@@ -2967,7 +3198,7 @@ function populateDetailModal(pr, activeTab) {
 
         // Total row
         html += '<div class="border-t-2 border-gray-200 bg-gray-50 px-4 py-2.5 flex justify-end">'
-            + '<span class="text-sm font-bold ' + (isTabRejected ? 'text-red-500' : 'text-emerald-600') + '">Rp ' + totalDisplay + '</span>'
+            // + '<span class="text-sm font-bold ' + (isTabRejected ? 'text-red-500' : 'text-emerald-600') + '">Rp ' + totalDisplay + '</span>'
             + '</div>';
         html += '</div>';
 
@@ -2979,8 +3210,8 @@ function populateDetailModal(pr, activeTab) {
             + '</div>';
     }
 
-    // ── 5. Info Rekening bank level PR (untuk non service_part/incident) ─
-    if (!pr.source_type || !['service_part','service_incident'].includes(pr.source_type)) {
+    // ── 5. Info Rekening bank level PR (untuk non service_part/incident/pajak/kir/asuransi) ─
+    if (!pr.source_type || !['service_part','service_incident','pajak','pajak_perpanjang','kir','kir_perpanjang','asuransi_kendaraan','asuransi_kendaraan_perpanjang'].includes(pr.source_type)) {
         if (pr.nama_bank || pr.no_rekening) {
             html += '<div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">'
                 + '<p class="text-[10px] font-semibold text-amber-600 uppercase tracking-wider mb-2"><i class="bi bi-bank mr-1"></i> Rekening Bank</p>'
@@ -3014,6 +3245,11 @@ function populateDetailModal(pr, activeTab) {
     }
 
     content.innerHTML = html;
+    } catch (error) {
+        console.error('Error in populateDetailModal:', error);
+        alert('Terjadi kesalahan saat menampilkan detail: ' + error.message);
+        closeDetailModal();
+    }
 }
 
 function closeDetailModal() {
@@ -3036,6 +3272,18 @@ function closeDeleteModal() {
 document.getElementById('deleteModal')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeDeleteModal(); });
 
 // ── POPUP ALERT ───────────────────────────────────────────────
+// ── Alert Close Function (Global) ─────────────────────────────
+window.closeAlert = function() {
+    const overlay = document.getElementById('alertOverlay');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        overlay.style.pointerEvents = 'none';
+        const box = document.getElementById('alertBox');
+        if (box) box.style.transform = 'translateY(-16px)';
+    }
+};
+
+// ── Alert Auto-Show ───────────────────────────────────────────
 (function() {
     const overlay = document.getElementById('alertOverlay');
     const box     = document.getElementById('alertBox');
@@ -3043,8 +3291,6 @@ document.getElementById('deleteModal')?.addEventListener('click', e => { if (e.t
     setTimeout(() => { overlay.style.opacity='1'; overlay.style.pointerEvents='auto'; box.style.transform='translateY(0)'; }, 80);
     const timer = setTimeout(closeAlert, 4500);
     overlay.addEventListener('click', e => { if (e.target === overlay) closeAlert(); });
-    function closeAlert() { clearTimeout(timer); overlay.style.opacity='0'; overlay.style.pointerEvents='none'; box.style.transform='translateY(-16px)'; }
-    window.closeAlert = closeAlert;
 })();
 
 // ── APPROVAL MODAL (component) ────────────────────────────────
@@ -3054,6 +3300,22 @@ function openApprovalModal(id) {
 function openRejectModal(id) {
     window.dispatchEvent(new CustomEvent('open-approval-modal', { detail: { id, action: 'reject' } }));
 }
+
+// ── RESUBMIT REJECTED MODAL (Stub - will be populated later) ──
+window.openResubmitRejectedModal = function(id) {
+    console.warn('openResubmitRejectedModal called but not yet initialized. Retrying...');
+    setTimeout(() => {
+        if (window._openResubmitRejectedModalReal) {
+            window._openResubmitRejectedModalReal(id);
+        } else {
+            alert('Modal resubmit belum siap. Silakan refresh halaman.');
+        }
+    }, 100);
+};
+window.closeResubmitRejectedModal = function() {};
+window.openPerItemApprovalModal = function(id) {
+    console.warn('openPerItemApprovalModal called but not yet initialized.');
+};
 
 // ── CHARTS ────────────────────────────────────────────────────
 const pembayaranChartManager = new ChartManager();
@@ -3377,6 +3639,7 @@ function openResubmitRejectedModal(pembayaranId) {
                         <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp)</label>
                         <input type="number" name="items[${i}][biaya]" value="${item.biaya}"
                             min="0" required
+                            onchange="updateRRMTotal()" oninput="updateRRMTotal()"
                             class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
                     </div>
                     <div>
@@ -3394,6 +3657,7 @@ function openResubmitRejectedModal(pembayaranId) {
                     <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp)</label>
                     <input type="number" name="items[${i}][biaya]" value="${item.biaya}"
                         min="0" required
+                        onchange="updateRRMTotal()" oninput="updateRRMTotal()"
                         class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
                 </div>`;
             }
@@ -3444,12 +3708,24 @@ function openResubmitRejectedModal(pembayaranId) {
         // Tampilkan form, sembunyikan loading
         document.getElementById('rrm-loading').classList.add('hidden');
         document.getElementById('rrm-form').classList.remove('hidden');
+        
+        // Hitung dan tampilkan total dari items yang di-return (hanya item rejected)
+        updateRRMTotal();
     })
     .catch(function(err) {
         document.getElementById('rrm-loading').classList.add('hidden');
         document.getElementById('rrm-error-msg').textContent = err.message || 'Terjadi kesalahan.';
         document.getElementById('rrm-error').classList.remove('hidden');
     });
+}
+
+function updateRRMTotal() {
+    // Hitung total dari input biaya yang ada di form
+    let total = 0;
+    document.querySelectorAll('#rrm-items-container input[name$="[biaya]"]').forEach(function(inp) {
+        total += parseInt(inp.value) || 0;
+    });
+    document.getElementById('rrm-total-display').textContent = 'Rp ' + total.toLocaleString('id-ID');
 }
 
 function closeResubmitRejectedModal() {
@@ -3473,6 +3749,376 @@ function _escHtml(str) {
 function _escAttr(str) {
     return String(str).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+
+// ══════════════════════════════════════════════════════════════
+// MODAL EDIT & AJUKAN ULANG PEMBAYARAN (PAJAK/KIR/ASURANSI)
+// ══════════════════════════════════════════════════════════════
+
+let _rpmPembayaranId = null;
+let _rpmSourceType = null;
+
+function openResubmitPembayaranModal(pembayaranId, sourceType) {
+    _rpmPembayaranId = pembayaranId;
+    _rpmSourceType = sourceType;
+
+    // Reset state modal
+    document.getElementById('rpm-no-pr').textContent = '—';
+    document.getElementById('rpm-loading').classList.remove('hidden');
+    document.getElementById('rpm-error').classList.add('hidden');
+    document.getElementById('rpm-form').classList.add('hidden');
+    document.getElementById('rpm-catatan-wrap').classList.add('hidden');
+    document.getElementById('rpm-form-fields').innerHTML = '';
+
+    // Buka modal
+    const modal = document.getElementById('resubmitPembayaranModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    // Fetch data source record
+    fetch('/admin/pembayaran/' + pembayaranId + '/source-data', {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(function(data) {
+        if (!data.success) throw new Error(data.message || 'Gagal memuat data.');
+
+        // Set no_pr di header
+        document.getElementById('rpm-no-pr').textContent = data.no_pr || '—';
+
+        // Set form action
+        const form = document.getElementById('rpm-form');
+        form.action = '/admin/pembayaran/' + pembayaranId + '/resubmit-rejected-items';
+
+        // Tampilkan catatan penolakan jika ada
+        if (data.catatan) {
+            document.getElementById('rpm-catatan').textContent = data.catatan;
+            document.getElementById('rpm-catatan-wrap').classList.remove('hidden');
+        }
+
+        // Render form fields berdasarkan tipe
+        const container = document.getElementById('rpm-form-fields');
+        const record = data.record;
+
+        if (sourceType === 'pajak') {
+            container.innerHTML = renderFormPajak(record);
+        } else if (sourceType === 'kir') {
+            container.innerHTML = renderFormKir(record);
+        } else if (sourceType === 'asuransi_kendaraan') {
+            container.innerHTML = renderFormAsuransi(record);
+        }
+
+        // Tampilkan form, sembunyikan loading
+        document.getElementById('rpm-loading').classList.add('hidden');
+        document.getElementById('rpm-form').classList.remove('hidden');
+    })
+    .catch(function(err) {
+        document.getElementById('rpm-loading').classList.add('hidden');
+        document.getElementById('rpm-error-msg').textContent = err.message || 'Terjadi kesalahan.';
+        document.getElementById('rpm-error').classList.remove('hidden');
+    });
+}
+
+function renderFormPajak(record) {
+    return `
+        <input type="hidden" name="source_type" value="pajak">
+        
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Jenis Pajak <span class="text-red-500">*</span></label>
+                <input type="text" name="jenis_pajak" value="${_escAttr(record.jenis_pajak || '')}" required
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Nominal (Rp) <span class="text-red-500">*</span></label>
+                <input type="number" name="nominal" value="${record.nominal || 0}" required min="0"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mt-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Tanggal Bayar <span class="text-red-500">*</span></label>
+                <input type="date" name="tanggal_bayar" value="${record.tanggal_bayar || ''}" required
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Jatuh Tempo <span class="text-red-500">*</span></label>
+                <input type="date" name="jatuh_tempo" value="${record.jatuh_tempo || ''}" required
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 mt-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Nama Bank</label>
+                <input type="text" name="nama_bank" value="${_escAttr(record.nama_bank || '')}"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">No. Rekening</label>
+                <input type="text" name="no_rekening" value="${_escAttr(record.no_rekening || '')}"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Atas Nama</label>
+                <input type="text" name="nama_pemilik" value="${_escAttr(record.nama_pemilik || '')}"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Lampiran</label>
+            <input type="file" name="lampiran" accept=".jpg,.jpeg,.png,.pdf"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200
+                    file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
+            ${record.lampiran ? `<p class="text-xs text-gray-500 mt-1">File saat ini: ${_escHtml(record.lampiran)}</p>` : ''}
+        </div>
+    `;
+}
+
+function renderFormKir(record) {
+    return `
+        <input type="hidden" name="source_type" value="kir">
+        
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">No. KIR <span class="text-red-500">*</span></label>
+                <input type="text" name="no_kir" value="${_escAttr(record.no_kir || '')}" required
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Status <span class="text-red-500">*</span></label>
+                <select name="status" required
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+                    <option value="belum_bayar" ${record.status === 'belum_bayar' ? 'selected' : ''}>Belum Bayar</option>
+                    <option value="lunas" ${record.status === 'lunas' ? 'selected' : ''}>Lunas</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mt-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Tanggal Bayar <span class="text-red-500">*</span></label>
+                <input type="date" name="tanggal_bayar" value="${record.tanggal_bayar || ''}" required
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Masa Berlaku <span class="text-red-500">*</span></label>
+                <input type="date" name="masa_berlaku" value="${record.masa_berlaku || ''}" required
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Biaya (Rp) <span class="text-red-500">*</span></label>
+            <input type="number" name="biaya" value="${record.biaya || 0}" required min="0"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 mt-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Nama Bank</label>
+                <input type="text" name="nama_bank" value="${_escAttr(record.nama_bank || '')}"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">No. Rekening</label>
+                <input type="text" name="no_rekening" value="${_escAttr(record.no_rekening || '')}"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Atas Nama</label>
+                <input type="text" name="nama_pemilik" value="${_escAttr(record.nama_pemilik || '')}"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Lampiran</label>
+            <input type="file" name="lampiran" accept=".jpg,.jpeg,.png,.pdf"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200
+                    file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
+            ${record.lampiran ? `<p class="text-xs text-gray-500 mt-1">File saat ini: ${_escHtml(record.lampiran)}</p>` : ''}
+        </div>
+    `;
+}
+
+function renderFormAsuransi(record) {
+    return `
+        <input type="hidden" name="source_type" value="asuransi_kendaraan">
+        
+        <div class="mt-0">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Jenis Asuransi</label>
+                <input type="text" name="jenis_asuransi" value="${_escAttr(record.jenis_asuransi || '')}"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mt-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Tgl Mulai <span class="text-red-500">*</span></label>
+                <input type="date" name="tgl_mulai" value="${record.tgl_mulai || ''}" required
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Tgl Berakhir <span class="text-red-500">*</span></label>
+                <input type="date" name="tgl_berakhir" value="${record.tgl_berakhir || ''}" required
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Premi (Rp) <span class="text-red-500">*</span></label>
+            <input type="number" name="premi" value="${record.premi || 0}" required min="0"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 mt-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Nama Bank</label>
+                <input type="text" name="nama_bank" value="${_escAttr(record.nama_bank || '')}"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">No. Rekening</label>
+                <input type="text" name="no_rekening" value="${_escAttr(record.no_rekening || '')}"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Atas Nama</label>
+                <input type="text" name="nama_pemilik" value="${_escAttr(record.nama_pemilik || '')}"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Lampiran</label>
+            <input type="file" name="lampiran" accept=".jpg,.jpeg,.png,.pdf"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200
+                    file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
+            ${record.lampiran ? `<p class="text-xs text-gray-500 mt-1">File saat ini: ${_escHtml(record.lampiran)}</p>` : ''}
+        </div>
+    `;
+}
+
+function closeResubmitPembayaranModal() {
+    const modal = document.getElementById('resubmitPembayaranModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    _rpmPembayaranId = null;
+    _rpmSourceType = null;
+}
+
+// Handle submit: disable tombol saat loading
+document.getElementById('rpm-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('rpm-submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin text-xs"></i> Mengajukan...';
+    
+    // Submit via FormData untuk handle file upload
+    const formData = new FormData(this);
+    fetch(this.action, {
+        method: 'POST',
+        body: formData,
+        headers: { 
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Berhasil mengajukan ulang!');
+            closeResubmitPembayaranModal();
+            location.reload(); // Refresh halaman untuk update tabel
+        } else {
+            alert('Gagal: ' + (data.message || 'Terjadi kesalahan'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-paper-plane text-xs"></i> Ajukan Ulang';
+        }
+    })
+    .catch(err => {
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-paper-plane text-xs"></i> Ajukan Ulang';
+    });
+});
+
+// Helper escape HTML
+function _escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function _escAttr(str) {
+    return String(str).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ══════════════════════════════════════════════════════════════
+// EXPOSE FUNCTIONS TO GLOBAL SCOPE (for inline onclick handlers)
+// ══════════════════════════════════════════════════════════════
+window.toggleGroup = toggleGroup;
+window.toggleRowExpand = toggleRowExpand;
+window.toggleGroupCheck = toggleGroupCheck;
+window.openBulkApproveModal = openBulkApproveModal;
+window.closeBulkApproveModal = closeBulkApproveModal;
+window.toggleApproveAll = toggleApproveAll;
+window.updateApproveCount = updateApproveCount;
+window.submitBulkApprove = submitBulkApprove;
+window.openBulkRejectModal = openBulkRejectModal;
+window.closeBulkRejectModal = closeBulkRejectModal;
+window.toggleRejectAll = toggleRejectAll;
+window.syncRejectAllAlasan = syncRejectAllAlasan;
+window.updateRejectCount = updateRejectCount;
+window.submitBulkReject = submitBulkReject;
+window.openSingleApproveModal = openSingleApproveModal;
+window.closeSingleApproveModal = closeSingleApproveModal;
+window.openSingleRejectModal = openSingleRejectModal;
+window.closeSingleRejectModal = closeSingleRejectModal;
+window.openApproveServiceModal = openApproveServiceModal;
+window.closeApproveServiceModal = closeApproveServiceModal;
+window.openTolakModal = openTolakModal;
+window.closeTolakModal = closeTolakModal;
+window.openDetailModal = openDetailModal;
+window.closeDetailModal = closeDetailModal;
+window.triggerDelete = triggerDelete;
+window.closeDeleteModal = closeDeleteModal;
+window.closeAlert = closeAlert;
+window.openApprovalModal = openApprovalModal;
+window.openRejectModal = openRejectModal;
+window.openAjukanUlangSAModal = openAjukanUlangSAModal;
+window.closeAjukanUlangSAModal = closeAjukanUlangSAModal;
+window.addSaKejadian = addSaKejadian;
+window.removeSaKejadian = removeSaKejadian;
+window.updateSaTotalBiaya = updateSaTotalBiaya;
+window.submitAjukanUlangSA = submitAjukanUlangSA;
+window._openResubmitRejectedModalReal = openResubmitRejectedModal;
+window.openResubmitRejectedModal = openResubmitRejectedModal;
+window.closeResubmitRejectedModal = closeResubmitRejectedModal;
+window.updateRRMTotal = updateRRMTotal;
+window.openResubmitPembayaranModal = openResubmitPembayaranModal;
+window.closeResubmitPembayaranModal = closeResubmitPembayaranModal;
+window.openPerItemApprovalModal = openPerItemApprovalModal;
+window.closePerItemApprovalModal = closePerItemApprovalModal;
+window.setPiaDecision = setPiaDecision;
+window.updatePiaBuktiLabel = updatePiaBuktiLabel;
+window.submitPerItemApproval = submitPerItemApproval;
+
+// ══════════════════════════════════════════════════════════════
+// END OF ISOLATED PEMBAYARAN SCRIPTS
+// ══════════════════════════════════════════════════════════════
+})(); // End IIFE
 </script>
 @endpush
 
@@ -3752,3 +4398,7 @@ function _escH(str) {
 </script>
 
 @endsection
+
+
+
+

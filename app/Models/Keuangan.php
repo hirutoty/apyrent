@@ -14,6 +14,8 @@ class Keuangan extends Model
     protected $fillable = [
         'tanggal',
         'reference',
+        'source_type',
+        'source_id',
         'user_id',
         'divisi',
         'kategori',

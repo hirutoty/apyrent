@@ -131,10 +131,24 @@ class PurchaseOrderApprovalService
         $sourceDataForPembayaran = $approvedSourceData;
         unset($sourceDataForPembayaran['item_decisions']);
 
+        // ── Inject linked record IDs dari PO ke source_data Pembayaran ──────────
+        // service_asuransi_id dan service_incident_id hanya ada di PO source_data,
+        // tapi dibutuhkan oleh showApprovalModal (fallback DB filter) dan
+        // transferServiceAsuransi/Incident (lookup record lama). Inject di sini agar
+        // Pembayaran selalu membawa referensi ke record yang benar.
+        $poSourceDataForInject = $po->source_data ?? [];
+        if ($sourceType === 'service_asuransi' && !empty($poSourceDataForInject['service_asuransi_id'])) {
+            $sourceDataForPembayaran['service_asuransi_id'] = $poSourceDataForInject['service_asuransi_id'];
+        }
+        if ($sourceType === 'service_incident' && !empty($poSourceDataForInject['service_incident_id'])) {
+            $sourceDataForPembayaran['service_incident_id'] = $poSourceDataForInject['service_incident_id'];
+        }
+
         // ── Jika PO sudah punya Pembayaran (resubmit partial round ke-2+), UPDATE PR lama ──
-        // Berlaku untuk service_part dan service_incident — source type yang mendukung
-        // multi-round partial approval. Source type lain (GPS, pajak, asuransi, KIR, STNK)
-        // selalu buat Pembayaran baru karena tidak punya skenario reuse PR.
+        // Berlaku untuk service_part dan service_incident saja.
+        // service_asuransi selalu buat Pembayaran baru per round agar setiap batch
+        // kejadian punya PR sendiri — penggabungan ke 1 row dilakukan di view service_asuransi,
+        // bukan di level Pembayaran.
         $existingPembayaran = null;
         if (
             in_array($sourceType, ['service_part', 'service_incident'])
@@ -145,8 +159,8 @@ class PurchaseOrderApprovalService
 
         if ($existingPembayaran) {
             // ── UPDATE Pembayaran lama ──────────────────────────────────────
-            // Merge parts baru yang approved ke dalam source_data yang sudah ada.
-            // Parts lama (yang sudah approved sebelumnya) tetap dipertahankan.
+            // Merge items baru yang approved ke dalam source_data yang sudah ada.
+            // Items lama (yang sudah approved sebelumnya) tetap dipertahankan.
             $existingSourceData = $existingPembayaran->source_data ?? [];
 
             // Gabungkan parts: pakai index original dari approvedSourceData agar
@@ -157,7 +171,6 @@ class PurchaseOrderApprovalService
                 unset($part['status_approval'], $part['catatan_penolakan']);
                 $existingParts[$idx] = $part;
             }
-
             $existingSourceData['parts'] = $existingParts;
 
             // Nominal: akumulasi dari semua parts yang ada di PR (approved lama + approved baru)
@@ -199,6 +212,9 @@ class PurchaseOrderApprovalService
                 'target_id'           => null,
                 'can_edit'            => false,
             ]);
+
+            // ── Populate item_pr_numbers: map each item index → PR number ──────────
+            $this->populateItemPrNumbers($pembayaran, $sourceType, $sourceDataForPembayaran);
 
             $po->update(['pembayaran_id' => $pembayaran->id]);
         }
@@ -381,9 +397,24 @@ class PurchaseOrderApprovalService
                 unset($newData['gps_record_ids']);
             }
 
-            // Update PO dengan data baru
+            // ── Preserve locked_approved_idx dan linked record IDs dari partial approval sebelumnya ──
+            // Saat PO partial approved → resubmit, field-field berikut harus tetap ada:
+            // - locked_approved_idx   : agar items yang sudah approved tidak muncul lagi di approval modal
+            // - service_asuransi_id   : agar updateLinkedRecord tidak buat record ServiceAsuransi baru
+            // - service_incident_id   : agar updateLinkedRecord tidak buat record ServiceIncident baru
+            // item_decisions di-clear karena cycle approval baru dimulai
+            $oldSourceData = $po->source_data ?? [];
+            $preservedFields = [
+                'locked_approved_idx'  => $oldSourceData['locked_approved_idx'] ?? [],
+                'service_asuransi_id'  => $oldSourceData['service_asuransi_id'] ?? null,
+                'service_incident_id'  => $oldSourceData['service_incident_id'] ?? null,
+            ];
+            // Hapus null values agar tidak mengotori source_data dengan key kosong
+            $preservedFields = array_filter($preservedFields, fn($v) => $v !== null);
+
+            // Update PO dengan data baru + preserve locked items
             $po->update([
-                'source_data' => array_merge($newData, ['temp_files' => $uploadedFiles]),
+                'source_data' => array_merge($newData, ['temp_files' => $uploadedFiles], $preservedFields),
                 'vendor' => $vendor,
                 'total_barang' => $totalItems,
                 'total_harga' => $nominal,
@@ -449,7 +480,41 @@ class PurchaseOrderApprovalService
             'can_edit' => false,
         ]);
 
+        // ── Populate item_pr_numbers per item ───────────────────────────────────
+        $this->populateItemPrNumbers($pembayaran, $sourceType, $sourceData);
+
         return $pembayaran;
+    }
+
+    /**
+     * Populate item_pr_numbers di source_data Pembayaran.
+     * Map setiap index item → no_pr dokumen Pembayaran.
+     * Digunakan saat Pembayaran baru dibuat agar setiap item bisa dilacak PR number-nya.
+     */
+    protected function populateItemPrNumbers(Pembayaran $pembayaran, string $sourceType, array $sourceData): void
+    {
+        $multiItemTypes = ['gps', 'gps_perpanjang', 'service_part', 'service_asuransi', 'service_incident'];
+        if (!in_array($sourceType, $multiItemTypes)) {
+            return; // single-item types tidak perlu
+        }
+
+        $itemCount = match ($sourceType) {
+            'gps', 'gps_perpanjang'             => count($sourceData['gps_items'] ?? []),
+            'service_part', 'service_incident'  => count($sourceData['parts'] ?? []),
+            'service_asuransi'                  => count($sourceData['kejadians'] ?? []),
+            default                             => 0,
+        };
+
+        if ($itemCount === 0) return;
+
+        $itemPrNumbers = [];
+        for ($i = 0; $i < $itemCount; $i++) {
+            $itemPrNumbers[$i] = $pembayaran->no_pr;
+        }
+
+        $sd = $pembayaran->source_data ?? [];
+        $sd['item_pr_numbers'] = $itemPrNumbers;
+        $pembayaran->update(['source_data' => $sd]);
     }
 
     /**
@@ -470,9 +535,11 @@ class PurchaseOrderApprovalService
 
         $typeCode = $typeMap[$sourceType] ?? 'PGL';
 
-        // Get last PR for this type
-        $lastPR = Pembayaran::where('source_type', $sourceType)
-            ->where('no_pr', 'like', "PR-{$typeCode}-%")
+        // Ambil nomor terbesar dari SEMUA Pembayaran dengan prefix ini,
+        // tanpa filter source_type agar tidak ada nomor yang terlewat/duplikat.
+        // Gunakan orderBy id desc sebagai proxy untuk nomor terbesar —
+        // nomor PR selalu increment seiring id, sehingga id terbesar = nomor terbesar.
+        $lastPR = Pembayaran::where('no_pr', 'like', "PR-{$typeCode}-%")
             ->orderBy('id', 'desc')
             ->first();
 
@@ -518,7 +585,7 @@ class PurchaseOrderApprovalService
             'kir'               => floatval($data['biaya'] ?? 0),
             'stnk'              => floatval($data['biaya'] ?? 0),
             'service_part'      => collect($data['parts'] ?? [])->sum(fn($p) => floatval($p['biaya'] ?? 0)),
-            'service_asuransi'  => floatval($data['biaya'] ?? 0),
+            'service_asuransi'  => collect($data['kejadians'] ?? [])->sum(fn($k) => floatval($k['biaya'] ?? 0)),
             'service_incident'  => floatval($data['total_biaya_override'] ?? 0) > 0
                                     ? floatval($data['total_biaya_override'])
                                     : collect($data['parts'] ?? [])->sum(fn($p) => floatval($p['biaya'] ?? 0)),
@@ -549,6 +616,73 @@ class PurchaseOrderApprovalService
         if (Storage::disk('public')->exists($tempDir)) {
             Storage::disk('public')->deleteDirectory($tempDir);
         }
+    }
+
+    /**
+     * Create a new PO document for resubmitted items.
+     *
+     * Saat item di-reject dan di-resubmit, alih-alih mengupdate PO lama,
+     * sistem membuat PO document baru dengan po_id baru (increment) yang
+     * hanya berisi item yang di-resubmit. PO lama tetap Disetujui dengan
+     * item yang sudah approved.
+     *
+     * @param PurchaseOrder $oldPo        PO lama (status Disetujui, ada item rejected)
+     * @param array         $newSourceData  source_data untuk PO baru (hanya berisi item rejected)
+     * @param string        $sourceType     source_type PO
+     * @return PurchaseOrder               PO baru yang dibuat
+     */
+    public function createResubmitPO(PurchaseOrder $oldPo, array $newSourceData, string $sourceType): PurchaseOrder
+    {
+        $vendor = $newSourceData['vendor'] ?? $oldPo->vendor ?? 'Vendor ' . ucfirst(str_replace('_', ' ', $sourceType));
+
+        // Determine item count for new PO
+        $totalItems = match ($sourceType) {
+            'gps', 'gps_perpanjang' => count($newSourceData['gps_items'] ?? []),
+            'service_part', 'service_incident' => count($newSourceData['parts'] ?? []),
+            'service_asuransi' => count($newSourceData['kejadians'] ?? []),
+            default => 1,
+        };
+
+        // Calculate nominal
+        $nominal = match ($sourceType) {
+            'gps', 'gps_perpanjang' => collect($newSourceData['gps_items'] ?? [])->sum(fn($i) => $i['biaya_sewa'] ?? 0),
+            'service_part', 'service_incident' => collect($newSourceData['parts'] ?? [])->sum(fn($p) => $p['biaya'] ?? 0),
+            'service_asuransi' => collect($newSourceData['kejadians'] ?? [])->sum(fn($k) => $k['biaya'] ?? 0),
+            default => $newSourceData['nominal'] ?? $newSourceData['biaya'] ?? 0,
+        };
+
+        // Create new PO document — po_id auto-generated via boot() with increment
+        $newPo = PurchaseOrder::create([
+            'tanggal_po'        => now()->toDateString(),
+            'vendor'            => $vendor,
+            'pemohon'           => $newSourceData['pemohon'] ?? $oldPo->pemohon ?? null,
+            'departemen'        => $newSourceData['departemen'] ?? $oldPo->departemen ?? null,
+            'terkait_rfq'       => $newSourceData['terkait_rfq'] ?? null,
+            'total_barang'      => $totalItems,
+            'total_harga'       => (int) $nominal,
+            'status_po'         => 'Pending',
+            'catatan'           => $newSourceData['keterangan'] ?? null,
+            'keterangan'        => $newSourceData['keterangan'] ?? null,
+            'source_type'       => $sourceType,
+            'source_data'       => $newSourceData,
+            'status'            => 'Pending',
+            'can_edit'          => false,
+            'terakhir_diajukan' => now(),
+        ]);
+
+        // Populate item_po_numbers for new PO — all items get new PO number
+        $multiItemTypes = ['gps', 'gps_perpanjang', 'service_part', 'service_asuransi', 'service_incident'];
+        if (in_array($sourceType, $multiItemTypes)) {
+            $itemPoNumbers = [];
+            for ($i = 0; $i < $totalItems; $i++) {
+                $itemPoNumbers[$i] = $newPo->po_id;
+            }
+            $sd = $newPo->source_data;
+            $sd['item_po_numbers'] = $itemPoNumbers;
+            $newPo->update(['source_data' => $sd]);
+        }
+
+        return $newPo;
     }
 
     /**
@@ -677,6 +811,8 @@ class PurchaseOrderApprovalService
                     ->update([
                         'persetujuan'   => 'Diajukan ke Pembayaran',
                         'pembayaran_id' => $pembayaran->id,
+                        'status_aktif'  => 'tidak_aktif', // Set status tidak aktif saat diajukan ke Pembayaran
+                        'tanggal_approval' => null, // Reset tanggal approval, nanti diisi saat Pembayaran approved
                     ]);
             }
             return;
@@ -691,6 +827,8 @@ class PurchaseOrderApprovalService
                     ->update([
                         'persetujuan'   => 'Diajukan ke Pembayaran',
                         'pembayaran_id' => $pembayaran->id,
+                        'status_aktif'  => 'tidak_aktif', // Set status tidak aktif saat diajukan ke Pembayaran
+                        'tanggal_approval' => null, // Reset tanggal approval, nanti diisi saat Pembayaran approved
                     ]);
             }
             return;
@@ -705,6 +843,8 @@ class PurchaseOrderApprovalService
                     ->update([
                         'persetujuan'   => 'Diajukan ke Pembayaran',
                         'pembayaran_id' => $pembayaran->id,
+                        'status_aktif'  => 'tidak_aktif', // Set status tidak aktif saat diajukan ke Pembayaran
+                        'tanggal_approval' => null, // Reset tanggal approval, nanti diisi saat Pembayaran approved
                     ]);
             }
             return;
@@ -865,6 +1005,12 @@ class PurchaseOrderApprovalService
             $keterangan   = $sourceData['keterangan'] ?? null;
             $totalBiaya   = collect($kejadians)->sum(fn($k) => (int)($k['biaya'] ?? 0));
 
+            // Ekstrak date fields dari parent untuk diisi ke setiap kejadian
+            // Priority: gunakan dari kejadian individual jika ada, fallback ke parent sourceData
+            $tanggalService   = $sourceData['tanggal_service'] ?? now()->toDateString();
+            $periodeMulai     = $sourceData['periode_mulai'] ?? null;
+            $periodeSelesai   = $sourceData['periode_selesai'] ?? null;
+
             // ── Guard: jika service_asuransi_id sudah ada di source_data PO,
             // ini adalah partial approval kedua (resubmit). Cukup tambah kejadian baru
             // ke record yang sudah ada — jangan buat record baru.
@@ -882,10 +1028,14 @@ class PurchaseOrderApprovalService
                     ]);
 
                     // Tambahkan HANYA kejadian baru (jangan hapus yang sudah ada)
+                    // Include tanggal, periode_mulai, periode_selesai dari parent
                     foreach ($kejadians as $kej) {
                         \App\Models\ServiceAsuransiKejadian::create([
                             'service_asuransi_id' => $existing->id,
                             'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
+                            'tanggal'             => $kej['tanggal'] ?? $tanggalService,
+                            'periode_mulai'       => $kej['periode_mulai'] ?? $periodeMulai,
+                            'periode_selesai'     => $kej['periode_selesai'] ?? $periodeSelesai,
                             'biaya'               => (int)($kej['biaya'] ?? 0),
                             'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
                             'status'              => 'diajukan',
@@ -902,9 +1052,9 @@ class PurchaseOrderApprovalService
                 'kendaraan_id'      => $kendaraanId,
                 'nama_asuransi'     => $namaAsuransi,
                 'jenis_asuransi_id' => $sourceData['jenis_asuransi_id'] ?? null,
-                'tanggal_service'   => $sourceData['tanggal_service'] ?? now()->toDateString(),
-                'periode_mulai'     => $sourceData['periode_mulai'] ?? null,
-                'periode_selesai'   => $sourceData['periode_selesai'] ?? null,
+                'tanggal_service'   => $tanggalService,
+                'periode_mulai'     => $periodeMulai,
+                'periode_selesai'   => $periodeSelesai,
                 'kilometer'         => $sourceData['kilometer'] ?? 0,
                 'biaya'             => $totalBiaya,
                 'keterangan'        => $keterangan,
@@ -918,6 +1068,9 @@ class PurchaseOrderApprovalService
                 \App\Models\ServiceAsuransiKejadian::create([
                     'service_asuransi_id' => $serviceAsuransi->id,
                     'nama_kejadian'       => $kej['nama_kejadian'] ?? '-',
+                    'tanggal'             => $kej['tanggal'] ?? $tanggalService,
+                    'periode_mulai'       => $kej['periode_mulai'] ?? $periodeMulai,
+                    'periode_selesai'     => $kej['periode_selesai'] ?? $periodeSelesai,
                     'biaya'               => (int)($kej['biaya'] ?? 0),
                     'lampiran'            => !empty($kej['lampiran']) ? $kej['lampiran'] : null,
                     'status'              => 'diajukan',
