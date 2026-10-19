@@ -384,7 +384,6 @@
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Vendor</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Pemohon</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Departemen</th>
-                                        <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Keluhan</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Items</th>
                                         <th class="text-right text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Total Harga</th>
                                         <th class="text-left text-[11px] font-semibold uppercase text-gray-400 px-4 py-2.5">Status</th>
@@ -486,18 +485,6 @@
                                         <td class="px-4 py-3 text-xs text-gray-700">{{ $po->vendor ?? '-' }}</td>
                                         <td class="px-4 py-3 text-xs text-gray-700">{{ $po->pemohon ?? '-' }}</td>
                                         <td class="px-4 py-3 text-xs text-gray-700">{{ $po->departemen ?? '-' }}</td>
-                                        <td class="px-4 py-3 text-xs text-gray-500">
-                                            @php
-                                                $ketPO = $po->keterangan
-                                                    ?: ($po->source_data['keluhan'] ?? null)
-                                                    ?: ($po->source_data['alasan_permintaan'] ?? null);
-                                            @endphp
-                                            @if($ketPO)
-                                                <span>{{ $ketPO }}</span>
-                                            @else
-                                                <span class="text-gray-300">—</span>
-                                            @endif
-                                        </td>
                                         <td class="px-4 py-3 text-xs text-gray-700 text-center">
                                             @php
                                                 $_poDec   = $po->source_data['item_decisions'] ?? [];
@@ -1831,6 +1818,7 @@
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Masa Berlaku</th>
                                                                 @endif
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Rekening</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
@@ -1855,6 +1843,7 @@
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['tanggal_bayar']) ? \Carbon\Carbon::parse($sourceData['tanggal_bayar'])->format('d M Y') : '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['masa_berlaku']) ? \Carbon\Carbon::parse($sourceData['masa_berlaku'])->format('d M Y') : '-' }}</td>
                                                                 @endif
+                                                                <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_rekening'] ?? '-' }}</td>
                                                                 <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-3 py-2 text-gray-700">{{ $sourceData['no_rekening'] ?? '-' }}</td>
                                                                 
@@ -1885,7 +1874,7 @@
                                                                     @endif
                                                                 </td>
                                                                 
-                                                                <td class="px-3 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($sourceData['nominal'] ?? 0, 0, ',', '.') }}</td>
+                                                                <td class="px-3 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($sourceData['biaya'] ?? $sourceData['nominal'] ?? $po->total_harga ?? 0, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
                                                     </table>
@@ -2395,7 +2384,6 @@ function buildDetailContent(data) {
         if (details.tanggal_bayar)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + fmtDate(details.tanggal_bayar) + '</p></div>';
         if (details.tanggal_habis)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + fmtDate(details.tanggal_habis) + '</p></div>';
         if (details.kilometer && details.kilometer !== '-') html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kilometer</p><p class="text-gray-700">' + details.kilometer + ' km</p></div>';
-        if (details.keluhan && details.keluhan !== '-')    html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Keluhan</p><p class="text-gray-700">' + details.keluhan + '</p></div>';
         if (details.nama_asuransi && details.nama_asuransi !== '-') html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Asuransi</p><p class="text-gray-700">' + details.nama_asuransi + '</p></div>';
         html += '</div></div>';
     }

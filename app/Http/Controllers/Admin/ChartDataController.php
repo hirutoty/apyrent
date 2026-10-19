@@ -255,8 +255,20 @@ class ChartDataController extends Controller
             'data-leasing' => \App\Models\DataLeasing::query(),
             'asuransi' => \App\Models\Asuransi::query(),
             'gps' => \App\Models\Gps::query(),
-            'kir' => \App\Models\Kir::query(),
-            'pajak-kendaraan' => \App\Models\PajakKendaraan::query(),
+            'kir' => \App\Models\Kir::query()
+                ->whereNotNull('persetujuan')
+                ->where('persetujuan', '!=', 'Pending')
+                ->where(function ($q) {
+                    $q->where('persetujuan', '!=', 'Ditolak')
+                      ->orWhereNotNull('pembayaran_id');
+                }),
+            'pajak-kendaraan' => \App\Models\PajakKendaraan::query()
+                ->whereNotNull('persetujuan')
+                ->where('persetujuan', '!=', 'Pending')
+                ->where(function ($q) {
+                    $q->where('persetujuan', '!=', 'Ditolak')
+                      ->orWhereNotNull('pembayaran_id');
+                }),
             'stnk' => \App\Models\StnkHistory::query(),
             'service-history'  => \App\Models\ServiceHistory::query(),
             'service-asuransi' => \App\Models\ServiceAsuransiKejadian::query()
@@ -268,8 +280,20 @@ class ChartDataController extends Controller
             'purchase-order'  => \App\Models\PurchaseOrder::query(),
             'kendaraan' => \App\Models\Kendaraan::query(),
             'kendaraan-show' => \App\Models\ServiceHistory::query(),
-            'asuransi-kendaraan' => \App\Models\AsuransiKendaraan::query(),
-            'gps-kendaraan' => \App\Models\GpsKendaraan::query(),
+            'asuransi-kendaraan' => \App\Models\AsuransiKendaraan::query()
+                ->whereNotNull('persetujuan')
+                ->where('persetujuan', '!=', 'Pending')
+                ->where(function ($q) {
+                    $q->where('persetujuan', '!=', 'Ditolak')
+                      ->orWhereNotNull('pembayaran_id');
+                }),
+            'gps-kendaraan' => \App\Models\GpsKendaraan::query()
+                ->whereNotNull('persetujuan')
+                ->where('persetujuan', '!=', 'Pending')
+                ->where(function ($q) {
+                    $q->where('persetujuan', '!=', 'Ditolak')
+                      ->orWhereNotNull('pembayaran_id');
+                }),
             // Member & Pelanggan
             'member' => \App\Models\Member::query(),
             'pelanggan' => \App\Models\Pelanggan::query(),
@@ -2508,7 +2532,7 @@ class ChartDataController extends Controller
             'dateColumn' => 'tgl_mulai',
             'pie' => [
                 'title' => 'Distribusi Status Asuransi',
-                'groupBy' => 'status_kendaraan',
+                'groupBy' => 'status_aktif',
                 'valueColumn' => 'id',
                 'aggregation' => 'count',
                 'labels' => [
@@ -2560,7 +2584,7 @@ class ChartDataController extends Controller
                     'label' => 'Aktif',
                     'type' => 'count_where',
                     'column' => 'id',
-                    'where' => ['status_kendaraan' => 'aktif'],
+                    'where' => ['status_aktif' => 'aktif'],
                     'format' => 'number',
                     'color' => '#10b981',
                     'iconBg' => '#d1fae5',
@@ -2570,7 +2594,7 @@ class ChartDataController extends Controller
                     'label' => 'Expired',
                     'type' => 'count_where',
                     'column' => 'id',
-                    'where' => ['status_kendaraan' => 'expired'],
+                    'where' => ['status_aktif' => 'expired'],
                     'format' => 'number',
                     'color' => '#ef4444',
                     'iconBg' => '#fee2e2',

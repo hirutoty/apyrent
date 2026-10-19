@@ -315,7 +315,7 @@ class AsuransiKendaraanController extends Controller
                 'durasi_bulan'      => $request->durasi_bulan,
                 'biaya'             => $request->biaya,
                 'bukti_bayar'       => null,
-                'tanggal_buat'      => $request->tgl_mulai,
+                'tanggal_buat'      => $request->tgl_mulai ?? now()->toDateString(),
                 'status_aktif'      => 'tidak_aktif',      // ← rename: status_kendaraan → status_aktif
                 'persetujuan'       => 'Pending',
                 'tanggal_approval'  => null,               // ← tambah: diisi saat pembayaran disetujui
@@ -449,12 +449,37 @@ class AsuransiKendaraanController extends Controller
                 $pembayaran->update([
                     'source_data'       => $sourceData,
                     'nominal'           => $request->biaya,
-                    'nama_bank'         => $request->nama_bank     ?? $pembayaran->nama_bank,
-                    'no_rekening'       => $request->no_rekening   ?? $pembayaran->no_rekening,
+                    'nama_bank'         => $request->nama_bank         ?? $pembayaran->nama_bank,
+                    'no_rekening'       => $request->no_rekening       ?? $pembayaran->no_rekening,
+                    'nama_rekening'     => $request->nama_rekening     ?? $pembayaran->nama_rekening,
                     'status'            => 'Diajukan',
                     'can_edit'          => false,
                     'terakhir_diajukan' => now(),
                 ]);
+
+                // Update PO terkait jika ada
+                $po = \App\Models\PurchaseOrder::where('source_type', 'asuransi_kendaraan')
+                    ->where(function ($q) use ($asuransi) {
+                        $q->whereJsonContains('source_data->existing_record_id', $asuransi->id)
+                          ->orWhere('source_data->existing_record_id', (string) $asuransi->id);
+                    })
+                    ->first();
+                if ($po) {
+                    $poSourceData = $po->source_data ?? [];
+                    $poSourceData = array_merge($poSourceData, [
+                        'biaya'             => $request->biaya,
+                        'tgl_mulai'         => $request->tgl_mulai         ?? $asuransi->tgl_mulai,
+                        'tgl_berakhir'      => $request->tgl_berakhir      ?? $asuransi->tgl_berakhir,
+                        'durasi_bulan'      => $request->durasi_bulan      ?? $asuransi->durasi_bulan,
+                        'nama_bank'         => $request->nama_bank         ?? ($poSourceData['nama_bank'] ?? null),
+                        'no_rekening'       => $request->no_rekening       ?? ($poSourceData['no_rekening'] ?? null),
+                        'nama_rekening'     => $request->nama_rekening     ?? ($poSourceData['nama_rekening'] ?? null),
+                    ]);
+                    $po->update([
+                        'source_data' => $poSourceData,
+                        'total_harga' => $request->biaya,
+                    ]);
+                }
             }
 
             return response()->json([

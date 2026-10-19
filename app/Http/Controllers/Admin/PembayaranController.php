@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Bukubesar;
 use App\Models\Keuangan;
+use App\Models\JenisAsuransi;
 use App\Models\Pembayaran;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -2012,7 +2013,7 @@ class PembayaranController extends Controller
             'bukti.*' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,zip|max:5120',
             'attachment' => 'nullable|array',
             'attachment.*' => 'file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,zip|max:5120',
-            'catatan' => 'required|string|min:3|max:500',
+            'catatan' => 'nullable|string|max:500',
         ]);
         
         // Load Pembayaran
@@ -3671,39 +3672,68 @@ class PembayaranController extends Controller
 
             // Extract data dari source_data
             if (in_array($srcType, ['kir', 'kir_perpanjang'])) {
+                // Coba ambil data dari existing_record_id (tabel kir) untuk data yang lebih lengkap
+                $existingId = $sourceData['existing_record_id'] ?? null;
+                $kirRecord  = $existingId ? \App\Models\Kir::with('attachments')->find($existingId) : null;
+
+                // Nama lampiran pertama dari DB (untuk ditampilkan di modal)
+                $lampiranNama = $kirRecord?->attachments->first()?->file_name
+                    ?? ($sourceData['temp_files']['attachments'][0]['original_name'] ?? '');
+
                 $record = [
-                    'no_kir'        => $sourceData['no_kir'] ?? '',
-                    'status'        => $sourceData['status'] ?? 'belum_bayar',
-                    'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '',
-                    'masa_berlaku'  => $sourceData['masa_berlaku'] ?? '',
-                    'biaya'         => $sourceData['biaya'] ?? 0,
-                    'nama_bank'     => $sourceData['nama_bank'] ?? '',
-                    'no_rekening'   => $sourceData['no_rekening'] ?? '',
-                    'nama_pemilik'  => $sourceData['nama_pemilik'] ?? '',
-                    'lampiran'      => $sourceData['lampiran'] ?? '',
+                    'no_kir'        => $sourceData['no_uji']       ?? $sourceData['no_kir']   ?? ($kirRecord?->no_uji ?? ''),
+                    'status'        => $sourceData['status_uji']   ?? $sourceData['status']   ?? 'belum_bayar',
+                    'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? ($kirRecord?->tanggal_bayar ? \Carbon\Carbon::parse($kirRecord->tanggal_bayar)->format('Y-m-d') : ''),
+                    'masa_berlaku'  => $sourceData['masa_berlaku']  ?? ($kirRecord?->masa_berlaku  ? \Carbon\Carbon::parse($kirRecord->masa_berlaku)->format('Y-m-d')  : ''),
+                    'biaya'         => $sourceData['biaya']         ?? ($kirRecord?->biaya ?? 0),
+                    'nama_bank'     => $sourceData['nama_bank']     ?? ($kirRecord?->nama_bank     ?? ''),
+                    'no_rekening'   => $sourceData['no_rekening']   ?? ($kirRecord?->no_rekening   ?? ''),
+                    'nama_pemilik'  => $sourceData['nama_rekening'] ?? $sourceData['nama_pemilik'] ?? ($kirRecord?->nama_rekening ?? ''),
+                    'lampiran'      => $lampiranNama,
                 ];
             } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
+                $existingId  = $sourceData['existing_record_id'] ?? null;
+                $pajakRecord = $existingId ? \App\Models\PajakKendaraan::with('attachments')->find($existingId) : null;
+
+                $lampiranNama = $pajakRecord?->attachments->first()?->file_name
+                    ?? ($sourceData['temp_files']['attachments'][0]['original_name'] ?? '');
+
                 $record = [
-                    'jenis_pajak'   => $sourceData['jenis_pajak'] ?? '',
-                    'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '',
-                    'jatuh_tempo'   => $sourceData['jatuh_tempo'] ?? '',
-                    'nominal'       => $sourceData['nominal'] ?? 0,
-                    'nama_bank'     => $sourceData['nama_bank'] ?? '',
-                    'no_rekening'   => $sourceData['no_rekening'] ?? '',
-                    'nama_pemilik'  => $sourceData['nama_pemilik'] ?? '',
-                    'lampiran'      => $sourceData['lampiran'] ?? '',
+                    'jenis_pajak'   => $sourceData['jenis_pajak']   ?? ($pajakRecord?->jenis_pajak   ?? ''),
+                    'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? ($pajakRecord?->tanggal_bayar ? \Carbon\Carbon::parse($pajakRecord->tanggal_bayar)->format('Y-m-d') : ''),
+                    'jatuh_tempo'   => $sourceData['jatuh_tempo']   ?? ($pajakRecord?->jatuh_tempo   ? \Carbon\Carbon::parse($pajakRecord->jatuh_tempo)->format('Y-m-d')   : ''),
+                    'nominal'       => $sourceData['nominal']       ?? ($pajakRecord?->nominal        ?? 0),
+                    'nama_bank'     => $sourceData['nama_bank']     ?? ($pajakRecord?->nama_bank      ?? ''),
+                    'no_rekening'   => $sourceData['no_rekening']   ?? ($pajakRecord?->no_rekening    ?? ''),
+                    'nama_pemilik'  => $sourceData['nama_pemilik']  ?? ($pajakRecord?->nama_pemilik   ?? ''),
+                    'lampiran'      => $lampiranNama,
                 ];
             } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+                $existingId     = $sourceData['existing_record_id'] ?? null;
+                $asuransiRecord = $existingId
+                    ? \App\Models\AsuransiKendaraan::with(['attachments', 'asuransi', 'jenisAsuransi'])->find($existingId)
+                    : null;
+
+                $lampiranNama = $asuransiRecord?->attachments->first()?->file_name
+                    ?? ($sourceData['temp_files']['attachments'][0]['original_name'] ?? '');
+
+                // Resolve jenis_asuransi: coba dari nama langsung → dari relasi record → dari ID di source_data
+                $jenisAsuransiNama = $sourceData['jenis_asuransi']
+                    ?? $asuransiRecord?->jenisAsuransi?->nama_jenis
+                    ?? null;
+                if (!$jenisAsuransiNama && !empty($sourceData['jenis_asuransi_id'])) {
+                    $jenisAsuransiNama = \App\Models\JenisAsuransi::find($sourceData['jenis_asuransi_id'])?->nama_jenis ?? '';
+                }
+
                 $record = [
-                    'jenis_asuransi' => $sourceData['jenis_asuransi'] ?? '',
-                    'no_polis'       => $sourceData['no_polis'] ?? '',
-                    'tgl_mulai'      => $sourceData['tgl_mulai'] ?? '',
-                    'tgl_berakhir'   => $sourceData['tgl_berakhir'] ?? '',
-                    'premi'          => $sourceData['premi'] ?? 0,
-                    'nama_bank'      => $sourceData['nama_bank'] ?? '',
-                    'no_rekening'    => $sourceData['no_rekening'] ?? '',
-                    'nama_pemilik'   => $sourceData['nama_pemilik'] ?? '',
-                    'lampiran'       => $sourceData['lampiran'] ?? '',
+                    'jenis_asuransi' => $jenisAsuransiNama ?? '',
+                    'tgl_mulai'      => $sourceData['tgl_mulai']     ?? ($asuransiRecord?->tgl_mulai     ? \Carbon\Carbon::parse($asuransiRecord->tgl_mulai)->format('Y-m-d')     : ''),
+                    'tgl_berakhir'   => $sourceData['tgl_berakhir']  ?? ($asuransiRecord?->tgl_berakhir  ? \Carbon\Carbon::parse($asuransiRecord->tgl_berakhir)->format('Y-m-d')  : ''),
+                    'premi'          => $sourceData['biaya']         ?? $sourceData['premi'] ?? ($asuransiRecord?->biaya ?? 0),
+                    'nama_bank'      => $sourceData['nama_bank']     ?? ($asuransiRecord?->nama_bank    ?? ''),
+                    'no_rekening'    => $sourceData['no_rekening']   ?? ($asuransiRecord?->no_rekening  ?? ''),
+                    'nama_pemilik'   => $sourceData['nama_rekening'] ?? $sourceData['nama_pemilik'] ?? ($asuransiRecord?->nama_rekening ?? ''),
+                    'lampiran'       => $lampiranNama,
                 ];
             }
 
@@ -3900,8 +3930,7 @@ class PembayaranController extends Controller
                 ];
             } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
                 $rules = [
-                    'jenis_asuransi' => 'required|string|max:255',
-                    'no_polis'       => 'required|string|max:255',
+                    'jenis_asuransi' => 'nullable|string|max:255',
                     'tgl_mulai'      => 'required|date',
                     'tgl_berakhir'   => 'required|date',
                     'premi'          => 'required|numeric|min:0',
@@ -3950,10 +3979,10 @@ class PembayaranController extends Controller
                     $newBiaya = (int) $request->nominal;
                 } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
                     $sourceData['jenis_asuransi'] = $request->jenis_asuransi;
-                    $sourceData['no_polis']       = $request->no_polis;
                     $sourceData['tgl_mulai']      = $request->tgl_mulai;
                     $sourceData['tgl_berakhir']   = $request->tgl_berakhir;
                     $sourceData['premi']          = (int) $request->premi;
+                    $sourceData['biaya']          = (int) $request->premi; // sync biaya = premi agar view nominal konsisten
                     $sourceData['nama_bank']      = $request->nama_bank;
                     $sourceData['no_rekening']    = $request->no_rekening;
                     $sourceData['nama_pemilik']   = $request->nama_pemilik;
@@ -3970,6 +3999,42 @@ class PembayaranController extends Controller
                     'catatan'           => null,
                     'terakhir_diajukan' => now(),
                 ]);
+
+                // Update record tabel induk (kir/pajak/asuransi) agar status persetujuan ikut reset
+                $existingId = $sourceData['existing_record_id'] ?? null;
+                if ($existingId) {
+                    if (in_array($srcType, ['kir', 'kir_perpanjang'])) {
+                        \App\Models\Kir::where('id', $existingId)->update([
+                            'persetujuan'   => 'Diajukan ke Pembayaran',
+                            'biaya'         => $newBiaya,
+                            'tanggal_bayar' => $request->tanggal_bayar ?? null,
+                            'masa_berlaku'  => $request->masa_berlaku  ?? null,
+                            'nama_bank'     => $request->nama_bank     ?? null,
+                            'no_rekening'   => $request->no_rekening   ?? null,
+                            'nama_rekening' => $request->nama_pemilik  ?? null,
+                        ]);
+                    } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
+                        \App\Models\PajakKendaraan::where('id', $existingId)->update([
+                            'persetujuan'   => 'Diajukan ke Pembayaran',
+                            'nominal'       => $newBiaya,
+                            'tanggal_bayar' => $request->tanggal_bayar ?? null,
+                            'jatuh_tempo'   => $request->jatuh_tempo   ?? null,
+                            'nama_bank'     => $request->nama_bank     ?? null,
+                            'no_rekening'   => $request->no_rekening   ?? null,
+                            'nama_pemilik'  => $request->nama_pemilik  ?? null,
+                        ]);
+                    } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+                        \App\Models\AsuransiKendaraan::where('id', $existingId)->update([
+                            'persetujuan'   => 'Diajukan ke Pembayaran',
+                            'biaya'         => $newBiaya,
+                            'tgl_mulai'     => $request->tgl_mulai    ?? null,
+                            'tgl_berakhir'  => $request->tgl_berakhir ?? null,
+                            'nama_bank'     => $request->nama_bank    ?? null,
+                            'no_rekening'   => $request->no_rekening  ?? null,
+                            'nama_rekening' => $request->nama_pemilik ?? null,
+                        ]);
+                    }
+                }
 
                 DB::commit();
 

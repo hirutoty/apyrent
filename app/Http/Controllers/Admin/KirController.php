@@ -327,8 +327,7 @@ class KirController extends Controller
                 'masa_berlaku'  => $request->masa_berlaku,
                 'biaya'         => $request->biaya,
                 'tanggal_bayar' => $request->tanggal_bayar,
-                'tanggal_buat'  => $request->tanggal_bayar,
-                'image'         => null,
+                'tanggal_buat'  => $request->tanggal_bayar ?? now()->toDateString(),
                 'status'        => 'tidak_aktif',      // status untuk jenis uji tetap ada
                 'status_aktif'  => 'tidak_aktif',      // ← status aktif: belum aktif sampai pembayaran disetujui
                 'persetujuan'   => 'Pending',
@@ -338,7 +337,7 @@ class KirController extends Controller
                 'no_rekening'   => $request->no_rekening,
             ]);
 
-            // Step 2: Simpan attachment langsung
+            // Step 2: Simpan attachment langsung ke DB
             if ($request->hasFile('bukti_attachment')) {
                 $this->simpanAttachments($request->file('bukti_attachment'), $kir->id);
             }
@@ -351,9 +350,24 @@ class KirController extends Controller
 
             $po = $interceptor->saveToPurchaseOrder($interceptedData, 'kir');
 
-            // Step 4: Update source_data PO
+            // Step 4: Update source_data PO — sertakan existing_record_id dan lampiran dari DB
             $sourceData = $po->source_data;
             $sourceData['existing_record_id'] = $kir->id;
+
+            // Inject lampiran ke temp_files agar tampil di PO detail tanpa harus fallback ke DB
+            $dbAttachments = \App\Models\Attachment::where('relation_type', 'kir')
+                ->where('relation_id', $kir->id)
+                ->get();
+            if ($dbAttachments->isNotEmpty()) {
+                $sourceData['temp_files']['attachments'] = $dbAttachments->map(fn($att) => [
+                    'original_name' => $att->file_name,
+                    'path'          => $att->file_path,
+                    'public_url'    => asset($att->file_path),
+                    'size'          => $att->file_size,
+                    'extension'     => $att->file_type,
+                ])->toArray();
+            }
+
             $po->update(['source_data' => $sourceData]);
 
             return redirect()
@@ -385,19 +399,26 @@ class KirController extends Controller
             $pembayaran = \App\Models\Pembayaran::find($kir->pembayaran_id);
             $catatan    = $pembayaran?->catatan ?? $pembayaran?->keterangan ?? null;
 
+            // Ambil nama lampiran pertama jika ada (untuk ditampilkan di modal)
+            $lampiranNama = $kir->attachments->first()?->file_name ?? null;
+
             return response()->json([
                 'success'       => true,
                 'id'            => $kir->id,
                 'pembayaran_id' => $kir->pembayaran_id,
                 'kendaraan'     => ($kir->kendaraan->nopol ?? '-') . ' — ' . ($kir->kendaraan->merk ?? ''),
+                'no_kir'        => $kir->no_uji,   // field di form pakai no_kir
                 'no_uji'        => $kir->no_uji,
-                'tanggal_bayar' => $kir->tanggal_bayar,
-                'masa_berlaku'  => $kir->masa_berlaku,
+                'tanggal_bayar' => $kir->tanggal_bayar ? \Carbon\Carbon::parse($kir->tanggal_bayar)->format('Y-m-d') : null,
+                'masa_berlaku'  => $kir->masa_berlaku  ? \Carbon\Carbon::parse($kir->masa_berlaku)->format('Y-m-d')  : null,
                 'biaya'         => $kir->biaya,
                 'lokasi_uji'    => $kir->lokasi_uji,
                 'penguji'       => $kir->penguji,
                 'nama_bank'     => $kir->nama_bank     ?? null,
                 'no_rekening'   => $kir->no_rekening   ?? null,
+                'nama_pemilik'  => $kir->nama_rekening ?? null,  // field di form pakai nama_pemilik
+                'nama_rekening' => $kir->nama_rekening ?? null,
+                'lampiran'      => $lampiranNama,
                 'catatan_penolakan' => $catatan,
             ]);
         } catch (\Exception $e) {
@@ -450,14 +471,43 @@ class KirController extends Controller
                     'biaya'         => $request->biaya,
                     'lokasi_uji'    => $request->lokasi_uji    ?? $kir->lokasi_uji,
                     'penguji'       => $request->penguji       ?? $kir->penguji,
+                    'nama_bank'     => $request->nama_bank     ?? $kir->nama_bank,
+                    'no_rekening'   => $request->no_rekening   ?? $kir->no_rekening,
+                    'nama_rekening' => $request->nama_rekening ?? $kir->nama_rekening,
                 ]);
                 $pembayaran->update([
                     'source_data'       => $sourceData,
                     'nominal'           => $request->biaya,
+                    'nama_bank'         => $request->nama_bank     ?? $pembayaran->nama_bank,
+                    'no_rekening'       => $request->no_rekening   ?? $pembayaran->no_rekening,
+                    'nama_rekening'     => $request->nama_rekening ?? $pembayaran->nama_rekening,
                     'status'            => 'Diajukan',
                     'can_edit'          => false,
                     'terakhir_diajukan' => now(),
                 ]);
+
+                // Update PO terkait jika ada (agar nominal di PO juga ikut berubah)
+                $po = \App\Models\PurchaseOrder::where('source_type', 'kir')
+                    ->where(function ($q) use ($kir) {
+                        $q->whereJsonContains('source_data->existing_record_id', $kir->id)
+                          ->orWhere('source_data->existing_record_id', (string) $kir->id);
+                    })
+                    ->first();
+                if ($po) {
+                    $poSourceData = $po->source_data ?? [];
+                    $poSourceData = array_merge($poSourceData, [
+                        'biaya'         => $request->biaya,
+                        'tanggal_bayar' => $request->tanggal_bayar,
+                        'masa_berlaku'  => $request->masa_berlaku,
+                        'nama_bank'     => $request->nama_bank     ?? ($poSourceData['nama_bank'] ?? null),
+                        'no_rekening'   => $request->no_rekening   ?? ($poSourceData['no_rekening'] ?? null),
+                        'nama_rekening' => $request->nama_rekening ?? ($poSourceData['nama_rekening'] ?? null),
+                    ]);
+                    $po->update([
+                        'source_data' => $poSourceData,
+                        'total_harga' => $request->biaya,
+                    ]);
+                }
             }
 
             return response()->json([

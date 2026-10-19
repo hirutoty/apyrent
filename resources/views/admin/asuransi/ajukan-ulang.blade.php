@@ -102,6 +102,9 @@
             <input type="hidden" name="tgl_berakhir"      value="{{ $asuransi->tgl_berakhir ? \Carbon\Carbon::parse($asuransi->tgl_berakhir)->format('Y-m-d') : '' }}">
             <input type="hidden" name="durasi_bulan"      value="{{ $asuransi->durasi_bulan ?? 12 }}">
             <input type="hidden" name="biaya"             value="{{ $asuransi->biaya }}">
+            <input type="hidden" name="nama_rekening"     value="{{ $asuransi->nama_rekening }}">
+            <input type="hidden" name="nama_bank"         value="{{ $asuransi->nama_bank }}">
+            <input type="hidden" name="no_rekening"       value="{{ $asuransi->no_rekening }}">
 
             <div class="space-y-4">
                 <div>
