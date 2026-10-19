@@ -697,7 +697,7 @@ class PembayaranController extends Controller
                 } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
                     $lampiranRaw = $sd['temp_files']['attachments'] ?? [];
                     $data['items'] = [[
-                        'nama_barang'        => ($sd['jenis_pajak'] ?? 'Pajak Kendaraan') . ($sd['tahun_pajak'] ? ' ' . $sd['tahun_pajak'] : ''),
+                        'nama_barang'        => ($sd['jenis_pajak'] ?? 'Pajak Kendaraan') . (isset($sd['tahun_pajak']) && $sd['tahun_pajak'] ? ' ' . $sd['tahun_pajak'] : ''),
                         'kategori'           => 'Pajak',
                         'qty'                => 1,
                         'satuan'             => 'tahun',
@@ -784,7 +784,15 @@ class PembayaranController extends Controller
             return response()->json(['success' => true, 'pembayaran' => $data]);
             
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Data tidak ditemukan']);
+            \Log::error('PembayaranController::details error: ' . $e->getMessage(), [
+                'id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false, 
+                'message' => 'Data tidak ditemukan',
+                'error' => app()->environment('local') ? $e->getMessage() : null
+            ]);
         }
     }
 
@@ -3643,6 +3651,86 @@ class PembayaranController extends Controller
     }
 
     /**
+     * GET — Fetch source data untuk modal edit pembayaran (pajak/kir/asuransi)
+     */
+    public function getSourceData(Pembayaran $pembayaran)
+    {
+        try {
+            $srcType = $pembayaran->source_type;
+            
+            // Hanya untuk pajak, kir, asuransi_kendaraan
+            if (!in_array($srcType, ['kir', 'kir_perpanjang', 'pajak', 'pajak_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tipe pembayaran tidak didukung.'
+                ], 400);
+            }
+
+            $sourceData = $pembayaran->source_data ?? [];
+            $record = [];
+
+            // Extract data dari source_data
+            if (in_array($srcType, ['kir', 'kir_perpanjang'])) {
+                $record = [
+                    'no_kir'        => $sourceData['no_kir'] ?? '',
+                    'status'        => $sourceData['status'] ?? 'belum_bayar',
+                    'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '',
+                    'masa_berlaku'  => $sourceData['masa_berlaku'] ?? '',
+                    'biaya'         => $sourceData['biaya'] ?? 0,
+                    'nama_bank'     => $sourceData['nama_bank'] ?? '',
+                    'no_rekening'   => $sourceData['no_rekening'] ?? '',
+                    'nama_pemilik'  => $sourceData['nama_pemilik'] ?? '',
+                    'lampiran'      => $sourceData['lampiran'] ?? '',
+                ];
+            } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
+                $record = [
+                    'jenis_pajak'   => $sourceData['jenis_pajak'] ?? '',
+                    'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '',
+                    'jatuh_tempo'   => $sourceData['jatuh_tempo'] ?? '',
+                    'nominal'       => $sourceData['nominal'] ?? 0,
+                    'nama_bank'     => $sourceData['nama_bank'] ?? '',
+                    'no_rekening'   => $sourceData['no_rekening'] ?? '',
+                    'nama_pemilik'  => $sourceData['nama_pemilik'] ?? '',
+                    'lampiran'      => $sourceData['lampiran'] ?? '',
+                ];
+            } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+                $record = [
+                    'jenis_asuransi' => $sourceData['jenis_asuransi'] ?? '',
+                    'no_polis'       => $sourceData['no_polis'] ?? '',
+                    'tgl_mulai'      => $sourceData['tgl_mulai'] ?? '',
+                    'tgl_berakhir'   => $sourceData['tgl_berakhir'] ?? '',
+                    'premi'          => $sourceData['premi'] ?? 0,
+                    'nama_bank'      => $sourceData['nama_bank'] ?? '',
+                    'no_rekening'    => $sourceData['no_rekening'] ?? '',
+                    'nama_pemilik'   => $sourceData['nama_pemilik'] ?? '',
+                    'lampiran'       => $sourceData['lampiran'] ?? '',
+                ];
+            }
+
+            return response()->json([
+                'success'     => true,
+                'no_pr'       => $pembayaran->no_pr,
+                'source_type' => $srcType,
+                'catatan'     => $pembayaran->catatan ?? null,
+                'record'      => $record,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('PembayaranController@getSourceData error', [
+                'pembayaran_id' => $pembayaran->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memuat data.',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * GET: Load rejected items untuk modal resubmit
      */
     public function rejectedItems(Pembayaran $pembayaran)
@@ -3782,6 +3870,138 @@ class PembayaranController extends Controller
 
         $srcType = $pembayaran->source_type;
 
+        // ── Handle KIR, Pajak, Asuransi (single-item, simple resubmit) ──
+        if (in_array($srcType, ['kir', 'kir_perpanjang', 'pajak', 'pajak_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+            // Validasi untuk single-item
+            $rules = [];
+            
+            if (in_array($srcType, ['kir', 'kir_perpanjang'])) {
+                $rules = [
+                    'no_kir'        => 'required|string|max:255',
+                    'status'        => 'required|in:belum_bayar,lunas',
+                    'tanggal_bayar' => 'required|date',
+                    'masa_berlaku'  => 'required|date',
+                    'biaya'         => 'required|numeric|min:0',
+                    'nama_bank'     => 'nullable|string|max:100',
+                    'no_rekening'   => 'nullable|string|max:50',
+                    'nama_pemilik'  => 'nullable|string|max:150',
+                    'lampiran'      => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                ];
+            } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
+                $rules = [
+                    'jenis_pajak'   => 'required|string|max:255',
+                    'nominal'       => 'required|numeric|min:0',
+                    'tanggal_bayar' => 'required|date',
+                    'jatuh_tempo'   => 'required|date',
+                    'nama_pemilik'  => 'nullable|string|max:150',
+                    'nama_bank'     => 'nullable|string|max:100',
+                    'no_rekening'   => 'nullable|string|max:50',
+                    'lampiran'      => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                ];
+            } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+                $rules = [
+                    'jenis_asuransi' => 'required|string|max:255',
+                    'no_polis'       => 'required|string|max:255',
+                    'tgl_mulai'      => 'required|date',
+                    'tgl_berakhir'   => 'required|date',
+                    'premi'          => 'required|numeric|min:0',
+                    'nama_bank'      => 'nullable|string|max:100',
+                    'no_rekening'    => 'nullable|string|max:50',
+                    'nama_pemilik'   => 'nullable|string|max:150',
+                    'lampiran'       => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                ];
+            }
+
+            $request->validate($rules);
+
+            DB::beginTransaction();
+            try {
+                $sourceData = $pembayaran->source_data ?? [];
+                
+                // Handle file upload jika ada
+                $lampiranPath = $sourceData['lampiran'] ?? null;
+                if ($request->hasFile('lampiran')) {
+                    $file = $request->file('lampiran');
+                    $fileName = uniqid() . '.' . $file->getClientOriginalExtension();
+                    $lampiranPath = $file->storeAs('uploads/pembayaran', $fileName, 'public');
+                }
+
+                // Update source_data dengan nilai baru
+                if (in_array($srcType, ['kir', 'kir_perpanjang'])) {
+                    $sourceData['no_kir']        = $request->no_kir;
+                    $sourceData['status']        = $request->status;
+                    $sourceData['tanggal_bayar'] = $request->tanggal_bayar;
+                    $sourceData['masa_berlaku']  = $request->masa_berlaku;
+                    $sourceData['biaya']         = (int) $request->biaya;
+                    $sourceData['nama_bank']     = $request->nama_bank;
+                    $sourceData['no_rekening']   = $request->no_rekening;
+                    $sourceData['nama_pemilik']  = $request->nama_pemilik;
+                    $sourceData['lampiran']      = $lampiranPath;
+                    $newBiaya = (int) $request->biaya;
+                } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
+                    $sourceData['jenis_pajak']   = $request->jenis_pajak;
+                    $sourceData['tanggal_bayar'] = $request->tanggal_bayar;
+                    $sourceData['jatuh_tempo']   = $request->jatuh_tempo;
+                    $sourceData['nominal']       = (int) $request->nominal;
+                    $sourceData['nama_bank']     = $request->nama_bank;
+                    $sourceData['no_rekening']   = $request->no_rekening;
+                    $sourceData['nama_pemilik']  = $request->nama_pemilik;
+                    $sourceData['lampiran']      = $lampiranPath;
+                    $newBiaya = (int) $request->nominal;
+                } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+                    $sourceData['jenis_asuransi'] = $request->jenis_asuransi;
+                    $sourceData['no_polis']       = $request->no_polis;
+                    $sourceData['tgl_mulai']      = $request->tgl_mulai;
+                    $sourceData['tgl_berakhir']   = $request->tgl_berakhir;
+                    $sourceData['premi']          = (int) $request->premi;
+                    $sourceData['nama_bank']      = $request->nama_bank;
+                    $sourceData['no_rekening']    = $request->no_rekening;
+                    $sourceData['nama_pemilik']   = $request->nama_pemilik;
+                    $sourceData['lampiran']       = $lampiranPath;
+                    $newBiaya = (int) $request->premi;
+                }
+
+                // Reset PR ke status Diajukan
+                $pembayaran->update([
+                    'source_data'       => $sourceData,
+                    'status'            => 'Diajukan',
+                    'nominal'           => $newBiaya,
+                    'can_edit'          => false,
+                    'catatan'           => null,
+                    'terakhir_diajukan' => now(),
+                ]);
+
+                DB::commit();
+
+                // Return JSON untuk AJAX
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'PR ' . $pembayaran->no_pr . ' berhasil diajukan ulang.',
+                        'no_pr'   => $pembayaran->no_pr,
+                    ]);
+                }
+
+                return redirect()
+                    ->route('pembayaran.index')
+                    ->with('success', 'PR ' . $pembayaran->no_pr . ' berhasil diajukan ulang.');
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                \Log::error("resubmitRejectedItems (single-item) failed for Pembayaran #{$pembayaran->id}: " . $e->getMessage());
+                
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
+                    ], 500);
+                }
+                
+                return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+            }
+        }
+
+        // ── Handle multi-item (GPS, Service) ──
         // Validasi dasar
         $rules = [
             'items'         => 'required|array|min:1',

@@ -309,12 +309,13 @@ class PajakController extends Controller
                 'tanggal_bayar' => $request->tanggal_bayar,
                 'tanggal_buat'  => $request->tanggal_bayar,
                 'status'        => 'belum_bayar',
-                'status_aktif'  => 'tidak_aktif',
+                'status_aktif'  => 'tidak_aktif',      // ← status aktif: belum aktif sampai pembayaran disetujui
                 'keterangan'    => 'tambah-pajak-' . ($kendaraan->merk ?? '') . '-' . ($kendaraan->nopol ?? ''),
                 'nama_pemilik'  => $request->nama_pemilik,
                 'nama_bank'     => $request->nama_bank,
                 'no_rekening'   => $request->no_rekening,
                 'persetujuan'   => 'Pending',
+                'tanggal_approval' => null,            // ← tanggal approval: diisi saat pembayaran disetujui
             ]);
 
             // Step 2: Simpan lampiran

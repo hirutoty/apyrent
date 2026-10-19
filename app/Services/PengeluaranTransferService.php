@@ -106,7 +106,8 @@ class PengeluaranTransferService
         $updateData = [
             'bukti_bayar'       => $buktiBayar,
             'tanggal_bayar'     => $sourceData['tanggal_bayar'] ?? now()->toDateString(),
-            'status_kendaraan'  => 'aktif',
+            'status_aktif'      => 'aktif', // Rename dari status_kendaraan → status_aktif
+            'tanggal_approval'  => now(), // Set tanggal approval dari Pembayaran
             'pembayaran_id'     => $pembayaran->id,
             'persetujuan'       => 'Disetujui',
             'nama_rekening'     => $sourceData['nama_rekening'] ?? null,
@@ -180,29 +181,31 @@ class PengeluaranTransferService
         if (!empty($sourceData['existing_record_id'])) {
             $pajak = PajakKendaraan::findOrFail($sourceData['existing_record_id']);
             $pajak->update([
-                'bukti'         => $bukti,
-                'status'        => 'sudah_bayar',
-                'status_aktif'  => 'aktif',
-                'persetujuan'   => 'Disetujui',
-                'pembayaran_id' => $pembayaran->id,
+                'bukti'            => $bukti,
+                'status'           => 'sudah_bayar',
+                'status_aktif'     => 'aktif',
+                'tanggal_approval' => now(), // Set tanggal approval dari Pembayaran
+                'persetujuan'      => 'Disetujui',
+                'pembayaran_id'    => $pembayaran->id,
             ]);
         } else {
             // Fallback: buat baru (alur lama)
             $pajak = PajakKendaraan::create([
-                'kendaraan_id'  => $sourceData['kendaraan_id'],
-                'jenis_pajak'   => $sourceData['jenis_pajak'],
-                'nominal'       => $sourceData['nominal'],
-                'jatuh_tempo'   => $sourceData['jatuh_tempo'],
-                'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? now()->toDateString(),
-                'status'        => 'sudah_bayar',
-                'status_aktif'  => 'aktif',
-                'keterangan'    => $sourceData['keterangan'] ?? null,
-                'nama_pemilik'  => $sourceData['nama_pemilik'] ?? null,
-                'nama_bank'     => $sourceData['nama_bank'] ?? null,
-                'no_rekening'   => $sourceData['no_rekening'] ?? null,
-                'bukti'         => $bukti,
-                'pembayaran_id' => $pembayaran->id,
-                'persetujuan'   => 'Disetujui',
+                'kendaraan_id'     => $sourceData['kendaraan_id'],
+                'jenis_pajak'      => $sourceData['jenis_pajak'],
+                'nominal'          => $sourceData['nominal'],
+                'jatuh_tempo'      => $sourceData['jatuh_tempo'],
+                'tanggal_bayar'    => $sourceData['tanggal_bayar'] ?? now()->toDateString(),
+                'status'           => 'sudah_bayar',
+                'status_aktif'     => 'aktif',
+                'tanggal_approval' => now(), // Set tanggal approval dari Pembayaran
+                'keterangan'       => $sourceData['keterangan'] ?? null,
+                'nama_pemilik'     => $sourceData['nama_pemilik'] ?? null,
+                'nama_bank'        => $sourceData['nama_bank'] ?? null,
+                'no_rekening'      => $sourceData['no_rekening'] ?? null,
+                'bukti'            => $bukti,
+                'pembayaran_id'    => $pembayaran->id,
+                'persetujuan'      => 'Disetujui',
             ]);
         }
 
@@ -1474,11 +1477,13 @@ class PengeluaranTransferService
         }
 
         $updateData = [
-            'image'         => $image,
-            'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? now()->toDateString(),
-            'status'        => 'aktif',
-            'pembayaran_id' => $pembayaran->id,
-            'persetujuan'   => 'Disetujui',
+            'image'            => $image,
+            'tanggal_bayar'    => $sourceData['tanggal_bayar'] ?? now()->toDateString(),
+            'status'           => 'aktif',
+            'status_aktif'     => 'aktif', // Set status aktif setelah Pembayaran approved
+            'tanggal_approval' => now(), // Set tanggal approval dari Pembayaran
+            'pembayaran_id'    => $pembayaran->id,
+            'persetujuan'      => 'Disetujui',
         ];
 
         if ($existing) {
@@ -1578,15 +1583,16 @@ class PengeluaranTransferService
 
         // Update record aktif dengan data baru
         $pajakLama->update([
-            'nominal'        => $sourceData['nominal'],
-            'jatuh_tempo'    => $sourceData['jatuh_tempo'],
-            'tanggal_bayar'  => $sourceData['tanggal_bayar'] ?? now()->toDateString(),
-            'status'         => $sourceData['status'] ?? 'sudah_bayar',
-            'status_aktif'   => 'aktif',
-            'keterangan'     => $sourceData['keterangan'] ?? null,
-            'bukti'          => $buktiBaru,
-            'pembayaran_id'  => $pembayaran->id,
-            'persetujuan'    => 'Disetujui',
+            'nominal'          => $sourceData['nominal'],
+            'jatuh_tempo'      => $sourceData['jatuh_tempo'],
+            'tanggal_bayar'    => $sourceData['tanggal_bayar'] ?? now()->toDateString(),
+            'status'           => $sourceData['status'] ?? 'sudah_bayar',
+            'status_aktif'     => 'aktif',
+            'tanggal_approval' => now(), // Set tanggal approval dari Pembayaran perpanjangan
+            'keterangan'       => $sourceData['keterangan'] ?? null,
+            'bukti'            => $buktiBaru,
+            'pembayaran_id'    => $pembayaran->id,
+            'persetujuan'      => 'Disetujui',
         ]);
 
         // Copy attachments
@@ -1677,6 +1683,8 @@ class PengeluaranTransferService
             'biaya'             => $sourceData['biaya'],
             'bukti_bayar'       => $buktiBaru,
             'tanggal_bayar'     => $sourceData['tanggal_bayar'] ?? now()->toDateString(),
+            'status_aktif'      => 'aktif', // Set status aktif setelah perpanjangan approved
+            'tanggal_approval'  => now(), // Set tanggal approval dari Pembayaran perpanjangan
             'pembayaran_id'     => $pembayaran->id,
             'persetujuan'       => 'Disetujui',
         ]);
@@ -1764,13 +1772,15 @@ class PengeluaranTransferService
 
         // Update record aktif dengan data baru
         $kirLama->update([
-            'no_uji'        => $sourceData['no_uji'],
-            'masa_berlaku'  => $masaBerlakuBaru,
-            'biaya'         => $sourceData['biaya'],
-            'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? now()->toDateString(),
-            'image'         => $imageBaru,
-            'pembayaran_id' => $pembayaran->id,
-            'persetujuan'   => 'Disetujui',
+            'no_uji'           => $sourceData['no_uji'],
+            'masa_berlaku'     => $masaBerlakuBaru,
+            'biaya'            => $sourceData['biaya'],
+            'tanggal_bayar'    => $sourceData['tanggal_bayar'] ?? now()->toDateString(),
+            'image'            => $imageBaru,
+            'status_aktif'     => 'aktif', // Set status aktif setelah perpanjangan approved
+            'tanggal_approval' => now(), // Set tanggal approval dari Pembayaran perpanjangan
+            'pembayaran_id'    => $pembayaran->id,
+            'persetujuan'      => 'Disetujui',
         ]);
 
         // Copy attachments

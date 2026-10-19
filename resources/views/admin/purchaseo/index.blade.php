@@ -1606,7 +1606,7 @@
                                                     </table>
                                                 </div>
                                             </div>
-                                            @else
+                                            @elseif(in_array($po->source_type, ['gps', 'gps_perpanjang']))
                                             {{-- ── GPS EXPAND ── --}}
                                             <div class="bg-green-50/30 border-t border-green-100 px-6 py-4">
                                                 <div class="flex items-center justify-between mb-3">
@@ -1717,14 +1717,190 @@
                                                 </div>
                                             </div>
                                             @endif
-                                            @if(in_array($po->source_type, ['pajak', 'pajak_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang', 'kir', 'kir_perpanjang', 'stnk']))
-                                            {{-- ── LAMPIRAN PAJAK / ASURANSI / KIR ── --}}
+                                            
+                                            {{-- ── DETAIL PAJAK / ASURANSI / KIR ── --}}
+                                            @if(in_array($po->source_type, ['pajak', 'pajak_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang', 'kir', 'kir_perpanjang']))
+                                            @php
+                                                $titleType = match($po->source_type) {
+                                                    'pajak', 'pajak_perpanjang' => 'Pajak Kendaraan',
+                                                    'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang' => 'Asuransi Kendaraan',
+                                                    'kir', 'kir_perpanjang' => 'KIR',
+                                                    default => 'Detail',
+                                                };
+                                                $iconColor = match($po->source_type) {
+                                                    'pajak', 'pajak_perpanjang' => 'text-purple-600',
+                                                    'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang' => 'text-blue-600',
+                                                    'kir', 'kir_perpanjang' => 'text-orange-600',
+                                                    default => 'text-gray-600',
+                                                };
+                                                $bgColor = match($po->source_type) {
+                                                    'pajak', 'pajak_perpanjang' => 'bg-purple-50/30 border-purple-100',
+                                                    'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang' => 'bg-blue-50/30 border-blue-100',
+                                                    'kir', 'kir_perpanjang' => 'bg-orange-50/30 border-orange-100',
+                                                    default => 'bg-gray-50/30 border-gray-100',
+                                                };
+                                                $borderColor = match($po->source_type) {
+                                                    'pajak', 'pajak_perpanjang' => 'border-purple-100',
+                                                    'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang' => 'border-blue-100',
+                                                    'kir', 'kir_perpanjang' => 'border-orange-100',
+                                                    default => 'border-gray-100',
+                                                };
+                                                
+                                                // Ambil lampiran dari temp_files (PO baru) atau dari DB (PO lama)
+                                                $lampiranFiles = $sourceData['temp_files']['attachments'] ?? [];
+                                                if (empty($lampiranFiles)) {
+                                                    $existingRecordId = $sourceData['existing_record_id'] ?? null;
+                                                    $relType = match($po->source_type) {
+                                                        'pajak', 'pajak_perpanjang' => 'pajak',
+                                                        'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang' => 'asuransi',
+                                                        'kir', 'kir_perpanjang' => 'kir',
+                                                        default => null,
+                                                    };
+                                                    if ($existingRecordId && $relType) {
+                                                        $dbAttachments = \App\Models\Attachment::where('relation_type', $relType)
+                                                            ->where('relation_id', $existingRecordId)
+                                                            ->get();
+                                                        foreach ($dbAttachments as $att) {
+                                                            $lampiranFiles[] = [
+                                                                'original_name' => $att->file_name,
+                                                                'path' => null,
+                                                                'public_url' => asset($att->file_path),
+                                                            ];
+                                                        }
+                                                    }
+                                                }
+                                            @endphp
+                                            <div class="{{ $bgColor }} border-t px-6 py-4">
+                                                <div class="flex items-center gap-2 mb-3">
+                                                    <i class="fa fa-file-text {{ $iconColor }} text-xs"></i>
+                                                    <span class="text-[11px] font-bold {{ $iconColor }} uppercase tracking-wide">Detail — {{ $titleType }}</span>
+                                                </div>
+                                                
+                                                {{-- Info Kendaraan & Tanggal --}}
+                                                <div class="grid grid-cols-3 gap-4 mb-3 text-xs">
+                                                    <div>
+                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                        <p class="font-semibold text-gray-800">{{ $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-' }}</p>
+                                                    </div>
+                                                    @if(in_array($po->source_type, ['pajak', 'pajak_perpanjang']))
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jenis Pajak</p>
+                                                            <p class="text-gray-700">{{ $sourceData['jenis_pajak'] ?? '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jatuh Tempo</p>
+                                                            <p class="text-gray-700">{{ isset($sourceData['jatuh_tempo']) ? \Carbon\Carbon::parse($sourceData['jatuh_tempo'])->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                    @elseif(in_array($po->source_type, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang']))
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Mulai</p>
+                                                            <p class="text-gray-700">{{ isset($sourceData['tgl_mulai']) ? \Carbon\Carbon::parse($sourceData['tgl_mulai'])->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Berakhir</p>
+                                                            <p class="text-gray-700">{{ isset($sourceData['tgl_berakhir']) ? \Carbon\Carbon::parse($sourceData['tgl_berakhir'])->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                    @elseif(in_array($po->source_type, ['kir', 'kir_perpanjang']))
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jenis Uji</p>
+                                                            <p class="text-gray-700">{{ $sourceData['status'] ?? '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Masa Berlaku</p>
+                                                            <p class="text-gray-700">{{ isset($sourceData['masa_berlaku']) ? \Carbon\Carbon::parse($sourceData['masa_berlaku'])->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                                
+                                                {{-- Tabel Detail --}}
+                                                <div class="bg-white rounded-xl border {{ $borderColor }} overflow-hidden">
+                                                    <table class="w-full text-xs">
+                                                        <thead>
+                                                            <tr class="bg-gray-50 border-b border-gray-100">
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">PO Number</th>
+                                                                @if(in_array($po->source_type, ['pajak', 'pajak_perpanjang']))
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Pajak</th>
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jatuh Tempo</th>
+                                                                @elseif(in_array($po->source_type, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang']))
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Asuransi</th>
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Mulai</th>
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Berakhir</th>
+                                                                @elseif(in_array($po->source_type, ['kir', 'kir_perpanjang']))
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Uji</th>
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Masa Berlaku</th>
+                                                                @endif
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
+                                                                <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nominal</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr class="border-t border-gray-50">
+                                                                <td class="px-3 py-2">
+                                                                    <span class="font-mono text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">{{ $po->po_id }}</span>
+                                                                </td>
+                                                                @if(in_array($po->source_type, ['pajak', 'pajak_perpanjang']))
+                                                                    <td class="px-3 py-2 text-gray-700">{{ $sourceData['jenis_pajak'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['tanggal_bayar']) ? \Carbon\Carbon::parse($sourceData['tanggal_bayar'])->format('d M Y') : '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['jatuh_tempo']) ? \Carbon\Carbon::parse($sourceData['jatuh_tempo'])->format('d M Y') : '-' }}</td>
+                                                                @elseif(in_array($po->source_type, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang']))
+                                                                    <td class="px-3 py-2 text-gray-700">{{ $sourceData['jenis_asuransi'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['tgl_mulai']) ? \Carbon\Carbon::parse($sourceData['tgl_mulai'])->format('d M Y') : '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['tgl_berakhir']) ? \Carbon\Carbon::parse($sourceData['tgl_berakhir'])->format('d M Y') : '-' }}</td>
+                                                                @elseif(in_array($po->source_type, ['kir', 'kir_perpanjang']))
+                                                                    <td class="px-3 py-2 text-gray-700">{{ $sourceData['status'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['tanggal_bayar']) ? \Carbon\Carbon::parse($sourceData['tanggal_bayar'])->format('d M Y') : '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['masa_berlaku']) ? \Carbon\Carbon::parse($sourceData['masa_berlaku'])->format('d M Y') : '-' }}</td>
+                                                                @endif
+                                                                <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_bank'] ?? '-' }}</td>
+                                                                <td class="px-3 py-2 text-gray-700">{{ $sourceData['no_rekening'] ?? '-' }}</td>
+                                                                
+                                                                {{-- Kolom Lampiran --}}
+                                                                <td class="px-3 py-2 text-center">
+                                                                    @if(!empty($lampiranFiles))
+                                                                        <div class="flex flex-col gap-0.5 items-center">
+                                                                        @foreach($lampiranFiles as $lf)
+                                                                            @php
+                                                                                $lfPath = $lf['path'] ?? '';
+                                                                                $lfUrl = $lf['public_url'] ?? ($lfPath ? asset($lfPath) : null);
+                                                                                $lfExt = strtolower(pathinfo($lf['original_name'] ?? '', PATHINFO_EXTENSION));
+                                                                                $lfIcon = in_array($lfExt, ['jpg','jpeg','png','gif']) ? 'fa-image text-blue-400'
+                                                                                    : ($lfExt === 'pdf' ? 'fa-file-pdf text-red-400' : 'fa-paperclip text-gray-400');
+                                                                            @endphp
+                                                                            @if($lfUrl)
+                                                                                <a href="{{ $lfUrl }}" target="_blank"
+                                                                                    class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline truncate max-w-[140px]"
+                                                                                    title="{{ $lf['original_name'] ?? '' }}">
+                                                                                    <i class="fa {{ $lfIcon }} text-[10px]"></i>
+                                                                                    <span class="truncate">{{ $lf['original_name'] ?? 'file' }}</span>
+                                                                                </a>
+                                                                            @endif
+                                                                        @endforeach
+                                                                        </div>
+                                                                    @else
+                                                                        <span class="text-gray-300 text-[10px]">—</span>
+                                                                    @endif
+                                                                </td>
+                                                                
+                                                                <td class="px-3 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($sourceData['nominal'] ?? 0, 0, ',', '.') }}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                            @endif
+                                            
+                                            @if(false && in_array($po->source_type, ['pajak', 'pajak_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang', 'kir', 'kir_perpanjang', 'stnk']))
+                                            {{-- ── LAMPIRAN PAJAK / ASURANSI / KIR (LEGACY - TIDAK DIPAKAI LAGI, sudah ditampilkan di kolom tabel) ── --}}
                                             @php
                                                 // Ambil dari temp_files (PO baru)
-                                                $lampiranFiles = $sourceData['temp_files']['attachments'] ?? [];
+                                                $lampiranFilesLegacy = $sourceData['temp_files']['attachments'] ?? [];
 
                                                 // Fallback: ambil dari tabel attachments DB (PO lama)
-                                                if (empty($lampiranFiles)) {
+                                                if (empty($lampiranFilesLegacy)) {
                                                     $existingRecordId = $sourceData['existing_record_id'] ?? null;
                                                     $relType = match($po->source_type) {
                                                         'pajak', 'pajak_perpanjang'                                   => 'pajak',
@@ -1737,7 +1913,7 @@
                                                             ->where('relation_id', $existingRecordId)
                                                             ->get();
                                                         foreach ($dbAttachments as $att) {
-                                                            $lampiranFiles[] = [
+                                                            $lampiranFilesLegacy[] = [
                                                                 'original_name' => $att->file_name,
                                                                 'path'          => null,
                                                                 'public_url'    => asset($att->file_path),
@@ -1751,9 +1927,9 @@
                                                     <i class="fa fa-paperclip text-blue-600 text-xs"></i>
                                                     <span class="text-[11px] font-bold text-blue-700 uppercase tracking-wide">Lampiran</span>
                                                 </div>
-                                                @if(!empty($lampiranFiles))
+                                                @if(!empty($lampiranFilesLegacy))
                                                     <div class="flex flex-wrap gap-2">
-                                                        @foreach($lampiranFiles as $lf)
+                                                        @foreach($lampiranFilesLegacy as $lf)
                                                             @php
                                                                 $lfUrl = $lf['public_url']
                                                                     ?? (isset($lf['path']) ? asset($lf['path']) : null);

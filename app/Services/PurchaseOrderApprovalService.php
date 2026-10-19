@@ -811,6 +811,8 @@ class PurchaseOrderApprovalService
                     ->update([
                         'persetujuan'   => 'Diajukan ke Pembayaran',
                         'pembayaran_id' => $pembayaran->id,
+                        'status_aktif'  => 'tidak_aktif', // Set status tidak aktif saat diajukan ke Pembayaran
+                        'tanggal_approval' => null, // Reset tanggal approval, nanti diisi saat Pembayaran approved
                     ]);
             }
             return;
@@ -825,6 +827,8 @@ class PurchaseOrderApprovalService
                     ->update([
                         'persetujuan'   => 'Diajukan ke Pembayaran',
                         'pembayaran_id' => $pembayaran->id,
+                        'status_aktif'  => 'tidak_aktif', // Set status tidak aktif saat diajukan ke Pembayaran
+                        'tanggal_approval' => null, // Reset tanggal approval, nanti diisi saat Pembayaran approved
                     ]);
             }
             return;
@@ -839,6 +843,8 @@ class PurchaseOrderApprovalService
                     ->update([
                         'persetujuan'   => 'Diajukan ke Pembayaran',
                         'pembayaran_id' => $pembayaran->id,
+                        'status_aktif'  => 'tidak_aktif', // Set status tidak aktif saat diajukan ke Pembayaran
+                        'tanggal_approval' => null, // Reset tanggal approval, nanti diisi saat Pembayaran approved
                     ]);
             }
             return;

@@ -514,6 +514,10 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::get('pembayaran/{pembayaran}/rejected-items', [PembayaranController::class, 'rejectedItems'])
     ->name('pembayaran.rejected-items');
 
+  // Get source data untuk modal edit (pajak, kir, asuransi_kendaraan)
+  Route::get('pembayaran/{pembayaran}/source-data', [PembayaranController::class, 'getSourceData'])
+    ->name('pembayaran.source-data');
+
   Route::get('pembayaran/{pembayaran}/approval-items', [PembayaranController::class, 'approvalItems'])
     ->name('pembayaran.approval-items');
 

@@ -52,9 +52,9 @@ class KirController extends Controller
         };
 
         // Auto-update: record aktif yang masa berlakunya sudah lewat → expired
-        Kir::where('status', 'aktif')
+        Kir::where('status_aktif', 'aktif')
             ->where('masa_berlaku', '<', now()->toDateString())
-            ->update(['status' => 'expired']);
+            ->update(['status_aktif' => 'expired']);
 
         // Tampilkan KIR yang:
         // - Sudah melewati PO (bukan Pending = menunggu PO approval)
@@ -80,7 +80,12 @@ class KirController extends Controller
             });
         }
 
-        // Filter status (aktif / nonaktif)
+        // Filter status_aktif (aktif / nonaktif / expired)
+        if ($request->filled('status_aktif') && in_array($request->status_aktif, ['aktif', 'nonaktif', 'expired'])) {
+            $query->where('status_aktif', $request->status_aktif);
+        }
+        
+        // Filter status_uji (backward compatibility - untuk filter jenis uji)
         if ($request->filled('status') && in_array($request->status, ['aktif', 'nonaktif'])) {
             if ($request->status === 'aktif') {
                 $query->where('masa_berlaku', '>=', now()->toDateString());
@@ -324,8 +329,10 @@ class KirController extends Controller
                 'tanggal_bayar' => $request->tanggal_bayar,
                 'tanggal_buat'  => $request->tanggal_bayar,
                 'image'         => null,
-                'status'        => 'tidak_aktif',
+                'status'        => 'tidak_aktif',      // status untuk jenis uji tetap ada
+                'status_aktif'  => 'tidak_aktif',      // ← status aktif: belum aktif sampai pembayaran disetujui
                 'persetujuan'   => 'Pending',
+                'tanggal_approval' => null,            // ← tanggal approval: diisi saat pembayaran disetujui
                 'nama_rekening' => $request->nama_rekening,
                 'nama_bank'     => $request->nama_bank,
                 'no_rekening'   => $request->no_rekening,

@@ -227,6 +227,8 @@
                                 Keterangan</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Persetujuan</th>
+                            <th class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
+                                Tgl Approval</th>
                             <th class="text-center text-xs font-semibold uppercase tracking-wide text-gray-500 px-4 py-3">
                                 Aksi</th>                        </tr>
                     </thead>
@@ -388,6 +390,18 @@
                                         </span>
                                     @else
                                         <span class="text-gray-400 text-xs">-</span>
+                                    @endif
+                                </td>
+
+                                {{-- Tanggal Approval --}}
+                                <td class="px-4 py-3.5 text-xs text-gray-600">
+                                    @if($item->tanggal_approval)
+                                        <span class="inline-flex items-center gap-1">
+                                            <i class="fa fa-calendar text-[10px] text-gray-400"></i>
+                                            {{ \Carbon\Carbon::parse($item->tanggal_approval)->translatedFormat('j M Y') }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-400">-</span>
                                     @endif
                                 </td>
 

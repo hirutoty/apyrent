@@ -1923,26 +1923,10 @@ class PurchaseOrderController extends Controller
                 return response()->json(['success' => false, 'message' => 'PO ini tidak dapat diedit.'], 422);
             }
 
-            // Untuk Asuransi/Pajak/KIR: redirect ke dedicated form page
-            if ($po->source_type === 'asuransi_kendaraan') {
-                return response()->json([
-                    'success'  => true,
-                    'redirect' => route('asuransi-kendaraan.ajukan-ulang', $po->id),
-                ]);
-            }
-
-            if ($po->source_type === 'pajak') {
-                return response()->json([
-                    'success'  => true,
-                    'redirect' => route('pajak.ajukan-ulang', $po->id),
-                ]);
-            }
-
-            if ($po->source_type === 'kir') {
-                return response()->json([
-                    'success'  => true,
-                    'redirect' => route('kir.ajukan-ulang', $po->id),
-                ]);
+            // Untuk Asuransi/Pajak/KIR: gunakan modal (Pattern 2, konsisten dengan GPS)
+            if (in_array($po->source_type, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang', 'pajak', 'pajak_perpanjang', 'kir', 'kir_perpanjang'])) {
+                // Delegate ke resubmitModal untuk return data ke modal form
+                return $this->resubmitModal($request, $id);
             }
 
             // Service Part: redirect ke form create dengan edit_po param

@@ -19,12 +19,12 @@ use Carbon\Carbon;
 
 class AsuransiKendaraanController extends Controller
 {
-    public function index(Request $request)
+        public function index(Request $request)
     {
         // update otomatis status expired
         AsuransiKendaraan::where('tgl_berakhir', '<', now())
-            ->where('status_kendaraan', 'aktif')
-            ->update(['status_kendaraan' => 'expired']);
+            ->where('status_aktif', 'aktif')
+            ->update(['status_aktif' => 'expired']);
 
         // Tampilkan Asuransi yang:
         // - Sudah melewati PO (bukan Pending = menunggu PO approval)
@@ -58,7 +58,7 @@ class AsuransiKendaraanController extends Controller
                   ->orWhereHas('jenisAsuransi', fn($j) =>
                         $j->where('nama_jenis', 'like', "%{$s}%")
                   )
-                  ->orWhere('status_kendaraan', 'like', "%{$s}%");
+                  ->orWhere('status_aktif', 'like', "%{$s}%");  // ← rename: status_kendaraan → status_aktif
             });
         }
 
@@ -316,8 +316,9 @@ class AsuransiKendaraanController extends Controller
                 'biaya'             => $request->biaya,
                 'bukti_bayar'       => null,
                 'tanggal_buat'      => $request->tgl_mulai,
-                'status_kendaraan'  => 'tidak_aktif',
+                'status_aktif'      => 'tidak_aktif',      // ← rename: status_kendaraan → status_aktif
                 'persetujuan'       => 'Pending',
+                'tanggal_approval'  => null,               // ← tambah: diisi saat pembayaran disetujui
                 'nama_rekening'     => $request->nama_rekening,
                 'nama_bank'         => $request->nama_bank,
                 'no_rekening'       => $request->no_rekening,
@@ -647,7 +648,7 @@ class AsuransiKendaraanController extends Controller
                 'tgl_mulai'   => $asuransi->tgl_mulai ? \Carbon\Carbon::parse($asuransi->tgl_mulai)->format('d M Y') : '-',
                 'tgl_berakhir'=> $asuransi->tgl_berakhir ? \Carbon\Carbon::parse($asuransi->tgl_berakhir)->format('d M Y') : '-',
                 'durasi_bulan'=> $asuransi->durasi_bulan,
-                'status'      => $asuransi->status_kendaraan,
+                'status'      => $asuransi->status_aktif,  // ← rename: status_kendaraan → status_aktif
                 'bukti_bayar' => $asuransi->bukti_bayar ? asset($asuransi->bukti_bayar) : null,
             ],
             'histories'       => $histories,
