@@ -142,9 +142,12 @@
                             </td>
                             <td class="px-4 py-3 text-center">
                                 @if($item->image)
+                                    @php
+                                        $fileName = basename($item->image);
+                                    @endphp
                                     <a href="{{ asset($item->image) }}" target="_blank"
-                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-600 hover:bg-amber-100 transition">
-                                        <i class="fa fa-image text-[9px]"></i> Lihat
+                                        class="text-blue-600 underline text-xs hover:text-blue-800">
+                                        {{ $fileName }}
                                     </a>
                                 @else
                                     <span class="text-gray-400 text-xs">-</span>

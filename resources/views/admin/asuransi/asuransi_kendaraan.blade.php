@@ -792,6 +792,10 @@
                         <i class="fa fa-save text-sm"></i> Update Data
                     </button>
                 </div>
+            </form>
+        </div>
+    </div>
+
     {{-- MODAL PERPANJANG --}}
     <div id="modalPerpanjang" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30 p-4"
         style="backdrop-filter:blur(2px)">
@@ -1115,45 +1119,60 @@
 
         // -- MODAL PERPANJANG -------------------------------
         function openModalPerpanjang(id, asuransi_id, jenis_id, nopol, merk, durasi, biaya, tglBerakhirLama, tanggalBayarLama, namaRekening, namaBank, noRekening) {
-            document.getElementById('formPerpanjang').action =
-                '/admin/asuransi-kendaraan/' + id + '/perpanjang';
+            const formPerpanjang = document.getElementById('formPerpanjang');
+            if (!formPerpanjang) {
+                console.error('Form perpanjang tidak ditemukan');
+                return;
+            }
+            
+            formPerpanjang.action = '/admin/asuransi-kendaraan/' + id + '/perpanjang';
 
             // Populate badge kendaraan & asuransi
-            document.getElementById('perpanjang_kendaraan_text').innerText = `${merk} — ${nopol}`;
-            
-            // Get nama asuransi & jenis dari select options
-            const asuransiSelect = document.getElementById('perpanjang_asuransi_id');
-            const jenisSelect = document.getElementById('perpanjang_jenis_id');
-            const namaAsuransi = asuransiSelect.options[asuransiSelect.selectedIndex]?.text || '-';
-            const namaJenis = jenisSelect.options[jenisSelect.selectedIndex]?.text || '-';
+            const kendaraanText = document.getElementById('perpanjang_kendaraan_text');
+            if (kendaraanText) {
+                kendaraanText.innerText = `${merk} — ${nopol}`;
+            }
             
             // Hidden input yang akan dikirim ke server
-            document.getElementById('hidden_asuransi_id').value = asuransi_id;
-            document.getElementById('hidden_jenis_asuransi_id').value = jenis_id;
-
-            document.getElementById('perpanjang_asuransi_id').value = asuransi_id;
-            document.getElementById('perpanjang_jenis_id').value = jenis_id;
+            const hiddenAsuransiId = document.getElementById('hidden_asuransi_id');
+            const hiddenJenisId = document.getElementById('hidden_jenis_asuransi_id');
+            if (hiddenAsuransiId) hiddenAsuransiId.value = asuransi_id;
+            if (hiddenJenisId) hiddenJenisId.value = jenis_id;
             
-            // Update label asuransi setelah select di-set
-            document.getElementById('perpanjang_asuransi_label').innerText = 
-                `${document.getElementById('perpanjang_asuransi_id').options[document.getElementById('perpanjang_asuransi_id').selectedIndex]?.text || ''} — ${document.getElementById('perpanjang_jenis_id').options[document.getElementById('perpanjang_jenis_id').selectedIndex]?.text || ''}`;
+            // Update label asuransi (data nama diambil dari database saat render, tidak dari JavaScript)
+            // Label akan di-update via server saat form di-submit
+            const asuransiLabel = document.getElementById('perpanjang_asuransi_label');
+            if (asuransiLabel) {
+                asuransiLabel.innerText = 'Asuransi Kendaraan';
+            }
 
-            document.getElementById('perpanjang_biaya').value = biaya;
+            const biayaInput = document.getElementById('perpanjang_biaya');
+            if (biayaInput) biayaInput.value = biaya;
 
             // Pre-fill info bank dari data lama
-            document.getElementById('perpanjang_nama_bank').value     = namaBank      || '';
-            document.getElementById('perpanjang_no_rekening').value   = noRekening    || '';
-            document.getElementById('perpanjang_nama_pemilik').value = namaRekening  || '';
+            const namaBankInput = document.getElementById('perpanjang_nama_bank');
+            const noRekeningInput = document.getElementById('perpanjang_no_rekening');
+            const namaPemilikInput = document.getElementById('perpanjang_nama_pemilik');
+            if (namaBankInput) namaBankInput.value = namaBank || '';
+            if (noRekeningInput) noRekeningInput.value = noRekening || '';
+            if (namaPemilikInput) namaPemilikInput.value = namaRekening || '';
 
             // Simpan konteks ke hidden fields (untuk reopen saat validasi gagal)
-            document.getElementById('_perpanjang_id').value                  = id;
-            document.getElementById('_perpanjang_asuransi_id').value         = asuransi_id;
-            document.getElementById('_perpanjang_jenis_id').value            = jenis_id;
-            document.getElementById('_perpanjang_nopol').value               = nopol;
-            document.getElementById('_perpanjang_merk').value                = merk;
-            document.getElementById('_perpanjang_durasi').value              = durasi;
-            document.getElementById('_perpanjang_biaya_ctx').value           = biaya;
-            document.getElementById('_perpanjang_tgl_berakhir_lama').value   = tglBerakhirLama;
+            const fields = {
+                '_perpanjang_id': id,
+                '_perpanjang_asuransi_id': asuransi_id,
+                '_perpanjang_jenis_id': jenis_id,
+                '_perpanjang_nopol': nopol,
+                '_perpanjang_merk': merk,
+                '_perpanjang_durasi': durasi,
+                '_perpanjang_biaya_ctx': biaya,
+                '_perpanjang_tgl_berakhir_lama': tglBerakhirLama
+            };
+            
+            for (const [fieldId, value] of Object.entries(fields)) {
+                const el = document.getElementById(fieldId);
+                if (el) el.value = value;
+            }
 
             // Hitung tgl_berakhir baru = tgl_berakhir lama + 1 tahun
             if (tglBerakhirLama) {
@@ -1162,38 +1181,48 @@
                 const tglBaru = d.getFullYear() + '-' +
                     String(d.getMonth() + 1).padStart(2, '0') + '-' +
                     String(d.getDate()).padStart(2, '0');
-                document.getElementById('perpanjang_tgl_berakhir_display').value = tglBaru;
-                document.getElementById('perpanjang_tgl_berakhir').value = tglBaru;
-
-                // tgl_mulai periode baru = tgl_berakhir LAMA (bukan tanggal_bayar)
-                document.getElementById('perpanjang_tgl_mulai').value = tglBerakhirLama;
+                
+                const tglBerakhirDisplay = document.getElementById('perpanjang_tgl_berakhir_display');
+                const tglBerakhirHidden = document.getElementById('perpanjang_tgl_berakhir');
+                const tglMulai = document.getElementById('perpanjang_tgl_mulai');
+                
+                if (tglBerakhirDisplay) tglBerakhirDisplay.value = tglBaru;
+                if (tglBerakhirHidden) tglBerakhirHidden.value = tglBaru;
+                if (tglMulai) tglMulai.value = tglBerakhirLama;
             }
 
             // tanggal_bayar: default = tanggal_bayar_lama + 1 tahun, min = nilai tersebut
             var tglBayarEl = document.getElementById('perpanjang_tanggal_bayar');
-            var today = new Date().toISOString().split('T')[0];
-            var defaultTgl;
-            if (tanggalBayarLama) {
-                var da = new Date(tanggalBayarLama);
-                da.setFullYear(da.getFullYear() + 1);
-                defaultTgl = da.getFullYear() + '-'
-                    + String(da.getMonth() + 1).padStart(2, '0') + '-'
-                    + String(da.getDate()).padStart(2, '0');
-            } else {
-                defaultTgl = today;
+            if (tglBayarEl) {
+                var today = new Date().toISOString().split('T')[0];
+                var defaultTgl;
+                if (tanggalBayarLama) {
+                    var da = new Date(tanggalBayarLama);
+                    da.setFullYear(da.getFullYear() + 1);
+                    defaultTgl = da.getFullYear() + '-'
+                        + String(da.getMonth() + 1).padStart(2, '0') + '-'
+                        + String(da.getDate()).padStart(2, '0');
+                } else {
+                    defaultTgl = today;
+                }
+                tglBayarEl.value = defaultTgl;
+                tglBayarEl.min   = defaultTgl;
             }
-            tglBayarEl.value = defaultTgl;
-            tglBayarEl.min   = defaultTgl;
 
-            document.getElementById('perpanjang_durasi').value = '12';
+            const durasiInput = document.getElementById('perpanjang_durasi');
+            if (durasiInput) durasiInput.value = '12';
 
             // Reset lampiran & file input
-            document.getElementById('listAttachmentPerpanjang').innerHTML = '';
-            document.getElementById('perpanjang_bukti_attachment').value = '';
+            const listAttachment = document.getElementById('listAttachmentPerpanjang');
+            const fileInput = document.getElementById('perpanjang_bukti_attachment');
+            if (listAttachment) listAttachment.innerHTML = '';
+            if (fileInput) fileInput.value = '';
 
             const m = document.getElementById('modalPerpanjang');
-            m.classList.remove('hidden');
-            m.classList.add('flex');
+            if (m) {
+                m.classList.remove('hidden');
+                m.classList.add('flex');
+            }
         }
 
         function syncTanggalMulaiDariBayar() {

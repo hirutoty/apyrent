@@ -192,7 +192,24 @@
                                 @endif
 
                                 @if ($partCount > 0)
-                                    <div class="overflow-x-auto rounded-xl border border-orange-100">
+                                    {{-- Header Info Grid 3 Kolom (sama seperti Pembayaran) --}}
+                                    <div class="px-4 py-3 grid grid-cols-3 gap-4 bg-orange-50/70 border border-orange-200 rounded-t-xl text-xs mb-0">
+                                        <div>
+                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                            <p class="font-semibold text-gray-800">{{ $d->kendaraan->nopol ?? '-' }} — {{ $d->kendaraan->merk ?? '-' }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tanggal Service</p>
+                                            <p class="text-gray-700">{{ $d->tanggal_service ? \Carbon\Carbon::parse($d->tanggal_service)->format('d M Y') : '-' }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Total Biaya</p>
+                                            <p class="text-gray-700 font-bold">Rp {{ number_format($d->parts->sum('biaya'), 0, ',', '.') }}</p>
+                                        </div>
+                                    </div>
+
+                                    {{-- Table Parts --}}
+                                    <div class="overflow-x-auto rounded-b-xl border-x border-b border-orange-200">
                                         <table class="w-full text-xs">
                                             <thead>
                                                 <tr class="bg-orange-50 border-b border-orange-100 text-gray-500">

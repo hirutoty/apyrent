@@ -274,7 +274,19 @@ class ChartDataController extends Controller
             'service-asuransi' => \App\Models\ServiceAsuransiKejadian::query()
                 ->join('service_asuransi', 'service_asuransi_kejadians.service_asuransi_id', '=', 'service_asuransi.id')
                 ->where('service_asuransi_kejadians.status', 'disetujui')
-                ->selectRaw('service_asuransi_kejadians.*, service_asuransi.status as status, service_asuransi_kejadians.biaya as biaya, service_asuransi_kejadians.tanggal as tanggal_service'),
+                ->select(
+                    'service_asuransi_kejadians.id',
+                    'service_asuransi_kejadians.service_asuransi_id',
+                    'service_asuransi_kejadians.nama_kejadian',
+                    'service_asuransi_kejadians.biaya',
+                    'service_asuransi_kejadians.tanggal',
+                    'service_asuransi_kejadians.periode_mulai',
+                    'service_asuransi_kejadians.periode_selesai',
+                    'service_asuransi_kejadians.created_at',
+                    'service_asuransi_kejadians.updated_at',
+                    'service_asuransi.status as status',
+                    'service_asuransi_kejadians.tanggal as tanggal_service'
+                ),
             'service-incident' => \App\Models\ServiceIncident::query(),
             'pembayaran'       => \App\Models\Pembayaran::query(),
             'purchase-order'  => \App\Models\PurchaseOrder::query(),
@@ -3538,8 +3550,8 @@ class ChartDataController extends Controller
             'dateColumn' => 'tanggal_service',
             'pie' => [
                 'title'       => 'Biaya per Status',
-                'groupBy'     => 'status',
-                'valueColumn' => 'biaya',
+                'groupBy'     => 'service_asuransi.status', // Qualified column name to avoid ambiguity
+                'valueColumn' => 'service_asuransi_kejadians.biaya', // Qualified column name
                 'aggregation' => 'sum',
                 'labels'      => [
                     'bermasalah' => 'Bermasalah',
@@ -3552,9 +3564,9 @@ class ChartDataController extends Controller
                 'groupBy'      => 'month',
                 'autoDaily'    => true,
                 'valueColumns' => [
-                    'biaya',
-                    ['where' => ['status' => 'selesai'],    'column' => 'biaya', 'label' => 'Selesai'],
-                    ['where' => ['status' => 'bermasalah'], 'column' => 'biaya', 'label' => 'Bermasalah'],
+                    'service_asuransi_kejadians.biaya',
+                    ['where' => ['service_asuransi.status' => 'selesai'],    'column' => 'service_asuransi_kejadians.biaya', 'label' => 'Selesai'],
+                    ['where' => ['service_asuransi.status' => 'bermasalah'], 'column' => 'service_asuransi_kejadians.biaya', 'label' => 'Bermasalah'],
                 ],
                 'aggregation' => 'sum',
                 'dateColumn'  => 'tanggal_service',
@@ -3566,7 +3578,7 @@ class ChartDataController extends Controller
                 'title'       => 'Trend Biaya Service Asuransi',
                 'groupBy'     => 'month',
                 'autoDaily'   => true,
-                'valueColumn' => 'biaya',
+                'valueColumn' => 'service_asuransi_kejadians.biaya',
                 'aggregation' => 'sum',
                 'dateColumn'  => 'tanggal_service',
                 'limit'       => 12,
@@ -3577,7 +3589,7 @@ class ChartDataController extends Controller
                 [
                     'label'  => 'Total Service',
                     'type'   => 'count',
-                    'column' => 'id',
+                    'column' => 'service_asuransi_kejadians.id',
                     'format' => 'number',
                     'color'  => '#4f6ef7',
                     'iconBg' => '#eef1ff',
@@ -3586,7 +3598,7 @@ class ChartDataController extends Controller
                 [
                     'label'  => 'Total Biaya',
                     'type'   => 'sum',
-                    'column' => 'biaya',
+                    'column' => 'service_asuransi_kejadians.biaya',
                     'format' => 'currency',
                     'color'  => '#3b82f6',
                     'iconBg' => '#dbeafe',
@@ -3595,8 +3607,8 @@ class ChartDataController extends Controller
                 [
                     'label'  => 'Bermasalah',
                     'type'   => 'count_where',
-                    'column' => 'id',
-                    'where'  => ['status' => 'bermasalah'],
+                    'column' => 'service_asuransi_kejadians.id',
+                    'where'  => ['service_asuransi.status' => 'bermasalah'],
                     'format' => 'number',
                     'color'  => '#ef4444',
                     'iconBg' => '#fee2e2',
@@ -3605,8 +3617,8 @@ class ChartDataController extends Controller
                 [
                     'label'  => 'Selesai',
                     'type'   => 'count_where',
-                    'column' => 'id',
-                    'where'  => ['status' => 'selesai'],
+                    'column' => 'service_asuransi_kejadians.id',
+                    'where'  => ['service_asuransi.status' => 'selesai'],
                     'format' => 'number',
                     'color'  => '#10b981',
                     'iconBg' => '#d1fae5',

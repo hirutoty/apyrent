@@ -1093,12 +1093,36 @@ class PengeluaranTransferService
                 ->where('persetujuan', 'Diajukan ke Pembayaran')
                 ->first();
 
-            // Fallback: cari by kendaraan_id tanpa filter pembayaran_id
+            // Fallback 1: cari by kendaraan_id + pembayaran_id tanpa filter persetujuan
+            // (menangkap record yang persetujuannya sudah berubah, misal setelah resubmit)
             if (!$existing) {
                 $existing = GpsKendaraan::where('kendaraan_id', $kendaraanId)
                     ->where('gps_id', $item['gps_id'] ?? null)
                     ->where('type', $item['type'] ?? null)
-                    ->where('persetujuan', 'Diajukan ke Pembayaran')
+                    ->where('pembayaran_id', $pembayaran->id)
+                    ->whereNotIn('persetujuan', ['Disetujui', 'Ditolak Pembayaran'])
+                    ->first();
+            }
+
+            // Fallback 2: cari by kendaraan_id saja tanpa filter pembayaran_id
+            // (menangkap record lama yang pembayaran_id-nya belum ter-set)
+            if (!$existing) {
+                $existing = GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                    ->where('gps_id', $item['gps_id'] ?? null)
+                    ->where('type', $item['type'] ?? null)
+                    ->whereIn('persetujuan', ['Diajukan ke Pembayaran', 'Pending'])
+                    ->first();
+            }
+
+            // Fallback 3: cari by kendaraan_id + status_gps tidak_aktif (tanpa filter persetujuan)
+            // Safety net paling lebar — record yang belum aktif tapi sudah ada di DB
+            if (!$existing) {
+                $existing = GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                    ->where('gps_id', $item['gps_id'] ?? null)
+                    ->where('type', $item['type'] ?? null)
+                    ->where('status_gps', 'tidak_aktif')
+                    ->whereNotIn('persetujuan', ['Disetujui', 'Ditolak Pembayaran'])
+                    ->latest('id')
                     ->first();
             }
 
@@ -1123,13 +1147,29 @@ class PengeluaranTransferService
                 $existing->update($updateData);
                 $gpsRecord = $existing;
             } else {
-                // Fallback: buat baru jika record Pending tidak ditemukan (shouldn't happen in normal flow)
-                \Log::warning("GPS record not found during transfer for kendaraan {$kendaraanId}, creating new record. This should not happen in normal flow.");
-                $gpsRecord = GpsKendaraan::create(array_merge($updateData, [
-                    'kendaraan_id'  => $kendaraanId,
-                    'gps_id'        => $item['gps_id'] ?? null,
-                    'type'          => $item['type'] ?? null,
-                ]));
+                // Guard duplikat: cek apakah record 'Disetujui' sudah ada untuk kombinasi ini
+                // Mencegah double create jika transferGps() dipanggil lebih dari sekali
+                $duplicate = GpsKendaraan::where('kendaraan_id', $kendaraanId)
+                    ->where('gps_id', $item['gps_id'] ?? null)
+                    ->where('type', $item['type'] ?? null)
+                    ->where('pembayaran_id', $pembayaran->id)
+                    ->where('persetujuan', 'Disetujui')
+                    ->first();
+
+                if ($duplicate) {
+                    // Sudah ada record Disetujui → update saja, jangan buat baru
+                    \Log::info("GPS transferGps: record Disetujui sudah ada (id:{$duplicate->id}), update instead of create. pembayaran_id:{$pembayaran->id}");
+                    $duplicate->update($updateData);
+                    $gpsRecord = $duplicate;
+                } else {
+                    // Fallback: buat baru jika record Pending tidak ditemukan (shouldn't happen in normal flow)
+                    \Log::warning("GPS record not found during transfer for kendaraan {$kendaraanId}, creating new record. This should not happen in normal flow. pembayaran_id:{$pembayaran->id} gps_id:{$item['gps_id']} type:{$item['type']}");
+                    $gpsRecord = GpsKendaraan::create(array_merge($updateData, [
+                        'kendaraan_id'  => $kendaraanId,
+                        'gps_id'        => $item['gps_id'] ?? null,
+                        'type'          => $item['type'] ?? null,
+                    ]));
+                }
             }
 
             $lastId = $gpsRecord->id;
@@ -1331,6 +1371,30 @@ class PengeluaranTransferService
                           ->orWhereNull('persetujuan');
                     })
                     ->first();
+            }
+
+            // 3) Fallback: via pembayaran_id saja tanpa filter persetujuan ketat
+            // (menangkap record yang persetujuannya sudah berubah setelah resubmit)
+            if (!$existing) {
+                $existing = GpsKendaraan::where('pembayaran_id', $pembayaran->id)
+                    ->where('gps_id', $item['gps_id'] ?? null)
+                    ->where('type', $item['type'] ?? null)
+                    ->whereNotIn('persetujuan', ['Disetujui', 'Ditolak Pembayaran'])
+                    ->first();
+            }
+
+            // Guard duplikat: cek apakah record 'Disetujui' sudah ada untuk kombinasi ini
+            // Mencegah double update/create jika transferGpsPerpanjang() dipanggil lebih dari sekali
+            if (!$existing) {
+                $existing = GpsKendaraan::where('pembayaran_id', $pembayaran->id)
+                    ->where('gps_id', $item['gps_id'] ?? null)
+                    ->where('type', $item['type'] ?? null)
+                    ->where('persetujuan', 'Disetujui')
+                    ->first();
+
+                if ($existing) {
+                    \Log::info("GPS transferGpsPerpanjang: record Disetujui sudah ada (id:{$existing->id}), update instead of create. pembayaran_id:{$pembayaran->id}");
+                }
             }
 
             // Snapshot data lama ke history SEBELUM update

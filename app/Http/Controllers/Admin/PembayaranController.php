@@ -487,6 +487,36 @@ class PembayaranController extends Controller
                 ];
             }
 
+            $gpsInfo = null;
+            if (in_array($pembayaran->source_type, ['gps', 'gps_perpanjang'])) {
+                $gpsInfo = [
+                    'tanggal_bayar' => isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : null,
+                    'berlaku_sd'    => isset($sd['tanggal_habis']) ? \Carbon\Carbon::parse($sd['tanggal_habis'])->format('d M Y') : null,
+                ];
+            }
+
+            // Info untuk Pajak, KIR, Asuransi Kendaraan
+            $pajakKirAsuransiInfo = null;
+            if (in_array($pembayaran->source_type, ['pajak', 'pajak_perpanjang', 'kir', 'kir_perpanjang', 'asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+                $pajakKirAsuransiInfo = [
+                    'tanggal_bayar' => isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : null,
+                    'masa_berlaku'  => isset($sd['masa_berlaku']) ? \Carbon\Carbon::parse($sd['masa_berlaku'])->format('d M Y') : null,
+                    'biaya'         => isset($sd['biaya']) ? 'Rp ' . number_format($sd['biaya'], 0, ',', '.') : null,
+                    'nama_bank'     => $sd['nama_bank'] ?? $pembayaran->nama_bank ?? null,
+                    'no_rekening'   => $sd['no_rekening'] ?? $pembayaran->no_rekening ?? null,
+                    'nama_rekening' => $sd['nama_rekening'] ?? $sd['nama_pemilik'] ?? $pembayaran->nama_rekening ?? null,
+                ];
+                
+                // Tambahkan info Perusahaan & Jenis Asuransi untuk Asuransi Kendaraan
+                if (in_array($pembayaran->source_type, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+                    $asrModel = isset($sd['asuransi_id']) ? \App\Models\Asuransi::find($sd['asuransi_id']) : null;
+                    $jenisAsrModel = isset($sd['jenis_asuransi_id']) ? \App\Models\JenisAsuransi::find($sd['jenis_asuransi_id']) : null;
+                    $pajakKirAsuransiInfo['perusahaan_asuransi'] = $asrModel ? $asrModel->nama_asuransi : ($sd['nama_asuransi'] ?? null);
+                    $pajakKirAsuransiInfo['jenis_asuransi'] = $jenisAsrModel ? $jenisAsrModel->nama_jenis : ($sd['jenis_asuransi'] ?? null);
+                    $pajakKirAsuransiInfo['no_polis'] = $sd['no_polis'] ?? null;
+                }
+            }
+
             // ── Info approval dari approvals relation ────────────────
             $approvalInfo = null;
             $approvedRec  = $pembayaran->approvals->where('action', 'approved')->sortByDesc('created_at')->first();
@@ -542,9 +572,11 @@ class PembayaranController extends Controller
                 'nama_rekening' => $pembayaran->nama_rekening,
                 'informasi'     => $pembayaran->informasi,
                 // Extra
-                'kendaraan'    => $kendaraanInfo,
-                'service_info' => $serviceInfo,
-                'approval'     => $approvalInfo,
+                'kendaraan'              => $kendaraanInfo,
+                'service_info'           => $serviceInfo,
+                'gps_info'               => $gpsInfo,
+                'pajak_kir_asuransi_info'=> $pajakKirAsuransiInfo,
+                'approval'               => $approvalInfo,
             ];
 
             // Items data (new structure — belanja/purchase order)
@@ -714,9 +746,11 @@ class PembayaranController extends Controller
 
                 } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
                     $asr = isset($sd['asuransi_id']) ? \App\Models\Asuransi::find($sd['asuransi_id']) : null;
+                    $jenisAsr = isset($sd['jenis_asuransi_id']) ? \App\Models\JenisAsuransi::find($sd['jenis_asuransi_id']) : null;
                     $lampiranRaw = $sd['temp_files']['attachments'] ?? [];
                     $data['items'] = [[
-                        'nama_barang'        => $asr ? $asr->nama_asuransi : ($sd['nama_asuransi'] ?? 'Asuransi Kendaraan'),
+                        'nama_barang'        => ($asr ? $asr->nama_asuransi : ($sd['nama_asuransi'] ?? 'Asuransi Kendaraan')) . 
+                                                ($jenisAsr ? ' — ' . $jenisAsr->nama_jenis : ($sd['jenis_asuransi'] ? ' — ' . $sd['jenis_asuransi'] : '')),
                         'kategori'           => 'Asuransi',
                         'qty'                => 1,
                         'satuan'             => 'polis',
