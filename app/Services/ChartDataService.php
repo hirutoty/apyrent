@@ -89,12 +89,26 @@ class ChartDataService
         }
 
         // Build aggregation query (default behavior untuk Pembayaran, dll)
+        // Qualify column names if they contain dots (table.column format)
+        $selectGroupBy = $groupBy;
+        $groupByClause = $groupBy;
+        
+        // If groupBy contains table qualifier, we need to handle it properly
+        // Select as alias without table prefix for easier access in results
+        if (strpos($groupBy, '.') !== false) {
+            // Extract column name from table.column
+            $parts = explode('.', $groupBy);
+            $columnName = end($parts);
+            $selectGroupBy = DB::raw("$groupBy as $columnName");
+            $groupByClause = DB::raw($groupBy);
+        }
+        
         $results = $query
             ->select(
-                $groupBy,
+                $selectGroupBy,
                 DB::raw($this->getAggregationFunction($aggregation, $valueColumn) . ' as value')
             )
-            ->groupBy($groupBy)
+            ->groupBy($groupByClause)
             ->orderBy('value', 'desc')
             ->get();
 

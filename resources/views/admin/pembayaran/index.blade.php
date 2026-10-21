@@ -780,7 +780,7 @@
                                                                 <i class="fa fa-times text-[10px]"></i> Tolak
                                                             </button>
                                                         @endif
-                                                    @elseif($d->status === 'Ditolak' && $d->source_type && $d->can_edit)
+                                                    @elseif($d->status === 'Ditolak' && $d->source_type && $d->can_edit && !in_array($d->source_type, ['service_part', 'service_asuransi', 'service_incident', 'gps', 'gps_perpanjang']))
                                                         @php
                                                             $useInlineModal = $d->source_type === 'service_incident';
                                                             $resubmitRoute = match($d->source_type) {
@@ -790,7 +790,7 @@
                                                                 default              => route('pembayaran.edit-rejected', $d->id),
                                                             };
                                                         @endphp
-                                                        {{-- Semua tipe pakai modal inline --}}
+                                                        {{-- Pajak, Asuransi, KIR pakai modal inline pajak/asuransi/kir --}}
                                                         <button type="button"
                                                             onclick="openResubmitPembayaranModal({{ $d->id }}, '{{ $d->source_type }}')"
                                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
@@ -798,6 +798,13 @@
                                                         </button>
                                                     @elseif($tab === 'Ditolak' && $d->status === 'Disetujui' && $_prHasRejected && $d->can_edit && in_array($d->source_type, ['service_part','service_incident','service_asuransi','gps','gps_perpanjang']))
                                                         {{-- PR Disetujui tapi ada item yang ditolak (muncul di tab Ditolak): bisa ajukan ulang --}}
+                                                        <button type="button"
+                                                            onclick="openResubmitRejectedModal({{ $d->id }})"
+                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
+                                                            <i class="fa fa-rotate-right text-[10px]"></i> Edit & Ajukan Ulang
+                                                        </button>
+                                                    @elseif($d->status === 'Ditolak' && in_array($d->source_type, ['service_part', 'service_asuransi', 'service_incident', 'gps', 'gps_perpanjang']) && $d->can_edit)
+                                                        {{-- GPS/Service Ditolak penuh — modal inline --}}
                                                         <button type="button"
                                                             onclick="openResubmitRejectedModal({{ $d->id }})"
                                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors">
@@ -924,6 +931,22 @@
                                                         }
                                                     @endphp
                                                     
+                                                    {{-- Header info kendaraan Pajak --}}
+                                                    <div class="px-4 py-3 grid grid-cols-3 gap-4 bg-purple-50/50 border-b border-purple-100 text-xs">
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                            <p class="font-semibold text-gray-800">{{ $kend ? $kend->nopol . ' — ' . $kend->merk : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jenis Pajak</p>
+                                                            <p class="text-gray-700">{{ $sd['jenis_pajak'] ?? '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jatuh Tempo</p>
+                                                            <p class="text-gray-700">{{ isset($sd['jatuh_tempo']) ? \Carbon\Carbon::parse($sd['jatuh_tempo'])->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                    </div>
+                                                    
                                                     {{-- Tabel Detail 1 Baris --}}
                                                     <table class="w-full text-xs">
                                                         <thead>
@@ -993,31 +1016,45 @@
                                                         }
                                                     @endphp
                                                     
+                                                    {{-- Header info kendaraan Asuransi --}}
+                                                    <div class="px-4 py-3 grid grid-cols-3 gap-4 bg-blue-50/50 border-b border-blue-100 text-xs">
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                            <p class="font-semibold text-gray-800">{{ $kend ? $kend->nopol . ' — ' . $kend->merk : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Mulai</p>
+                                                            <p class="text-gray-700">{{ isset($sd['tgl_mulai']) ? \Carbon\Carbon::parse($sd['tgl_mulai'])->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Berakhir</p>
+                                                            <p class="text-gray-700">{{ isset($sd['tgl_berakhir']) ? \Carbon\Carbon::parse($sd['tgl_berakhir'])->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                    </div>
+                                                    
                                                     {{-- Tabel Detail 1 Baris --}}
                                                     <table class="w-full text-xs">
                                                         <thead>
                                                             <tr class="bg-gray-50 border-b border-gray-100">
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Perusahaan</th>
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Asuransi</th>
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Polis</th>
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Rekening</th>
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
-                                                                <th class="text-center px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
-                                                                <th class="text-right px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Premi</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Perusahaan Asuransi</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Asuransi</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Rekening</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
+                                                                <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nominal</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
                                                             <tr class="border-t border-gray-50">
-                                                                <td class="px-4 py-2 text-gray-700">{{ $asr->nama_asuransi ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-700">{{ $jAsr->nama_jenis ?? '-' }}</td>
-                                                                <td class="px-4 py-2 font-mono text-gray-700">{{ $sd['no_polis'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_bank'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-3 py-2 text-gray-700">{{ $asr->nama_asuransi ?? '-' }}</td>
+                                                                <td class="px-3 py-2 text-gray-700">{{ $jAsr->nama_jenis ?? '-' }}</td>
+                                                                <td class="px-3 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? '-' }}</td>
+                                                                <td class="px-3 py-2 text-gray-700">{{ $sd['nama_bank'] ?? '-' }}</td>
+                                                                <td class="px-3 py-2 text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
                                                                 
                                                                 {{-- Kolom Lampiran --}}
-                                                                <td class="px-4 py-2 text-center">
+                                                                <td class="px-3 py-2 text-center">
                                                                     @if(!empty($asrLampiran))
                                                                         <div class="flex flex-col gap-0.5 items-center">
                                                                         @foreach($asrLampiran as $alf)
@@ -1042,7 +1079,7 @@
                                                                     @endif
                                                                 </td>
                                                                 
-                                                                <td class="px-4 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($sd['biaya']??$sd['premi']??$d->nominal??0,0,',','.') }}</td>
+                                                                <td class="px-3 py-2 text-right font-bold text-emerald-600">Rp {{ number_format($sd['biaya']??$sd['premi']??$d->nominal??0,0,',','.') }}</td>
                                                             </tr>
                                                         </tbody>
                                                     </table>
@@ -1060,6 +1097,22 @@
                                                         }
                                                     @endphp
                                                     
+                                                    {{-- Header info kendaraan KIR --}}
+                                                    <div class="px-4 py-3 grid grid-cols-3 gap-4 bg-teal-50/50 border-b border-teal-100 text-xs">
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                            <p class="font-semibold text-gray-800">{{ $kend ? $kend->nopol . ' — ' . $kend->merk : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jenis Uji</p>
+                                                            <p class="text-gray-700">{{ $sd['status'] ?? '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Masa Berlaku</p>
+                                                            <p class="text-gray-700">{{ isset($sd['masa_berlaku']) ? \Carbon\Carbon::parse($sd['masa_berlaku'])->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                    </div>
+                                                    
                                                     {{-- Tabel Detail 1 Baris --}}
                                                     <table class="w-full text-xs">
                                                         <thead>
@@ -1068,6 +1121,9 @@
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Uji</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Masa Berlaku</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Penguji</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status Uji</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No Uji</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Rekening</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
@@ -1081,6 +1137,9 @@
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['status'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['masa_berlaku']) ? \Carbon\Carbon::parse($sd['masa_berlaku'])->format('d M Y') : '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_penguji'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['status_uji'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['no_uji'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
@@ -1170,6 +1229,21 @@
                                                         }
                                                         $totalFiltered = collect($filteredGpsItems)->sum(fn($g) => $g['biaya_sewa'] ?? 0);
                                                     @endphp
+                                                    {{-- Header info kendaraan GPS --}}
+                                                    <div class="px-4 py-3 grid grid-cols-3 gap-4 bg-green-50/50 border-b border-green-100 text-xs">
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                            <p class="font-semibold text-gray-800">{{ $kend ? $kend->nopol . ' — ' . $kend->merk : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Bayar</p>
+                                                            <p class="text-gray-700">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Berlaku s/d</p>
+                                                            <p class="text-gray-700">{{ isset($sd['tanggal_habis']) ? \Carbon\Carbon::parse($sd['tanggal_habis'])->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                    </div>
                                                     @if(count($filteredGpsItems) > 0)
                                                     <table class="w-full text-xs">
                                                         <thead>
@@ -3067,23 +3141,92 @@ function populateDetailModal(pr, activeTab) {
         html += '<div class="grid grid-cols-1">' + infoCell('Tanggal Diajukan', pr.terakhir_diajukan_formatted) + '</div>';
     }
 
-    // ── 2. Info Kendaraan & Service (jika ada) ────────────────
-    if (pr.kendaraan || pr.service_info) {
+    // ── 2. Info Kendaraan & Service/GPS/Pajak/KIR/Asuransi (jika ada) ────
+    if (pr.kendaraan || pr.service_info || pr.gps_info || pr.pajak_kir_asuransi_info) {
         const k = pr.kendaraan || {};
         const s = pr.service_info || {};
-        const isAsuransi = pr.source_type === 'service_asuransi';
-        const color = isAsuransi ? 'blue' : 'orange';
+        const g = pr.gps_info || {};
+        const p = pr.pajak_kir_asuransi_info || {};
+        
+        const isGps = pr.source_type === 'gps' || pr.source_type === 'gps_perpanjang';
+        const isPajak = pr.source_type === 'pajak' || pr.source_type === 'pajak_perpanjang';
+        const isKir = pr.source_type === 'kir' || pr.source_type === 'kir_perpanjang';
+        const isAsuransiKendaraan = pr.source_type === 'asuransi_kendaraan' || pr.source_type === 'asuransi_kendaraan_perpanjang';
+        const isServiceAsuransi = pr.source_type === 'service_asuransi';
+        
+        let color, icon, title;
+        if (isGps) {
+            color = 'green';
+            icon = 'fa-satellite-dish';
+            title = 'GPS Kendaraan';
+        } else if (isPajak) {
+            color = 'purple';
+            icon = 'fa-file-invoice';
+            title = 'Pajak Kendaraan';
+        } else if (isKir) {
+            color = 'teal';
+            icon = 'fa-clipboard-check';
+            title = 'KIR Kendaraan';
+        } else if (isAsuransiKendaraan) {
+            color = 'blue';
+            icon = 'fa-shield-alt';
+            title = 'Asuransi Kendaraan';
+        } else if (isServiceAsuransi) {
+            color = 'blue';
+            icon = 'fa-car';
+            title = 'Kendaraan & Service Asuransi';
+        } else {
+            color = 'orange';
+            icon = 'fa-car';
+            title = 'Kendaraan & Service';
+        }
+        
         html += '<div class="bg-' + color + '-50/50 border border-' + color + '-100 rounded-xl px-4 py-3">'
             + '<p class="text-[10px] font-bold text-' + color + '-600 uppercase tracking-wide mb-2">'
-            + '<i class="fa fa-car mr-1"></i> Kendaraan & Service</p>'
-            + '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">';
-        if (k.label)             html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kendaraan</p><p class="font-semibold text-gray-800">' + k.label + '</p></div>';
-        if (s.tanggal_service)   html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Service</p><p class="text-gray-700">' + s.tanggal_service + '</p></div>';
-        if (s.kilometer)         html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kilometer</p><p class="text-gray-700">' + s.kilometer + ' km</p></div>';
-        if (s.keluhan)           html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Keluhan</p><p class="text-gray-700">' + s.keluhan + '</p></div>';
-        if (s.nama_asuransi)     html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Asuransi</p><p class="text-gray-700">' + s.nama_asuransi + '</p></div>';
-        if (s.keterangan)        html += '<div class="col-span-2"><p class="text-[10px] text-gray-400 uppercase mb-0.5">Keterangan</p><p class="text-gray-700">' + s.keterangan + '</p></div>';
-        html += '</div></div>';
+            + '<i class="fa ' + icon + ' mr-1"></i> ' + title + '</p>';
+        
+        if (isGps || isPajak || isKir || isAsuransiKendaraan) {
+            // ── GPS/Pajak/KIR/Asuransi: Grid 3 kolom ──
+            html += '<div class="grid grid-cols-3 gap-4 text-xs">';
+            if (k.label) {
+                html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>'
+                    + '<p class="font-semibold text-gray-800">' + k.label + '</p></div>';
+            }
+            if (isGps) {
+                if (g.tanggal_bayar) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + g.tanggal_bayar + '</p></div>';
+                if (g.berlaku_sd) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + g.berlaku_sd + '</p></div>';
+            } else if (isAsuransiKendaraan) {
+                // Asuransi: Grid khusus dengan Perusahaan & Jenis Asuransi
+                if (p.perusahaan_asuransi) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Perusahaan</p><p class="text-gray-700">' + p.perusahaan_asuransi + '</p></div>';
+                if (p.jenis_asuransi) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jenis Asuransi</p><p class="text-gray-700">' + p.jenis_asuransi + '</p></div>';
+            } else {
+                // Pajak/KIR
+                if (p.tanggal_bayar) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + p.tanggal_bayar + '</p></div>';
+                if (p.masa_berlaku) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Masa Berlaku</p><p class="text-gray-700">' + p.masa_berlaku + '</p></div>';
+            }
+            html += '</div>';
+            
+            // ── Grid baris ke-2 untuk Asuransi: No Polis, Tgl Bayar, Masa Berlaku ──
+            if (isAsuransiKendaraan && (p.no_polis || p.tanggal_bayar || p.masa_berlaku)) {
+                html += '<div class="grid grid-cols-3 gap-4 text-xs mt-2">';
+                if (p.no_polis) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">No. Polis</p><p class="text-gray-700">' + p.no_polis + '</p></div>';
+                if (p.tanggal_bayar) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + p.tanggal_bayar + '</p></div>';
+                if (p.masa_berlaku) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Masa Berlaku</p><p class="text-gray-700">' + p.masa_berlaku + '</p></div>';
+                html += '</div>';
+            }
+        } else {
+            // ── Service: grid 2-4 columns ──
+            html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">';
+            if (k.label)             html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kendaraan</p><p class="font-semibold text-gray-800">' + k.label + '</p></div>';
+            if (s.tanggal_service)   html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Service</p><p class="text-gray-700">' + s.tanggal_service + '</p></div>';
+            if (s.kilometer)         html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kilometer</p><p class="text-gray-700">' + s.kilometer + ' km</p></div>';
+            if (s.keluhan)           html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Keluhan</p><p class="text-gray-700">' + s.keluhan + '</p></div>';
+            if (s.nama_asuransi)     html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Asuransi</p><p class="text-gray-700">' + s.nama_asuransi + '</p></div>';
+            if (s.keterangan)        html += '<div class="col-span-2"><p class="text-[10px] text-gray-400 uppercase mb-0.5">Keterangan</p><p class="text-gray-700">' + s.keterangan + '</p></div>';
+            html += '</div>';
+        }
+        
+        html += '</div>';
     }
 
     // ── 3. Alasan & Keterangan ────────────────────────────────

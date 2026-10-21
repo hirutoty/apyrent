@@ -12,6 +12,10 @@
         $jumlahBermasalah = $data->where('status', 'bermasalah')->count();
         $jumlahSelesai    = $data->where('status', 'selesai')->count();
         $jumlahTidakAktif = $data->where('status', 'tidak_aktif')->count();
+        
+        // Hitung jumlah dan biaya kejadian yang ditolak
+        $jumlahDitolak = $data->sum(fn($d) => $d->kejadians->where('status', 'ditolak')->count());
+        $biayaDitolak  = $data->sum(fn($d) => $d->kejadians->where('status', 'ditolak')->sum('biaya'));
     @endphp
 
     <div class="space-y-6">
@@ -407,30 +411,42 @@
                                                     
                                                     // Hitung total biaya per group
                                                     $groupTotal = $kejadians->sum('biaya');
+                                                    
+                                                    // Get first kejadian for header info (periode)
+                                                    $firstKej = $kejadians->first();
                                                 @endphp
 
                                                 {{-- Header Section per Tanggal --}}
                                                 <div class="mb-4 {{ !$loop->first ? 'mt-6' : '' }}">
-                                                    <div class="flex items-center gap-3 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl mb-3">
-                                                        <i class="fa fa-calendar text-blue-600 text-sm"></i>
-                                                        <div class="flex-1">
-                                                            <span class="text-sm font-bold text-blue-900">{{ $dateHeader }}</span>
-                                                            <span class="text-xs text-blue-600 ml-2">({{ $kejadians->count() }} kejadian)</span>
+                                                    {{-- Header Info Grid 3 Kolom (sama seperti Pembayaran) --}}
+                                                    <div class="px-4 py-3 grid grid-cols-3 gap-4 bg-blue-50/70 border border-blue-200 rounded-t-xl text-xs">
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                            <p class="font-semibold text-gray-800">{{ $d->kendaraan->nopol ?? '-' }} — {{ $d->kendaraan->merk ?? '-' }}</p>
                                                         </div>
-                                                        <span class="text-sm font-bold text-blue-700">
-                                                            Rp {{ number_format($groupTotal, 0, ',', '.') }}
-                                                        </span>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tanggal Service</p>
+                                                            <p class="text-gray-700">{{ $firstKej && $firstKej->tanggal ? \Carbon\Carbon::parse($firstKej->tanggal)->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Periode Berlaku</p>
+                                                            <p class="text-gray-700">
+                                                                @if($firstKej && $firstKej->periode_mulai && $firstKej->periode_selesai)
+                                                                    {{ \Carbon\Carbon::parse($firstKej->periode_mulai)->format('d M Y') }} s/d {{ \Carbon\Carbon::parse($firstKej->periode_selesai)->format('d M Y') }}
+                                                                @else
+                                                                    —
+                                                                @endif
+                                                            </p>
+                                                        </div>
                                                     </div>
 
                                                     {{-- Table Kejadian untuk Group ini --}}
-                                                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                                                    <div class="overflow-x-auto rounded-b-xl border-x border-b border-blue-200">
                                                         <table class="w-full text-xs">
                                                             <thead>
                                                                 <tr class="bg-slate-100 text-gray-500">
                                                                     <th class="text-left px-3 py-2 font-semibold w-8">No</th>
                                                                     <th class="text-left px-3 py-2 font-semibold">Nama Kejadian</th>
-                                                                    <th class="text-left px-3 py-2 font-semibold min-w-[90px]">Tanggal</th>
-                                                                    <th class="text-left px-3 py-2 font-semibold min-w-[140px]">Periode</th>
                                                                     <th class="text-right px-3 py-2 font-semibold w-32">Biaya</th>
                                                                     <th class="text-left px-3 py-2 font-semibold min-w-[100px]">Tgl Approval</th>
                                                                     <th class="text-left px-3 py-2 font-semibold min-w-[180px]">Lampiran</th>
@@ -475,23 +491,6 @@
                                                                     </div>
                                                                     @if($isKejDitolak && $kej->catatan_penolakan)
                                                                         <p class="text-[10px] text-red-500 mt-0.5 italic">{{ $kej->catatan_penolakan }}</p>
-                                                                    @endif
-                                                                </td>
-
-                                                                {{-- Tanggal --}}
-                                                                <td class="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
-                                                                    {{ $kej->tanggal ? \Carbon\Carbon::parse($kej->tanggal)->format('d M Y') : '-' }}
-                                                                </td>
-
-                                                                {{-- Periode (Mulai - Selesai) --}}
-                                                                <td class="px-3 py-2 text-xs text-gray-600">
-                                                                    @if($kej->periode_mulai && $kej->periode_selesai)
-                                                                        <div class="flex flex-col gap-0.5">
-                                                                            <span class="text-[10px] text-gray-400">Mulai: <span class="font-medium text-gray-600">{{ \Carbon\Carbon::parse($kej->periode_mulai)->format('d M Y') }}</span></span>
-                                                                            <span class="text-[10px] text-gray-400">Selesai: <span class="font-medium text-gray-600">{{ \Carbon\Carbon::parse($kej->periode_selesai)->format('d M Y') }}</span></span>
-                                                                        </div>
-                                                                    @else
-                                                                        <span class="text-gray-300">—</span>
                                                                     @endif
                                                                 </td>
 
@@ -587,7 +586,7 @@
                                                     </tbody>
                                                     <tfoot>
                                                         <tr class="bg-slate-100 border-t border-slate-200">
-                                                            <td colspan="4" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total:</td>
+                                                            <td colspan="2" class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total:</td>
                                                             <td class="px-3 py-2 text-right text-xs font-bold text-gray-800">
                                                                 Rp {{ number_format($groupTotal, 0, ',', '.') }}
                                                             </td>

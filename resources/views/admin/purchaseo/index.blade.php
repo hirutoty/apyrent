@@ -1639,9 +1639,25 @@
                                                                     // Gunakan _orig_idx untuk lookup lampiran dari temp_files
                                                                     $gpsOrigIdx = $gItem['_orig_idx'] ?? $giIdx;
                                                                     // Tentukan status item berdasarkan item_decisions
-                                                                    $gpsItemAction = $poDecMap->has($gpsOrigIdx)
-                                                                        ? ($poDecMap[$gpsOrigIdx]['action'] ?? null)
-                                                                        : (in_array($gpsOrigIdx, $lockedApprovedIdx) ? 'approved' : null);
+                                                                    if ($poDecMap->has($gpsOrigIdx)) {
+                                                                        // Ada keputusan approval/rejection
+                                                                        $gpsItemAction = $poDecMap[$gpsOrigIdx]['action'] ?? null;
+                                                                    } elseif (in_array($gpsOrigIdx, $lockedApprovedIdx)) {
+                                                                        // Locked approved dari cycle sebelumnya
+                                                                        $gpsItemAction = 'approved';
+                                                                    } else {
+                                                                        // Belum ada keputusan: cek status PO
+                                                                        if ($po->status === 'Pending' && empty($sourceData['item_decisions'] ?? [])) {
+                                                                            // PO fresh (belum pernah di-approve)
+                                                                            $gpsItemAction = 'pending';
+                                                                        } elseif ($po->status === 'Disetujui' && empty($sourceData['item_decisions'] ?? []) && empty($lockedApprovedIdx)) {
+                                                                            // PO full approved (legacy/simple approval tanpa partial)
+                                                                            $gpsItemAction = 'approved';
+                                                                        } else {
+                                                                            // Edge case: default null
+                                                                            $gpsItemAction = null;
+                                                                        }
+                                                                    }
                                                                 @endphp
                                                                 <tr class="border-t border-gray-50 odd:bg-white even:bg-gray-50/40">
                                                                     <td class="px-3 py-2 text-gray-400">{{ $giIdx + 1 }}</td>
@@ -1686,11 +1702,16 @@
                                                                             <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">
                                                                                 <i class="fa fa-times text-[8px]"></i> Ditolak
                                                                             </span>
-                                                                        @else
-                                                                            {{-- Disetujui di PO — termasuk item yang sedang resubmit di Pembayaran --}}
+                                                                        @elseif($gpsItemAction === 'approved')
                                                                             <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">
                                                                                 <i class="fa fa-check text-[8px]"></i> Disetujui
                                                                             </span>
+                                                                        @elseif($gpsItemAction === 'pending' || is_null($gpsItemAction))
+                                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-700">
+                                                                                <i class="fa fa-clock text-[8px]"></i> Pending
+                                                                            </span>
+                                                                        @else
+                                                                            <span class="text-gray-300 text-[10px]">—</span>
                                                                         @endif
                                                                     </td>
                                                                 </tr>
@@ -1810,6 +1831,7 @@
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jatuh Tempo</th>
                                                                 @elseif(in_array($po->source_type, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang']))
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Perusahaan Asuransi</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Asuransi</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Mulai</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Berakhir</th>
@@ -1817,6 +1839,9 @@
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Uji</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Masa Berlaku</th>
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Penguji</th>
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status Uji</th>
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No Uji</th>
                                                                 @endif
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Rekening</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
@@ -1835,13 +1860,22 @@
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['tanggal_bayar']) ? \Carbon\Carbon::parse($sourceData['tanggal_bayar'])->format('d M Y') : '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['jatuh_tempo']) ? \Carbon\Carbon::parse($sourceData['jatuh_tempo'])->format('d M Y') : '-' }}</td>
                                                                 @elseif(in_array($po->source_type, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang']))
-                                                                    <td class="px-3 py-2 text-gray-700">{{ $sourceData['jenis_asuransi'] ?? '-' }}</td>
+                                                                    @php
+                                                                        // Load relasi asuransi dan jenis asuransi
+                                                                        $asuransiModel = isset($sourceData['asuransi_id']) ? \App\Models\Asuransi::find($sourceData['asuransi_id']) : null;
+                                                                        $jenisAsuransiModel = isset($sourceData['jenis_asuransi_id']) ? \App\Models\JenisAsuransi::find($sourceData['jenis_asuransi_id']) : null;
+                                                                    @endphp
+                                                                    <td class="px-3 py-2 text-gray-700">{{ $asuransiModel->nama_asuransi ?? $sourceData['nama_asuransi'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-700">{{ $jenisAsuransiModel->nama_jenis ?? $sourceData['jenis_asuransi'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['tgl_mulai']) ? \Carbon\Carbon::parse($sourceData['tgl_mulai'])->format('d M Y') : '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['tgl_berakhir']) ? \Carbon\Carbon::parse($sourceData['tgl_berakhir'])->format('d M Y') : '-' }}</td>
                                                                 @elseif(in_array($po->source_type, ['kir', 'kir_perpanjang']))
                                                                     <td class="px-3 py-2 text-gray-700">{{ $sourceData['status'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['tanggal_bayar']) ? \Carbon\Carbon::parse($sourceData['tanggal_bayar'])->format('d M Y') : '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['masa_berlaku']) ? \Carbon\Carbon::parse($sourceData['masa_berlaku'])->format('d M Y') : '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_penguji'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-700">{{ $sourceData['status_uji'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-700">{{ $sourceData['no_uji'] ?? '-' }}</td>
                                                                 @endif
                                                                 <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_rekening'] ?? '-' }}</td>
                                                                 <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_bank'] ?? '-' }}</td>
@@ -2457,19 +2491,32 @@ function buildDetailContent(data) {
             }
             html += '</div>';
 
-            // Badge status item (approved/rejected) — hanya tampil jika ada item_decisions
+            // Badge status item (approved/rejected/pending) — tampil jika ada item_decisions atau status pending
             if (item.action) {
-                const badgeHtml = item.action === 'approved'
-                    ? '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>'
-                    : '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
+                let badgeHtml = '';
+                if (item.action === 'approved') {
+                    badgeHtml = '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>';
+                } else if (item.action === 'rejected') {
+                    badgeHtml = '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
+                } else if (item.action === 'pending') {
+                    badgeHtml = '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700"><i class="fa fa-clock text-[8px]"></i> Pending</span>';
+                }
                 html += '<div class="mt-1">' + badgeHtml;
                 if (item.catatan_penolakan) html += '<span class="ml-2 text-[10px] text-red-500 italic">' + item.catatan_penolakan + '</span>';
                 html += '</div>';
             }
             html += '</div>';
 
-            // Biaya di kanan
-            html += '<span class="text-sm font-bold flex-shrink-0 ' + (item.action === 'rejected' ? 'text-red-500' : (isRejectedTab ? 'text-red-500' : 'text-emerald-600')) + '">Rp ' + itemBiaya.toLocaleString('id-ID') + '</span>'
+            // Biaya di kanan (warna sesuai status)
+            let biayaColor = 'text-emerald-600'; // default
+            if (item.action === 'rejected') {
+                biayaColor = 'text-red-500';
+            } else if (item.action === 'pending') {
+                biayaColor = 'text-yellow-600';
+            } else if (isRejectedTab) {
+                biayaColor = 'text-red-500';
+            }
+            html += '<span class="text-sm font-bold flex-shrink-0 ' + biayaColor + '">Rp ' + itemBiaya.toLocaleString('id-ID') + '</span>'
                 + '</div>';
 
             // ── Service Asuransi: Tanggal Service, Periode Mulai, Periode Selesai ──
