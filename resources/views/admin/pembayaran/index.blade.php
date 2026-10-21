@@ -954,9 +954,9 @@
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Pajak</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jatuh Tempo</th>
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Rekening</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
                                                                 <th class="text-center px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nominal</th>
                                                             </tr>
@@ -966,9 +966,9 @@
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['jenis_pajak'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['jatuh_tempo']) ? \Carbon\Carbon::parse($sd['jatuh_tempo'])->format('d M Y') : '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['nama_bank'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 font-mono text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? $sd['nama_pemilik'] ?? '-' }}</td>
                                                                 
                                                                 {{-- Kolom Lampiran --}}
                                                                 <td class="px-4 py-2 text-center">
@@ -1038,9 +1038,9 @@
                                                             <tr class="bg-gray-50 border-b border-gray-100">
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Perusahaan Asuransi</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Asuransi</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Rekening</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nominal</th>
                                                             </tr>
@@ -1049,9 +1049,9 @@
                                                             <tr class="border-t border-gray-50">
                                                                 <td class="px-3 py-2 text-gray-700">{{ $asr->nama_asuransi ?? '-' }}</td>
                                                                 <td class="px-3 py-2 text-gray-700">{{ $jAsr->nama_jenis ?? '-' }}</td>
-                                                                <td class="px-3 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? '-' }}</td>
                                                                 <td class="px-3 py-2 text-gray-700">{{ $sd['nama_bank'] ?? '-' }}</td>
-                                                                <td class="px-3 py-2 text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-3 py-2 font-mono text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-3 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? $sd['nama_pemilik'] ?? '-' }}</td>
                                                                 
                                                                 {{-- Kolom Lampiran --}}
                                                                 <td class="px-3 py-2 text-center">
@@ -1124,9 +1124,9 @@
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Penguji</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status Uji</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No Uji</th>
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Rekening</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
                                                                 <th class="text-center px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
                                                             </tr>
@@ -1140,9 +1140,9 @@
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['nama_penguji'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['status_uji'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['no_uji'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['nama_bank'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 font-mono text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? $sd['nama_pemilik'] ?? '-' }}</td>
                                                                 
                                                                 {{-- Kolom Lampiran --}}
                                                                 <td class="px-4 py-2 text-center">
@@ -1255,6 +1255,7 @@
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Berlaku s/d</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Bank</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Pemilik Rekening</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Lampiran</th>
                                                                 <th class="text-right px-4 py-2 font-semibold text-gray-500">Biaya Sewa</th>
                                                                 @if($itemDecMap->isNotEmpty())
@@ -1290,6 +1291,7 @@
                                                                 </td>
                                                                 <td class="px-4 py-2 text-gray-600">{{ $gitem['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 font-mono text-gray-600">{{ $gitem['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-600">{{ $gitem['nama_pemilik'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2">
                                                                     @php
                                                                         $gpsLamp = $sd['temp_files']['gps_items'][$gi]['lampiran'] ?? [];
@@ -1388,7 +1390,7 @@
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Keterangan Limit</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Bank</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
-                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Atas Nama</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Pemilik Rekening</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Lampiran</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Bukti</th>
                                                                 <th class="text-right px-4 py-2 font-semibold text-gray-500">Biaya</th>
@@ -1767,6 +1769,9 @@
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">PR Number</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Kejadian</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
                                                                         <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                         <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
                                                                         @if($saDecMap->isNotEmpty())
@@ -1786,6 +1791,9 @@
                                                                             <span class="font-mono text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{{ $_saPrNum }}</span>
                                                                         </td>
                                                                         <td class="px-3 py-2 font-semibold text-gray-800">{{ $saKj['nama_kejadian'] ?? '-' }}</td>
+                                                                        <td class="px-3 py-2 text-gray-600">{{ $saKj['nama_bank'] ?? $sd['nama_bank'] ?? '-' }}</td>
+                                                                        <td class="px-3 py-2 font-mono text-gray-600">{{ $saKj['no_rekening'] ?? $sd['no_rekening'] ?? '-' }}</td>
+                                                                        <td class="px-3 py-2 text-gray-600">{{ $saKj['nama_pemilik'] ?? $saKj['nama_rekening'] ?? $sd['nama_rekening'] ?? $sd['nama_pemilik'] ?? '-' }}</td>
                                                                         <td class="px-3 py-2 text-center">
                                                                             @php $saKjLamp = $saKj['lampiran'] ?? []; @endphp
                                                                             @if(!empty($saKjLamp))
@@ -1932,6 +1940,7 @@
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kategori</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bukti</th>
                                                                         <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
@@ -1970,6 +1979,7 @@
                                                                         </td>
                                                                         <td class="px-3 py-2 text-gray-600">{{ $siPart['nama_bank'] ?? '-' }}</td>
                                                                         <td class="px-3 py-2 font-mono text-gray-600">{{ $siPart['no_rekening'] ?? '-' }}</td>
+                                                                        <td class="px-3 py-2 text-gray-600">{{ $siPart['nama_rekening'] ?? $siPart['nama_pemilik'] ?? '-' }}</td>
 
                                                                         {{-- Kolom LAMPIRAN: file yang diupload saat buat service incident --}}
                                                                         <td class="px-3 py-2">

@@ -1460,6 +1460,9 @@
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Periode Mulai</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Periode Selesai</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Kejadian</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
@@ -1537,7 +1540,14 @@
                                                                             <span class="block text-[10px] font-normal text-red-500 mt-0.5">{{ $kjDecCatatan }}</span>
                                                                         @endif
                                                                     </td>
-                                                                    
+
+                                                                    {{-- Bank --}}
+                                                                    <td class="px-3 py-2 text-gray-600">{{ $kj['nama_bank'] ?? $sourceData['nama_bank'] ?? '-' }}</td>
+                                                                    {{-- No. Rekening --}}
+                                                                    <td class="px-3 py-2 font-mono text-gray-600">{{ $kj['no_rekening'] ?? $sourceData['no_rekening'] ?? '-' }}</td>
+                                                                    {{-- Pemilik Rekening --}}
+                                                                    <td class="px-3 py-2 text-gray-600">{{ $kj['nama_pemilik'] ?? $kj['nama_rekening'] ?? $sourceData['nama_rekening'] ?? $sourceData['nama_pemilik'] ?? '-' }}</td>
+
                                                                     {{-- Status --}}
                                                                     <td class="px-3 py-2 text-center">
                                                                         @if($kjDecAction === 'approved')
@@ -1586,7 +1596,7 @@
                                                                 </tr>
                                                             @endforeach
                                                             <tr class="border-t-2 border-blue-200 bg-blue-50/50">
-                                                                <td colspan="9" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="12" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
@@ -1627,6 +1637,7 @@
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Berlaku s/d</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya Sewa</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status</th>
@@ -1675,6 +1686,7 @@
                                                                     <td class="px-3 py-2 text-gray-600">{{ $tanggalHabis ? \Carbon\Carbon::parse($tanggalHabis)->format('d M Y') : '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600">{{ $gItem['nama_bank'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 font-mono text-gray-600">{{ $gItem['no_rekening'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600">{{ $gItem['nama_pemilik'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-center">
                                                                         @php
                                                                             $gpsLampiran = $sourceData['temp_files']['gps_items'][$gpsOrigIdx]['lampiran'] ?? [];
@@ -1717,7 +1729,7 @@
                                                                 </tr>
                                                             @endforeach
                                                             <tr class="border-t-2 border-green-200 bg-green-50/50">
-                                                                <td colspan="9" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="10" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
@@ -1843,9 +1855,9 @@
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status Uji</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No Uji</th>
                                                                 @endif
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Rekening</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nominal</th>
                                                             </tr>
@@ -1877,9 +1889,9 @@
                                                                     <td class="px-3 py-2 text-gray-700">{{ $sourceData['status_uji'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-700">{{ $sourceData['no_uji'] ?? '-' }}</td>
                                                                 @endif
-                                                                <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_rekening'] ?? '-' }}</td>
                                                                 <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_bank'] ?? '-' }}</td>
-                                                                <td class="px-3 py-2 text-gray-700">{{ $sourceData['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-3 py-2 font-mono text-gray-700">{{ $sourceData['no_rekening'] ?? '-' }}</td>
+                                                                <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_rekening'] ?? $sourceData['nama_pemilik'] ?? '-' }}</td>
                                                                 
                                                                 {{-- Kolom Lampiran --}}
                                                                 <td class="px-3 py-2 text-center">
