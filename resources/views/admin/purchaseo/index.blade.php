@@ -414,7 +414,7 @@
                                             } elseif ($statusFilter === 'Ditolak') {
                                                 // Tab Ditolak: hanya yang rejected
                                                 $gpsItems = collect($allGpsItems)
-                                                    ->filter(fn($g, $i) => ($poDecMap[$i]['action'] ?? '') === 'rejected' && $poDecMap->has($i))
+                                                    ->filter(fn($g, $i) => $poDecMap->has($i) && ($poDecMap[$i]['action'] ?? '') === 'rejected')
                                                     ->map(fn($g, $i) => array_merge($g, ['_orig_idx' => $i]))
                                                     ->values()->all();
                                             } elseif ($statusFilter === 'Pending') {
@@ -455,6 +455,7 @@
                                                     ->values()->all();
                                             }
                                         } else {
+                                            // PO baru atau fallback: backend sudah mem-filter, tampilkan semua
                                             $gpsItems = collect($allGpsItems)
                                                 ->map(fn($g, $i) => array_merge($g, ['_orig_idx' => $i]))
                                                 ->values()->all();
@@ -1113,7 +1114,7 @@
                                                     }
                                                 } elseif ($statusFilter === 'Ditolak') {
                                                     $asuransiKejadians = collect($allKejadians)
-                                                        ->filter(fn($k, $i) => ($kejDecMap[$i]['action'] ?? '') !== 'approved' && $kejDecMap->has($i))
+                                                        ->filter(fn($k, $i) => $kejDecMap->has($i) && ($kejDecMap[$i]['action'] ?? '') === 'rejected')
                                                         ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
                                                         ->values()->all();
                                                 } else {
@@ -1122,7 +1123,8 @@
                                                         ->values()->all();
                                                 }
                                             } elseif (!empty($rawKejDecisions)) {
-                                                // PO baru (rejected-only): semua kejadian sudah terfilter
+                                                // PO baru (rejected-only / approved-only): 
+                                                // Backend sudah mem-filter, tampilkan semua yang ada di allKejadians
                                                 $asuransiKejadians = collect($allKejadians)
                                                     ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
                                                     ->values()->all();
@@ -1140,6 +1142,11 @@
                                                     // Tab Disetujui: hanya tampilkan item locked
                                                     $asuransiKejadians = collect($allKejadians)
                                                         ->filter(fn($k, $i) => in_array($i, $lockedIdx))
+                                                        ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
+                                                        ->values()->all();
+                                                } elseif ($statusFilter === 'Ditolak') {
+                                                    // Tab Ditolak: tampilkan semua (fallback - assume all are rejected if no decisions)
+                                                    $asuransiKejadians = collect($allKejadians)
                                                         ->map(fn($k, $i) => array_merge($k, ['_orig_idx' => $i]))
                                                         ->values()->all();
                                                 } else {
@@ -1162,14 +1169,23 @@
                                             {{-- ── SERVICE PART / SERVICE INCIDENT EXPAND (NEW LAYOUT) ── --}}
                                             @php $expandColor = $isServiceIncident ? 'red' : 'orange'; @endphp
                                             <div class="bg-{{ $expandColor }}-50/30 border-t border-{{ $expandColor }}-100 px-6 py-4">
-                                                {{-- Header: Kendaraan --}}
+                                                {{-- Header: Kendaraan & Tanggal PO --}}
                                                 <div class="bg-white border border-{{ $expandColor }}-200 rounded-xl px-4 py-3 mb-3">
-                                                    <div class="flex items-center gap-3">
-                                                        <i class="fa fa-car text-{{ $expandColor }}-600 text-lg"></i>
+                                                    <div class="flex items-center gap-6">
                                                         <div>
-                                                            <h4 class="font-bold text-gray-800 text-sm">{{ $kendaraan ? $kendaraan->nopol : '-' }}</h4>
-                                                            <p class="text-xs text-gray-500">{{ $kendaraan ? $kendaraan->merk : '' }}</p>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                            <p class="font-semibold text-gray-800 text-sm">{{ $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-' }}</p>
                                                         </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tanggal PO</p>
+                                                            <p class="text-gray-700 text-sm">{{ $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-' }}</p>
+                                                        </div>
+                                                        @if(!empty($sourceData['keluhan']))
+                                                        <div class="flex-1">
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Keluhan</p>
+                                                            <p class="text-gray-700 text-sm">{{ $sourceData['keluhan'] }}</p>
+                                                        </div>
+                                                        @endif
                                                     </div>
                                                 </div>
 
@@ -1183,20 +1199,23 @@
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tanggal PO</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tanggal Pasang</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Part</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Posisi</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Serial Number</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kategori</th>
                                                                 @if($isServiceIncident)
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Supplier</th>
                                                                 @endif
                                                                 @if(!$isServiceIncident)
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kondisi</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Supplier</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Service</th>
                                                                 @endif
                                                                 @if(!$isServiceIncident)
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Keterangan Limit</th>
                                                                 @endif
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase w-24">Bank</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase w-32">Pemilik Rekening</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase w-24">Nama Bank</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase w-28">No. Rekening</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase w-32">Atas Nama</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
                                                             </tr>
@@ -1245,6 +1264,20 @@
                                                                             <span class="text-gray-400 ml-1 font-mono text-[10px]">({{ $part['part_number'] }})</span>
                                                                         @endif
                                                                     </td>
+                                                                    
+                                                                    {{-- Posisi --}}
+                                                                    <td class="px-3 py-2 text-gray-600">{{ $part['posisi'] ?? '-' }}</td>
+                                                                    
+                                                                    {{-- Serial Number --}}
+                                                                    <td class="px-3 py-2">
+                                                                        @if(!empty($part['serial_number']))
+                                                                            <span class="font-mono text-[11px] text-gray-700">{{ $part['serial_number'] }}</span>
+                                                                        @else
+                                                                            <span class="text-gray-300 text-[10px]">—</span>
+                                                                        @endif
+                                                                    </td>
+                                                                    
+                                                                    {{-- Kategori --}}
                                                                     <td class="px-3 py-2">
                                                                         <span class="bg-{{ $expandColor }}-100 text-{{ $expandColor }}-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{{ $catNama }}</span>
                                                                     </td>
@@ -1254,6 +1287,7 @@
                                                                     {{-- KOLOM STATUS LIMIT & KONDISI: hanya untuk service_part --}}
                                                                     @if(!$isServiceIncident)
                                                                     <td class="px-3 py-2 text-gray-600">{{ $part['kondisi'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600">{{ $supplier?->nama_supplier ?? '-' }}</td>
                                                                     @php
                                                                         $snap = $part['limit_snapshot'] ?? null;
                                                                     @endphp
@@ -1331,8 +1365,9 @@
                                                                                     }
                                                                                 }
 
-                                                                                // 2. Jangka Waktu
-                                                                                if (!empty($snap['limit_interval_label'])) {
+                                                                                // 2. Jangka Waktu - HANYA TAMPIL JIKA ADA LIMIT LAIN
+                                                                                $hasOtherLimit = !empty($snap['limit_biaya']) || !empty($snap['limit_km_target']) || !empty($snap['limit_jumlah']);
+                                                                                if (!empty($snap['limit_interval_label']) && $hasOtherLimit) {
                                                                                     if (!empty($snap['tanggal_lewat'])) {
                                                                                         $poDimensi[] = ['label' => 'Sudah melebihi batas limit jangka waktu', 'color' => 'bg-red-100 text-red-700'];
                                                                                     } elseif (!empty($snap['tanggal_sama'])) {
@@ -1386,11 +1421,11 @@
                                                                         @endif
                                                                     </td>
                                                                     @endif
+                                                                    <td class="px-3 py-2 text-gray-600 w-32 break-words">{{ $part['nama_rekening'] ?? '' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600 w-24">
                                                                         {{ $part['nama_bank'] ?? '' }}
                                                                     </td>
                                                                     <td class="px-3 py-2 font-mono text-gray-600 w-28">{{ $part['no_rekening'] ?? '' }}</td>
-                                                                    <td class="px-3 py-2 text-gray-600 w-32 break-words">{{ $part['nama_rekening'] ?? '' }}</td>
                                                                     <td class="px-3 py-2 text-center">
                                                                         @php
                                                                             // Gunakan _orig_idx untuk akses lampiran dari sourceData
@@ -1425,7 +1460,7 @@
                                                                 @endphp
                                                             @endforeach
                                                             <tr class="border-t-2 border-{{ $expandColor }}-200 bg-{{ $expandColor }}-50/50">
-                                                                <td colspan="{{ $isServiceIncident ? 11 : 13 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
+                                                                <td colspan="{{ $isServiceIncident ? 11 : 14 }}" class="px-3 py-2 text-right text-xs font-semibold text-gray-600">Total</td>
                                                                 <td class="px-3 py-2 text-right text-sm font-bold {{ $statusFilter === 'Ditolak' ? 'text-red-500' : 'text-emerald-600' }}">Rp {{ number_format($totalItems, 0, ',', '.') }}</td>
                                                             </tr>
                                                         </tbody>
@@ -1435,15 +1470,16 @@
                                             @elseif($isServiceAsuransi)
                                             {{-- ── SERVICE ASURANSI EXPAND (NEW LAYOUT) ── --}}
                                             <div class="bg-blue-50/30 border-t border-blue-100 px-6 py-4">
-                                                {{-- Header: Kendaraan & Nama Asuransi --}}
+                                                {{-- Header: Kendaraan & Tanggal PO --}}
                                                 <div class="bg-white border border-blue-200 rounded-xl px-4 py-3 mb-3">
-                                                    <div class="flex items-center gap-3">
-                                                        <i class="fa fa-shield-halved text-blue-600 text-lg"></i>
-                                                        <div class="flex-1">
-                                                            <h4 class="font-bold text-gray-800 text-sm">{{ $kendaraan ? $kendaraan->nopol : '-' }} — {{ $kendaraan ? $kendaraan->merk : '' }}</h4>
-                                                            @if($sourceData['nama_asuransi'] ?? null)
-                                                            <p class="text-xs text-blue-600 font-semibold mt-0.5">{{ $sourceData['nama_asuransi'] }}</p>
-                                                            @endif
+                                                    <div class="flex items-center gap-6">
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                            <p class="font-semibold text-gray-800 text-sm">{{ $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tanggal PO</p>
+                                                            <p class="text-gray-700 text-sm">{{ $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-' }}</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1460,9 +1496,6 @@
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Periode Mulai</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Periode Selesai</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Kejadian</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
@@ -1541,13 +1574,6 @@
                                                                         @endif
                                                                     </td>
 
-                                                                    {{-- Bank --}}
-                                                                    <td class="px-3 py-2 text-gray-600">{{ $kj['nama_bank'] ?? $sourceData['nama_bank'] ?? '-' }}</td>
-                                                                    {{-- No. Rekening --}}
-                                                                    <td class="px-3 py-2 font-mono text-gray-600">{{ $kj['no_rekening'] ?? $sourceData['no_rekening'] ?? '-' }}</td>
-                                                                    {{-- Pemilik Rekening --}}
-                                                                    <td class="px-3 py-2 text-gray-600">{{ $kj['nama_pemilik'] ?? $kj['nama_rekening'] ?? $sourceData['nama_rekening'] ?? $sourceData['nama_pemilik'] ?? '-' }}</td>
-
                                                                     {{-- Status --}}
                                                                     <td class="px-3 py-2 text-center">
                                                                         @if($kjDecAction === 'approved')
@@ -1612,18 +1638,17 @@
                                                         <span class="text-[11px] font-bold text-green-700 uppercase tracking-wide">Detail — GPS Kendaraan</span>
                                                     </div>
                                                 </div>
-                                                <div class="grid grid-cols-3 gap-4 mb-3 text-xs">
-                                                    <div>
-                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
-                                                        <p class="font-semibold text-gray-800">{{ $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-' }}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Bayar</p>
-                                                        <p class="text-gray-700">{{ $tanggalBayar ? \Carbon\Carbon::parse($tanggalBayar)->format('d M Y') : '-' }}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Berlaku s/d</p>
-                                                        <p class="text-gray-700">{{ $tanggalHabis ? \Carbon\Carbon::parse($tanggalHabis)->format('d M Y') : '-' }}</p>
+                                                {{-- Header: Kendaraan & Tanggal PO --}}
+                                                <div class="bg-white border border-green-200 rounded-xl px-4 py-3 mb-3">
+                                                    <div class="flex items-center gap-6">
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                            <p class="font-semibold text-gray-800 text-sm">{{ $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tanggal PO</p>
+                                                            <p class="text-gray-700 text-sm">{{ $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-' }}</p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="bg-white rounded-xl border border-green-100 overflow-hidden">
@@ -1635,9 +1660,9 @@
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Type GPS</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Berlaku s/d</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Bank</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya Sewa</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status</th>
@@ -1684,9 +1709,9 @@
                                                                     </td>
                                                                     <td class="px-3 py-2 text-gray-600">{{ $tanggalBayar ? \Carbon\Carbon::parse($tanggalBayar)->format('d M Y') : '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600">{{ $tanggalHabis ? \Carbon\Carbon::parse($tanggalHabis)->format('d M Y') : '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-600">{{ $gItem['nama_pemilik'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600">{{ $gItem['nama_bank'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 font-mono text-gray-600">{{ $gItem['no_rekening'] ?? '-' }}</td>
-                                                                    <td class="px-3 py-2 text-gray-600">{{ $gItem['nama_pemilik'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-center">
                                                                         @php
                                                                             $gpsLampiran = $sourceData['temp_files']['gps_items'][$gpsOrigIdx]['lampiran'] ?? [];
@@ -1796,40 +1821,18 @@
                                                     <span class="text-[11px] font-bold {{ $iconColor }} uppercase tracking-wide">Detail — {{ $titleType }}</span>
                                                 </div>
                                                 
-                                                {{-- Info Kendaraan & Tanggal --}}
-                                                <div class="grid grid-cols-3 gap-4 mb-3 text-xs">
-                                                    <div>
-                                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
-                                                        <p class="font-semibold text-gray-800">{{ $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-' }}</p>
+                                                {{-- Header: Kendaraan & Tanggal PO --}}
+                                                <div class="bg-white border {{ $borderColor }} rounded-xl px-4 py-3 mb-3">
+                                                    <div class="flex items-center gap-6">
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                            <p class="font-semibold text-gray-800 text-sm">{{ $kendaraan ? $kendaraan->nopol . ' — ' . $kendaraan->merk : '-' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tanggal PO</p>
+                                                            <p class="text-gray-700 text-sm">{{ $po->tanggal_po ? $po->tanggal_po->format('d M Y') : '-' }}</p>
+                                                        </div>
                                                     </div>
-                                                    @if(in_array($po->source_type, ['pajak', 'pajak_perpanjang']))
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jenis Pajak</p>
-                                                            <p class="text-gray-700">{{ $sourceData['jenis_pajak'] ?? '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jatuh Tempo</p>
-                                                            <p class="text-gray-700">{{ isset($sourceData['jatuh_tempo']) ? \Carbon\Carbon::parse($sourceData['jatuh_tempo'])->format('d M Y') : '-' }}</p>
-                                                        </div>
-                                                    @elseif(in_array($po->source_type, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang']))
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Mulai</p>
-                                                            <p class="text-gray-700">{{ isset($sourceData['tgl_mulai']) ? \Carbon\Carbon::parse($sourceData['tgl_mulai'])->format('d M Y') : '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Berakhir</p>
-                                                            <p class="text-gray-700">{{ isset($sourceData['tgl_berakhir']) ? \Carbon\Carbon::parse($sourceData['tgl_berakhir'])->format('d M Y') : '-' }}</p>
-                                                        </div>
-                                                    @elseif(in_array($po->source_type, ['kir', 'kir_perpanjang']))
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jenis Uji</p>
-                                                            <p class="text-gray-700">{{ $sourceData['status'] ?? '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Masa Berlaku</p>
-                                                            <p class="text-gray-700">{{ isset($sourceData['masa_berlaku']) ? \Carbon\Carbon::parse($sourceData['masa_berlaku'])->format('d M Y') : '-' }}</p>
-                                                        </div>
-                                                    @endif
                                                 </div>
                                                 
                                                 {{-- Tabel Detail --}}
@@ -1848,16 +1851,18 @@
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Mulai</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Berakhir</th>
                                                                 @elseif(in_array($po->source_type, ['kir', 'kir_perpanjang']))
-                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Uji</th>
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No KTP</th>
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama KTP</th>
+                                                                    <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lokasi Uji</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Masa Berlaku</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Penguji</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status Uji</th>
                                                                     <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No Uji</th>
                                                                 @endif
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Bank</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nominal</th>
                                                             </tr>
@@ -1882,16 +1887,18 @@
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['tgl_mulai']) ? \Carbon\Carbon::parse($sourceData['tgl_mulai'])->format('d M Y') : '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['tgl_berakhir']) ? \Carbon\Carbon::parse($sourceData['tgl_berakhir'])->format('d M Y') : '-' }}</td>
                                                                 @elseif(in_array($po->source_type, ['kir', 'kir_perpanjang']))
-                                                                    <td class="px-3 py-2 text-gray-700">{{ $sourceData['status'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 font-mono text-gray-700">{{ $sourceData['no_ktp'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_ktp'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-700">{{ $sourceData['lokasi_uji'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['tanggal_bayar']) ? \Carbon\Carbon::parse($sourceData['tanggal_bayar'])->format('d M Y') : '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sourceData['masa_berlaku']) ? \Carbon\Carbon::parse($sourceData['masa_berlaku'])->format('d M Y') : '-' }}</td>
-                                                                    <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_penguji'] ?? '-' }}</td>
+                                                                    <td class="px-3 py-2 text-gray-700">{{ $sourceData['penguji'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-700">{{ $sourceData['status_uji'] ?? '-' }}</td>
                                                                     <td class="px-3 py-2 text-gray-700">{{ $sourceData['no_uji'] ?? '-' }}</td>
                                                                 @endif
+                                                                <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_rekening'] ?? $sourceData['nama_pemilik'] ?? '-' }}</td>
                                                                 <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-3 py-2 font-mono text-gray-700">{{ $sourceData['no_rekening'] ?? '-' }}</td>
-                                                                <td class="px-3 py-2 text-gray-700">{{ $sourceData['nama_rekening'] ?? $sourceData['nama_pemilik'] ?? '-' }}</td>
                                                                 
                                                                 {{-- Kolom Lampiran --}}
                                                                 <td class="px-3 py-2 text-center">
@@ -2112,13 +2119,34 @@
             @csrf
             <input type="hidden" name="edit_purchase_order" id="resubmitPoId">
             <input type="hidden" name="kendaraan_id" id="resubmitKendaraanId">
-            <input type="hidden" name="tanggal_bayar" id="resubmitTanggalBayar">
-            <input type="hidden" name="tanggal_habis" id="resubmitTanggalHabis">
+            
             <div class="flex-1 overflow-y-auto px-6 pt-4 pb-2 space-y-4">
                 <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
                     <p class="font-semibold text-gray-800" id="resubmitKendaraanInfo">-</p>
                     <p class="text-xs text-amber-600 mt-0.5" id="resubmitCatatan"></p>
                 </div>
+                
+                {{-- Blue info box: Mode Edit --}}
+                <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+                    <p class="text-xs text-blue-600 font-semibold mb-1"><i class="fa fa-info-circle"></i> Mode Edit — Ajukan Ulang</p>
+                    <p class="text-xs text-gray-600">Hanya <strong>Biaya Sewa</strong>, <strong>Tanggal Ketentuan Bayar</strong>, dan <strong>Jatuh Tempo</strong> yang dapat diubah.</p>
+                </div>
+                
+                {{-- Tanggal fields: editable untuk mode resubmit --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Tanggal Ketentuan Bayar <span class="text-red-500">*</span></label>
+                        <input type="date" name="tanggal_bayar" id="resubmitTanggalBayar" required
+                            onchange="updateResubmitJatuhTempo()"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Jatuh Tempo <span class="text-gray-400 font-normal">(auto +1 tahun)</span></label>
+                        <input type="date" name="tanggal_habis" id="resubmitTanggalHabis" required readonly
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
+                    </div>
+                </div>
+                
                 <div>
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">GPS Items</p>
                     <div id="resubmitItemsContainer" class="space-y-3"></div>
@@ -2416,9 +2444,10 @@ function buildDetailContent(data) {
         return d.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
     }
 
-    if (kLabel || details.tanggal_service || details.tanggal_bayar) {
+    if (kLabel || details.tanggal_service || (details.tanggal_bayar && !isGps) || (details.tanggal_habis && !isGps)) {
         const isService   = ['service_part','service_incident','service_asuransi'].includes(details.type);
         const isServiceAsr = details.type === 'service_asuransi';
+        const isGps = details.type === 'gps';
         const accentColor = isServiceAsr ? 'blue' : (isService ? 'orange' : 'green');
         html += '<div class="bg-' + accentColor + '-50/50 border border-' + accentColor + '-100 rounded-xl px-4 py-3">'
             + '<p class="text-[10px] font-bold text-' + accentColor + '-600 uppercase tracking-wide mb-2">'
@@ -2427,11 +2456,17 @@ function buildDetailContent(data) {
         if (kLabel)                 html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kendaraan</p><p class="font-semibold text-gray-800">' + kLabel + '</p></div>';
         // PENTING: Untuk Service Asuransi, JANGAN tampilkan Tgl Service di header (sudah ada per-item)
         if (details.tanggal_service && !isServiceAsr) html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Service</p><p class="text-gray-700">' + fmtDate(details.tanggal_service) + '</p></div>';
-        if (details.tanggal_bayar)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + fmtDate(details.tanggal_bayar) + '</p></div>';
-        if (details.tanggal_habis)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + fmtDate(details.tanggal_habis) + '</p></div>';
+        // PENTING: Untuk GPS, JANGAN tampilkan Tgl Bayar dan Berlaku s/d di header (sudah ada di grid data GPS)
+        if (details.tanggal_bayar && !isGps)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + fmtDate(details.tanggal_bayar) + '</p></div>';
+        if (details.tanggal_habis && !isGps)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + fmtDate(details.tanggal_habis) + '</p></div>';
         if (details.kilometer && details.kilometer !== '-') html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Kilometer</p><p class="text-gray-700">' + details.kilometer + ' km</p></div>';
         if (details.nama_asuransi && details.nama_asuransi !== '-') html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Asuransi</p><p class="text-gray-700">' + details.nama_asuransi + '</p></div>';
-        html += '</div></div>';
+        html += '</div>';
+        // Keluhan (untuk Service Parts/Incident) - tampilkan di bawah grid sebagai full-width
+        if (isService && details.keluhan && details.keluhan !== '-') {
+            html += '<div class="mt-3 pt-3 border-t border-' + accentColor + '-100"><p class="text-[10px] text-gray-400 uppercase mb-0.5">Keluhan</p><p class="text-gray-700 text-xs">' + details.keluhan + '</p></div>';
+        }
+        html += '</div>';
     }
 
     // ── 3. Keterangan / Alasan PO ────────────────────────────
@@ -2450,26 +2485,107 @@ function buildDetailContent(data) {
     // ── 4. Items / Parts ──────────────────────────────────────
     const items = details.items || [];
     if (items.length > 0) {
-        // Hitung total dari items yang ditampilkan (sudah terfilter per tab)
-        // Untuk tab 'semua': hitung hanya item approved/locked (bukan rejected) agar tidak double count
+        // Untuk GPS: tampilkan dengan style grid seperti KIR (bukan card list)
+        const isGps = details.type === 'gps';
         const isRejectedTab  = _currentStatusFilter === 'Ditolak';
-        const isApprovedTab  = _currentStatusFilter === 'Disetujui';
         const isSemua        = _currentStatusFilter === 'semua' || _currentStatusFilter === 'Pending';
-        const totalFiltered  = items.reduce((sum, item) => {
-            // Jika tab semua dan ada item_decisions: hanya sum approved items
-            if (isSemua && item.action === 'rejected') return sum;
-            return sum + Number(item.biaya || item.biaya_sewa || 0);
-        }, 0);
-        const totalColor = isRejectedTab ? 'text-red-500' : 'text-emerald-600';
-        html += '<div class="border border-gray-100 rounded-xl overflow-hidden">'
-            + '<div class="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">'
-            + '<p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Detail Items (' + items.length + ')</p>'
-            + '<p class="text-sm font-bold ' + totalColor + '">Total: Rp ' + totalFiltered.toLocaleString('id-ID') + '</p>'
-            + '</div>';
+        
+        if (isGps) {
+            // GPS: Gunakan layout grid seperti KIR
+            const totalFiltered = items.reduce((sum, item) => sum + Number(item.biaya_sewa || 0), 0);
+            const totalColor = isRejectedTab ? 'text-red-500' : 'text-emerald-600';
+            
+            items.forEach(function(item, idx) {
+                html += '<div class="border border-gray-100 rounded-xl px-4 py-4 space-y-3' + (idx > 0 ? ' mt-4' : '') + '">';
+                
+                // Header: Hanya Status Badge (PO Number dihapus karena sudah ada di modal header)
+                if (item.action) {
+                    html += '<div class="flex items-center justify-end gap-2 mb-2">';
+                    if (item.action === 'approved') {
+                        html += '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>';
+                    } else if (item.action === 'rejected') {
+                        html += '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
+                    } else if (item.action === 'pending') {
+                        html += '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700"><i class="fa fa-clock text-[8px]"></i> Pending</span>';
+                    }
+                    html += '</div>';
+                }
+                
+                // Grid data GPS (dengan header/label untuk setiap field)
+                html += '<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">';
+                // Nama GPS
+                if (item.gps_name) html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Nama GPS</p><p class="font-semibold text-gray-700">' + item.gps_name + '</p></div>';
+                // Type GPS
+                if (item.type && item.type !== '-') html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Type GPS</p><p class="text-gray-700">' + item.type + '</p></div>';
+                // Tgl Bayar (dari details, bukan per item)
+                if (details.tanggal_bayar) html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + fmtDate(details.tanggal_bayar) + '</p></div>';
+                // Berlaku s/d (dari details, bukan per item)
+                if (details.tanggal_habis) html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + fmtDate(details.tanggal_habis) + '</p></div>';
+                html += '</div>';
+                
+                // Total Nominal
+                const itemBiaya = Number(item.biaya_sewa || 0);
+                const biayaColor = item.action === 'rejected' ? 'text-red-500' : 'text-emerald-600';
+                html += '<div class="flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">'
+                    + '<span class="text-xs text-gray-500">Total Nominal</span>'
+                    + '<span class="text-sm font-bold ' + biayaColor + '">Rp ' + itemBiaya.toLocaleString('id-ID') + '</span></div>';
+                
+                // Informasi Bank
+                const hasBank = (item.nama_bank && item.nama_bank !== '-') || (item.no_rekening && item.no_rekening !== '-') || (item.nama_pemilik && item.nama_pemilik !== '-');
+                if (hasBank) {
+                    const bankName = item.nama_bank || '-';
+                    const bankRek  = item.no_rekening || '-';
+                    const namaRek  = item.nama_pemilik || '-';
+                    html += '<div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">'
+                        + '<p class="text-[10px] font-semibold text-amber-600 uppercase mb-1.5"><i class="bi bi-bank mr-1"></i>Informasi Bank</p>'
+                        + '<div class="flex flex-wrap gap-x-5 gap-y-1 text-xs">';
+                    if (namaRek !== '-') html += '<div><span class="text-[10px] text-gray-400 uppercase block">Pemilik Rekening</span><span class="font-medium text-gray-700">' + namaRek + '</span></div>';
+                    if (bankName !== '-') html += '<div><span class="text-[10px] text-gray-400 uppercase block">Nama Bank</span><span class="font-medium text-gray-700">' + bankName + '</span></div>';
+                    if (bankRek !== '-') html += '<div><span class="text-[10px] text-gray-400 uppercase block">No. Rekening</span><span class="font-mono font-medium text-gray-700">' + bankRek + '</span></div>';
+                    html += '</div></div>';
+                }
+                
+                // Lampiran
+                const lampiranArr = item.lampiran || [];
+                if (lampiranArr.length > 0) {
+                    html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase mb-1.5"><i class="fa fa-paperclip mr-1"></i>Lampiran</p>'
+                        + '<div class="flex flex-wrap gap-1.5">';
+                    lampiranArr.forEach(function(f) {
+                        html += fileChip(f.file_path, f.file_name, 'bg-blue-50 border-blue-200 text-blue-700');
+                    });
+                    html += '</div></div>';
+                }
+                
+                // Catatan penolakan
+                if (item.catatan_penolakan) {
+                    html += '<div class="bg-red-50 border border-red-200 rounded-xl px-3 py-2">'
+                        + '<p class="text-[10px] font-semibold text-red-600 uppercase mb-1">Alasan Penolakan</p>'
+                        + '<p class="text-xs text-red-700">' + item.catatan_penolakan + '</p></div>';
+                }
+                
+                html += '</div>';
+            });
+        } else {
+            // Service/Part: gunakan layout list biasa
+            html += '<div class="border border-gray-100 rounded-xl overflow-hidden">'
+                + '<div class="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">'
+                + '<p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Detail Items (' + items.length + ')</p>';
+            
+            const isRejectedTab  = _currentStatusFilter === 'Ditolak';
+            const isSemua        = _currentStatusFilter === 'semua' || _currentStatusFilter === 'Pending';
+            const totalFiltered  = items.reduce((sum, item) => {
+                if (isSemua && item.action === 'rejected') return sum;
+                return sum + Number(item.biaya || item.biaya_sewa || 0);
+            }, 0);
+            const totalColor = isRejectedTab ? 'text-red-500' : 'text-emerald-600';
+            
+            html += '<p class="text-sm font-bold ' + totalColor + '">Total: Rp ' + totalFiltered.toLocaleString('id-ID') + '</p>'
+                + '</div>';
 
         items.forEach(function(item, idx) {
-            const isGps          = details.type === 'gps';
-            const isServicePart  = ['service_part','service_incident'].includes(details.type);
+            const isGps          = false; // already handled in if block above
+            const isServicePart  = details.type === 'service_part';
+            const isServiceIncident = details.type === 'service_incident';
             const isServiceAsr   = details.type === 'service_asuransi';
 
             const itemName   = item.nama_part || item.gps_name || item.nama_kejadian || '-';
@@ -2478,104 +2594,158 @@ function buildDetailContent(data) {
             const lampiranArr = item.lampiran || [];
             const hasLampiran = lampiranArr.length > 0;
 
-            html += '<div class="px-4 py-3' + (idx > 0 ? ' border-t border-gray-100' : '') + '">'
-                // Row atas: nama + harga
-                + '<div class="flex items-start justify-between gap-2 mb-1.5">'
-                + '<div class="flex-1 min-w-0">'
-                + '<div class="flex items-center gap-1.5 flex-wrap">';
-
-            // Badge kategori
-            if (item.category_nama && item.category_nama !== '-') {
-                html += '<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">' + item.category_nama + '</span>';
-            } else if (item.type && item.type !== '-') {
-                html += '<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700">' + item.type + '</span>';
-            }
-            // PO Number per item
-            if (item.po_number) {
-                html += '<span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100">' + item.po_number + '</span>';
-            }
-            html += '<span class="text-sm font-semibold text-gray-800">' + itemName + '</span>';
-            if (item.part_number && item.part_number !== '-') {
-                html += '<span class="font-mono text-gray-400 text-[10px]">(' + item.part_number + ')</span>';
-            }
-            if (item.kondisi && item.kondisi !== '-') {
-                html += '<span class="text-[10px] text-gray-400">· ' + item.kondisi + '</span>';
-            }
-            html += '</div>';
-
-            // Badge status item (approved/rejected/pending) — tampil jika ada item_decisions atau status pending
-            if (item.action) {
-                let badgeHtml = '';
-                if (item.action === 'approved') {
-                    badgeHtml = '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>';
-                } else if (item.action === 'rejected') {
-                    badgeHtml = '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
-                } else if (item.action === 'pending') {
-                    badgeHtml = '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700"><i class="fa fa-clock text-[8px]"></i> Pending</span>';
-                }
-                html += '<div class="mt-1">' + badgeHtml;
-                if (item.catatan_penolakan) html += '<span class="ml-2 text-[10px] text-red-500 italic">' + item.catatan_penolakan + '</span>';
-                html += '</div>';
-            }
-            html += '</div>';
-
-            // Biaya di kanan (warna sesuai status)
+            // Biaya color sesuai status
             let biayaColor = 'text-emerald-600'; // default
+            let cardBorderColor = 'border-gray-200';
+            let cardBgColor = 'bg-white';
             if (item.action === 'rejected') {
                 biayaColor = 'text-red-500';
+                cardBorderColor = 'border-red-200';
+                cardBgColor = 'bg-red-50/30';
             } else if (item.action === 'pending') {
                 biayaColor = 'text-yellow-600';
+                cardBorderColor = 'border-yellow-200';
+                cardBgColor = 'bg-yellow-50/30';
+            } else if (item.action === 'approved') {
+                cardBorderColor = 'border-green-200';
+                cardBgColor = 'bg-green-50/30';
             } else if (isRejectedTab) {
                 biayaColor = 'text-red-500';
             }
-            html += '<span class="text-sm font-bold flex-shrink-0 ' + biayaColor + '">Rp ' + itemBiaya.toLocaleString('id-ID') + '</span>'
-                + '</div>';
 
-            // ── Service Asuransi: Tanggal Service, Periode Mulai, Periode Selesai ──
-            if (isServiceAsr && (item.tanggal_service || item.periode_mulai || item.periode_selesai)) {
-                html += '<div class="mt-1 mb-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 grid grid-cols-3 gap-2 text-[10px]">';
-                if (item.tanggal_service) {
-                    html += '<div>'
-                        + '<p class="text-blue-400 uppercase mb-0.5">Tgl Service</p>'
-                        + '<p class="font-semibold text-gray-700">' + fmtDate(item.tanggal_service) + '</p>'
-                        + '</div>';
+            // Card wrapper dengan spacing
+            html += '<div class="' + (idx > 0 ? 'mt-3' : '') + ' border ' + cardBorderColor + ' rounded-xl overflow-hidden ' + cardBgColor + '">';
+            
+            // Header card: PO Number + Biaya
+            html += '<div class="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-2.5 border-b ' + cardBorderColor + ' flex items-center justify-between">';
+            
+            // Left: PO Number + Status badge
+            html += '<div class="flex items-center gap-2">';
+            if (item.po_number) {
+                html += '<span class="text-[11px] font-mono font-bold px-2 py-1 rounded bg-purple-100 text-purple-700 border border-purple-200">' + item.po_number + '</span>';
+            } else {
+                html += '<span class="text-[11px] font-semibold text-gray-500">Item #' + (idx + 1) + '</span>';
+            }
+            
+            // Badge status item
+            if (item.action) {
+                if (item.action === 'approved') {
+                    html += '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>';
+                } else if (item.action === 'rejected') {
+                    html += '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
+                } else if (item.action === 'pending') {
+                    html += '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700"><i class="fa fa-clock text-[8px]"></i> Pending</span>';
                 }
-                if (item.periode_mulai) {
-                    html += '<div>'
-                        + '<p class="text-blue-400 uppercase mb-0.5">Periode Mulai</p>'
-                        + '<p class="font-semibold text-gray-700">' + fmtDate(item.periode_mulai) + '</p>'
-                        + '</div>';
-                }
-                if (item.periode_selesai) {
-                    html += '<div>'
-                        + '<p class="text-blue-400 uppercase mb-0.5">Periode Selesai</p>'
-                        + '<p class="font-semibold text-gray-700">' + fmtDate(item.periode_selesai) + '</p>'
-                        + '</div>';
-                }
+            }
+            html += '</div>';
+            
+            // Right: Biaya
+            html += '<span class="text-sm font-bold ' + biayaColor + '">Rp ' + itemBiaya.toLocaleString('id-ID') + '</span>';
+            html += '</div>';
+
+            // Body card: Detail item
+            html += '<div class="px-4 py-3">';
+            
+            // Grid info utama part
+            html += '<div class="grid grid-cols-2 gap-x-4 gap-y-3 mb-3 text-xs">';
+            
+            // Nama Part (full width)
+            html += '<div class="col-span-2">';
+            // Label dinamis: Nama Kejadian untuk Service Asuransi, Nama Part untuk lainnya
+            const namaPartLabel = isServiceAsr ? 'Nama Kejadian' : 'Nama Part';
+            html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-1">' + namaPartLabel + '</p>';
+            html += '<div class="flex items-center gap-1.5 flex-wrap">';
+            if (item.category_nama && item.category_nama !== '-') {
+                html += '<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">' + item.category_nama + '</span>';
+            }
+            html += '<span class="text-sm font-semibold text-gray-800">' + itemName + '</span>';
+            html += '</div></div>';
+
+            // Part Number (TIDAK untuk Service Asuransi)
+            if (!isServiceAsr) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Part Number</p>';
+                html += '<p class="font-mono text-gray-700 text-sm">' + (item.part_number && item.part_number !== '-' ? item.part_number : '-') + '</p>';
                 html += '</div>';
             }
 
-            // ── Limit Snapshot (Service grid) ──────────────────────
-            const snap = item.limit_snapshot || null;
-            if (snap && isServicePart) {
-                html += '<div class="mt-1 mb-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 grid grid-cols-3 gap-2 text-[10px]">';
-                // Biaya
-                html += '<div>'
-                    + '<p class="text-gray-400 uppercase mb-0.5">Biaya</p>'
-                    + '<p class="font-semibold ' + (snap.biaya_lewat ? 'text-red-600' : 'text-gray-700') + '">Rp ' + Number(snap.service_biaya || 0).toLocaleString('id-ID') + '</p>'
-                    + '</div>';
-                // Tanggal
-                if (snap.service_tanggal) {
-                    html += '<div>'
-                        + '<p class="text-gray-400 uppercase mb-0.5">Tgl Pasang</p>'
-                        + '<p class="font-semibold ' + (snap.tanggal_lewat ? 'text-red-600' : 'text-gray-700') + '">' + fmtDate(snap.service_tanggal) + '</p>'
-                        + '</div>';
-                }
-                // KM
-                html += '<div>'
-                    + '<p class="text-gray-400 uppercase mb-0.5">KM Pasang</p>'
-                    + '<p class="font-semibold ' + (snap.km_lewat ? 'text-red-600' : 'text-gray-700') + '">' + Number(snap.service_km || 0).toLocaleString('id-ID') + '</p>'
-                    + '</div>';
+            // Tanggal Service (HANYA untuk Service Asuransi)
+            if (isServiceAsr) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Tgl Service</p>';
+                html += '<p class="text-gray-700 text-sm">' + (item.tanggal_service ? fmtDate(item.tanggal_service) : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Periode Mulai (HANYA untuk Service Asuransi)
+            if (isServiceAsr) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Periode Mulai</p>';
+                html += '<p class="text-gray-700 text-sm">' + (item.periode_mulai ? fmtDate(item.periode_mulai) : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Periode Selesai (HANYA untuk Service Asuransi)
+            if (isServiceAsr) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Periode Selesai</p>';
+                html += '<p class="text-gray-700 text-sm">' + (item.periode_selesai ? fmtDate(item.periode_selesai) : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Posisi (untuk Service Parts & Service Incident)
+            if (isServicePart || isServiceIncident) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Posisi</p>';
+                html += '<p class="text-blue-700 font-medium text-sm">' + (item.posisi && item.posisi !== '-' ? item.posisi : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Serial Number (untuk Service Parts & Service Incident)
+            if (isServicePart || isServiceIncident) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Serial Number</p>';
+                html += '<p class="font-mono text-gray-700 text-sm">' + (item.serial_number && item.serial_number !== '-' ? item.serial_number : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Tanggal Pasang (untuk Service Parts & Service Incident)
+            if (isServicePart || isServiceIncident) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Tgl Pasang</p>';
+                html += '<p class="text-gray-700 text-sm">' + (item.tanggal_pasang ? fmtDate(item.tanggal_pasang) : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Biaya (menampilkan biaya item)
+            html += '<div>';
+            html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Biaya (Rp)</p>';
+            html += '<p class="font-bold text-emerald-600 text-sm">Rp ' + itemBiaya.toLocaleString('id-ID') + '</p>';
+            html += '</div>';
+
+            // Supplier (untuk Service Parts & Service Incident)
+            if (isServicePart || isServiceIncident) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Supplier</p>';
+                html += '<p class="text-gray-700 text-sm">' + (item.supplier && item.supplier !== '-' ? item.supplier : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Keterangan Limit (HANYA untuk Service Parts)
+            if (isServicePart) {
+                html += '<div class="col-span-2">';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Keterangan Limit</p>';
+                html += '<p class="text-gray-700 text-sm">' + (item.keterangan_limit && item.keterangan_limit !== '-' ? item.keterangan_limit : '-') + '</p>';
+                html += '</div>';
+            }
+
+            html += '</div>'; // Close grid
+
+            // Catatan penolakan
+            if (item.catatan_penolakan) {
+                html += '<div class="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">';
+                html += '<p class="text-[10px] text-red-400 uppercase font-semibold mb-0.5">Catatan Penolakan</p>';
+                html += '<p class="text-[11px] text-red-700">' + item.catatan_penolakan + '</p>';
                 html += '</div>';
             }
 
@@ -2602,37 +2772,58 @@ function buildDetailContent(data) {
             // Info supplier + bank per item
             const itemSupplier = item.supplier || null;
             if (itemSupplier || hasBank) {
-                html += '<div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 mb-2 px-1">';
-                if (itemSupplier) {
-                    html += '<span class="flex items-center gap-1 font-medium text-gray-700"><i class="fa fa-store text-[9px] text-indigo-400"></i>' + itemSupplier + '</span>';
-                    if (hasBank) html += '<span class="text-gray-200 select-none">|</span>';
+                html += '<div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-3">';
+                html += '<p class="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-2"><i class="fa fa-building mr-1"></i> Informasi Bank</p>';
+                html += '<div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">';
+                
+                // REMOVED: Supplier display (already shown in main details above)
+                
+                const namaRek = item.nama_rekening || item.nama_pemilik;
+                if (namaRek && namaRek !== '-') {
+                    html += '<div>';
+                    html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Pemilik Rekening</p>';
+                    html += '<p class="font-medium text-gray-700">' + namaRek + '</p>';
+                    html += '</div>';
                 }
-                if (hasBank) {
-                    html += '<span class="flex items-center gap-1"><i class="fa fa-building text-[9px] text-amber-500"></i>' + (item.nama_bank || '-') + '</span>'
-                        + '<span class="flex items-center gap-1"><i class="fa fa-credit-card text-[9px] text-amber-500"></i>' + (item.no_rekening || item.nama_pemilik || '-') + '</span>';
-                    const namaRek = item.nama_rekening || item.nama_pemilik;
-                    if (namaRek && namaRek !== '-') {
-                        html += '<span class="flex items-center gap-1"><i class="fa fa-user text-[9px] text-amber-500"></i>' + namaRek + '</span>';
-                    }
+                
+                if (item.nama_bank && item.nama_bank !== '-') {
+                    html += '<div>';
+                    html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Nama Bank</p>';
+                    html += '<p class="font-medium text-gray-700">' + item.nama_bank + '</p>';
+                    html += '</div>';
                 }
-                html += '</div>';
+                
+                if (item.no_rekening && item.no_rekening !== '-') {
+                    html += '<div>';
+                    html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">No. Rekening</p>';
+                    html += '<p class="font-mono font-medium text-gray-700">' + item.no_rekening + '</p>';
+                    html += '</div>';
+                }
+                
+                html += '</div></div>';
             }
 
             // Lampiran per item
             if (lampiranArr.length > 0) {
+                html += '<div class="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">';
+                html += '<p class="text-[10px] font-semibold text-blue-600 uppercase tracking-wide mb-2"><i class="fa fa-paperclip mr-1"></i> Lampiran</p>';
                 html += '<div class="flex flex-wrap gap-1.5">';
                 lampiranArr.forEach(function(f) {
-                    html += fileChip(f.file_path, f.file_name, 'bg-blue-50 border-blue-200 text-blue-700');
+                    html += fileChip(f.file_path, f.file_name, 'bg-white border-blue-300 text-blue-700');
                 });
-                html += '</div>';
+                html += '</div></div>';
             }
 
-            html += '</div>';
+            html += '</div>'; // Close card body
+            html += '</div>'; // Close card wrapper
         });
 
-        html += '<div class="border-t-2 border-gray-200 bg-gray-50 px-4 py-2.5 flex justify-end">'
-            + '<span class="text-sm font-bold ' + totalColor + '">Rp ' + totalFiltered.toLocaleString('id-ID') + '</span>'
-            + '</div></div>';
+        // Total row (di luar loop, tidak dalam container border lagi)
+        html += '<div class="mt-3 bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 rounded-xl px-4 py-3 flex justify-between items-center">'
+            + '<span class="text-sm font-semibold text-gray-600">Total Keseluruhan</span>'
+            + '<span class="text-lg font-bold ' + totalColor + '">Rp ' + totalFiltered.toLocaleString('id-ID') + '</span>'
+            + '</div>';
+        } // end else (Service/Part)
 
     } else if (details.type === 'asuransi_kendaraan' || details.type === 'pajak' || details.type === 'kir') {
         // Single-item types — tampilkan info spesifik
@@ -2648,9 +2839,14 @@ function buildDetailContent(data) {
             if (details.tgl_mulai)     html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Mulai</p><p class="text-gray-700">' + details.tgl_mulai + '</p></div>';
             if (details.tgl_berakhir)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + details.tgl_berakhir + '</p></div>';
         } else if (details.type === 'kir') {
+            if (details.no_ktp)        html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">No. KTP</p><p class="font-mono text-gray-700">' + details.no_ktp + '</p></div>';
+            if (details.nama_ktp)      html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Nama KTP</p><p class="text-gray-700">' + details.nama_ktp + '</p></div>';
+            if (details.lokasi_uji)    html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Lokasi Uji</p><p class="text-gray-700">' + details.lokasi_uji + '</p></div>';
             if (details.no_uji)        html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">No. Uji</p><p class="font-mono text-gray-700">' + details.no_uji + '</p></div>';
             if (details.tanggal_bayar) html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + details.tanggal_bayar + '</p></div>';
             if (details.masa_berlaku)  html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Berlaku s/d</p><p class="text-gray-700">' + details.masa_berlaku + '</p></div>';
+            if (details.penguji)       html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Nama Penguji</p><p class="text-gray-700">' + details.penguji + '</p></div>';
+            if (details.status_uji)    html += '<div><p class="text-[10px] text-gray-400 uppercase mb-0.5">Status Uji</p><p class="text-gray-700">' + details.status_uji + '</p></div>';
         }
         html += '</div>';
 
@@ -2662,17 +2858,22 @@ function buildDetailContent(data) {
                 + '<span class="text-sm font-bold text-emerald-600">Rp ' + Number(nominalVal).toLocaleString('id-ID') + '</span></div>';
         }
 
-        // Bank info (single item)
+        // Bank info (single item) - urutan: Pemilik Rekening | Nama Bank | No. Rekening
+        // PENTING: Tampilkan info bank untuk semua single-item types (pajak, asuransi, KIR)
         const bankName = details.nama_bank || '-';
         const bankRek  = details.no_rekening || '-';
-        if (bankName !== '-' || bankRek !== '-') {
+        const namaRek  = details.nama_rekening || details.nama_pemilik || '-';
+        
+        // Tampilkan jika minimal salah satu field bank terisi (bukan "-")
+        const hasBankInfo = (bankName !== '-') || (bankRek !== '-') || (namaRek !== '-');
+        
+        if (hasBankInfo) {
             html += '<div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">'
-                + '<p class="text-[10px] font-semibold text-amber-600 uppercase mb-1.5"><i class="bi bi-bank mr-1"></i>Rekening Bank</p>'
+                + '<p class="text-[10px] font-semibold text-amber-600 uppercase mb-1.5"><i class="bi bi-bank mr-1"></i>Informasi Bank</p>'
                 + '<div class="flex flex-wrap gap-x-5 gap-y-1 text-xs">';
-            if (bankName !== '-') html += '<div><span class="text-[10px] text-gray-400 uppercase block">Bank</span><span class="font-medium text-gray-700">' + bankName + '</span></div>';
+            if (namaRek !== '-') html += '<div><span class="text-[10px] text-gray-400 uppercase block">Pemilik Rekening</span><span class="font-medium text-gray-700">' + namaRek + '</span></div>';
+            if (bankName !== '-') html += '<div><span class="text-[10px] text-gray-400 uppercase block">Nama Bank</span><span class="font-medium text-gray-700">' + bankName + '</span></div>';
             if (bankRek  !== '-') html += '<div><span class="text-[10px] text-gray-400 uppercase block">No. Rekening</span><span class="font-mono font-medium text-gray-700">' + bankRek + '</span></div>';
-            const namaRek = details.nama_rekening || details.nama_pemilik;
-            if (namaRek && namaRek !== '-') html += '<div><span class="text-[10px] text-gray-400 uppercase block">Atas Nama</span><span class="font-medium text-gray-700">' + namaRek + '</span></div>';
             html += '</div></div>';
         }
 
@@ -3109,7 +3310,7 @@ function openResubmitModal(poId, poNumber) {
 function renderResubmitForm(data) {
     document.getElementById('resubmitPoId').value        = data.po_id;
     document.getElementById('resubmitKendaraanId').value = data.kendaraan_id;
-    // Set hidden values langsung dari data — tidak perlu sync dari visible input
+    // Set tanggal fields — sekarang visible editable fields
     document.getElementById('resubmitTanggalBayar').value = data.tanggal_bayar;
     document.getElementById('resubmitTanggalHabis').value  = data.tanggal_habis;
     document.getElementById('resubmitKeterangan').value    = data.keterangan || '';
@@ -3140,6 +3341,30 @@ function renderResubmitForm(data) {
         container.appendChild(div);
     });
 }
+
+// Auto-calculate Jatuh Tempo (Tanggal Ketentuan Bayar + 1 tahun)
+function updateResubmitJatuhTempo() {
+    const tanggalBayarEl = document.getElementById('resubmitTanggalBayar');
+    const jatuhTempoEl   = document.getElementById('resubmitTanggalHabis');
+    if (!tanggalBayarEl || !jatuhTempoEl) return;
+    
+    const tanggalBayar = tanggalBayarEl.value;
+    if (!tanggalBayar) {
+        jatuhTempoEl.value = '';
+        return;
+    }
+    
+    // Tambah 1 tahun
+    const date = new Date(tanggalBayar);
+    date.setFullYear(date.getFullYear() + 1);
+    
+    // Format YYYY-MM-DD
+    const yyyy = date.getFullYear();
+    const mm   = String(date.getMonth() + 1).padStart(2, '0');
+    const dd   = String(date.getDate()).padStart(2, '0');
+    jatuhTempoEl.value = yyyy + '-' + mm + '-' + dd;
+}
+
 function closeResubmitModal() {
     document.getElementById('resubmitModal').classList.replace('flex','hidden');
     document.getElementById('resubmitModal').classList.add('hidden');
@@ -3218,55 +3443,135 @@ function renderResubmitSimpleForm(data) {
     const container = document.getElementById('resubmitSimpleFields');
     container.innerHTML = '';
 
-    function makeField(label, id, type, value, required, extra) {
-        required = required ? '<span class="text-red-500">*</span>' : '';
-        extra = extra || '';
-        return '<div>'
-            + '<label class="block text-xs font-semibold text-gray-600 mb-1">' + label + ' ' + required + '</label>'
-            + '<input type="' + type + '" id="rsf_' + id + '" value="' + (value || '') + '" ' + extra
-            + ' class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400">'
-            + '</div>';
+    // ── Detect EDIT MODE: PO yang di-reject dan ada existing_record_id ──────
+    const isEditMode = !!(data.existing_record_id || data.id);
+
+    // Info box: Mode Edit
+    let html = '';
+    if (isEditMode) {
+        html += '<div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4">';
+        html += '<p class="text-xs text-blue-600 font-semibold mb-1"><i class="fa fa-info-circle"></i> Mode Edit — Ajukan Ulang</p>';
+        html += '<p class="text-xs text-gray-600">Hanya <strong>Biaya</strong> dan <strong>Tanggal</strong> yang dapat diubah. Data lainnya tetap sesuai pengajuan sebelumnya.</p>';
+        html += '</div>';
     }
 
-    let html = '';
     if (['pajak', 'pajak_perpanjang'].includes(data.source_type)) {
-        html += makeField('Nominal (Rp)', 'nominal', 'number', data.nominal, true, 'min="0"');
-        html += makeField('Nama Pemilik', 'nama_pemilik', 'text', data.nama_pemilik, false);
-        html += '<div class="grid grid-cols-2 gap-3">';
-        html += makeField('Nama Bank', 'nama_bank', 'text', data.nama_bank, false);
-        html += makeField('No. Rekening', 'no_rekening', 'text', data.no_rekening, false);
-        html += '</div>';
+        // PAJAK: Hidden semua field kecuali Nominal + Tanggal
+        if (isEditMode) {
+            html += '<input type="hidden" id="rsf_nama_pemilik" value="' + (data.nama_pemilik || '') + '">';
+            html += '<input type="hidden" id="rsf_nama_bank" value="' + (data.nama_bank || '') + '">';
+            html += '<input type="hidden" id="rsf_no_rekening" value="' + (data.no_rekening || '') + '">';
+            
+            html += '<div class="grid grid-cols-2 gap-3">';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Ketentuan Bayar <span class="text-red-500">*</span></label>';
+            html += '<input type="date" id="rsf_tanggal_bayar" value="' + (data.tanggal_bayar || '') + '" onchange="updateRsfJatuhTempo()" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 bg-white"></div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Jatuh Tempo <span class="text-gray-400 font-normal">(auto +1 tahun)</span></label>';
+            html += '<input type="date" id="rsf_jatuh_tempo" value="' + (data.jatuh_tempo || '') + '" readonly class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"></div>';
+            html += '</div>';
+            
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Nominal (Rp) <span class="text-red-500">*</span></label>';
+            html += '<input type="number" id="rsf_nominal" value="' + (data.nominal || '') + '" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 bg-white"></div>';
+        } else {
+            // CREATE MODE: tampilkan semua field
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Nominal (Rp) <span class="text-red-500">*</span></label>';
+            html += '<input type="number" id="rsf_nominal" value="' + (data.nominal || '') + '" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Nama Pemilik</label>';
+            html += '<input type="text" id="rsf_nama_pemilik" value="' + (data.nama_pemilik || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<div class="grid grid-cols-2 gap-3">';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Nama Bank</label>';
+            html += '<input type="text" id="rsf_nama_bank" value="' + (data.nama_bank || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">No. Rekening</label>';
+            html += '<input type="text" id="rsf_no_rekening" value="' + (data.no_rekening || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '</div>';
+        }
 
     } else if (['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'].includes(data.source_type)) {
-        html += '<div class="grid grid-cols-2 gap-3">';
-        html += makeField('Tgl Mulai', 'tgl_mulai', 'date', data.tgl_mulai, true);
-        html += makeField('Tgl Berakhir', 'tgl_berakhir', 'date', data.tgl_berakhir, true);
-        html += '</div>';
-        html += '<div class="grid grid-cols-2 gap-3">';
-        html += makeField('Durasi (bulan)', 'durasi_bulan', 'number', data.durasi_bulan, false, 'min="0"');
-        html += makeField('Biaya (Rp)', 'biaya', 'number', data.biaya, true, 'min="0"');
-        html += '</div>';
-        html += makeField('Nama Bank', 'nama_bank', 'text', data.nama_bank, false);
-        html += '<div class="grid grid-cols-2 gap-3">';
-        html += makeField('No. Rekening', 'no_rekening', 'text', data.no_rekening, false);
-        html += makeField('Nama Pemilik Rekening', 'nama_rekening', 'text', data.nama_rekening, false);
-        html += '</div>';
+        // ASURANSI KENDARAAN: Hidden semua field kecuali Tgl Mulai, Tgl Berakhir, Biaya
+        if (isEditMode) {
+            html += '<input type="hidden" id="rsf_durasi_bulan" value="' + (data.durasi_bulan || '') + '">';
+            html += '<input type="hidden" id="rsf_nama_bank" value="' + (data.nama_bank || '') + '">';
+            html += '<input type="hidden" id="rsf_no_rekening" value="' + (data.no_rekening || '') + '">';
+            html += '<input type="hidden" id="rsf_nama_rekening" value="' + (data.nama_rekening || '') + '">';
+            html += '<div class="grid grid-cols-2 gap-3">';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Tgl Mulai <span class="text-red-500">*</span></label>';
+            html += '<input type="date" id="rsf_tgl_mulai" value="' + (data.tgl_mulai || '') + '" onchange="updateRsfTglBerakhir()" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Tgl Berakhir <span class="text-gray-400 font-normal">(auto +1 tahun)</span></label>';
+            html += '<input type="date" id="rsf_tgl_berakhir" value="' + (data.tgl_berakhir || '') + '" readonly class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"></div>';
+            html += '</div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Biaya (Rp) <span class="text-red-500">*</span></label>';
+            html += '<input type="number" id="rsf_biaya" value="' + (data.biaya || '') + '" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+        } else {
+            // CREATE MODE: tampilkan semua field
+            html += '<div class="grid grid-cols-2 gap-3">';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Tgl Mulai <span class="text-red-500">*</span></label>';
+            html += '<input type="date" id="rsf_tgl_mulai" value="' + (data.tgl_mulai || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Tgl Berakhir <span class="text-red-500">*</span></label>';
+            html += '<input type="date" id="rsf_tgl_berakhir" value="' + (data.tgl_berakhir || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '</div>';
+            html += '<div class="grid grid-cols-2 gap-3">';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Durasi (bulan)</label>';
+            html += '<input type="number" id="rsf_durasi_bulan" value="' + (data.durasi_bulan || '') + '" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Biaya (Rp) <span class="text-red-500">*</span></label>';
+            html += '<input type="number" id="rsf_biaya" value="' + (data.biaya || '') + '" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '</div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Nama Bank</label>';
+            html += '<input type="text" id="rsf_nama_bank" value="' + (data.nama_bank || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<div class="grid grid-cols-2 gap-3">';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">No. Rekening</label>';
+            html += '<input type="text" id="rsf_no_rekening" value="' + (data.no_rekening || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Nama Pemilik Rekening</label>';
+            html += '<input type="text" id="rsf_nama_rekening" value="' + (data.nama_rekening || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '</div>';
+        }
 
     } else {
-        // kir / kir_perpanjang
-        html += '<div class="grid grid-cols-2 gap-3">';
-        html += makeField('No. Uji', 'no_uji', 'text', data.no_uji, false);
-        html += makeField('Tanggal Bayar', 'tanggal_bayar', 'date', data.tanggal_bayar, true);
-        html += '</div>';
-        html += '<div class="grid grid-cols-2 gap-3">';
-        html += makeField('Masa Berlaku s/d', 'masa_berlaku', 'date', data.masa_berlaku, true);
-        html += makeField('Biaya (Rp)', 'biaya', 'number', data.biaya, true, 'min="0"');
-        html += '</div>';
-        html += makeField('Nama Bank', 'nama_bank', 'text', data.nama_bank, false);
-        html += makeField('No. Rekening', 'no_rekening', 'text', data.no_rekening, false);
+        // KIR: Hidden semua field kecuali Tanggal Bayar, Masa Berlaku, Biaya
+        if (isEditMode) {
+            html += '<input type="hidden" id="rsf_no_uji" value="' + (data.no_uji || '') + '">';
+            html += '<input type="hidden" id="rsf_nama_bank" value="' + (data.nama_bank || '') + '">';
+            html += '<input type="hidden" id="rsf_no_rekening" value="' + (data.no_rekening || '') + '">';
+            html += '<div class="grid grid-cols-2 gap-3">';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar <span class="text-red-500">*</span></label>';
+            html += '<input type="date" id="rsf_tanggal_bayar" value="' + (data.tanggal_bayar || '') + '" onchange="updateRsfMasaBerlaku()" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Masa Berlaku s/d <span class="text-gray-400 font-normal">(auto +6 bulan)</span></label>';
+            html += '<input type="date" id="rsf_masa_berlaku" value="' + (data.masa_berlaku || '') + '" readonly class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"></div>';
+            html += '</div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Biaya (Rp) <span class="text-red-500">*</span></label>';
+            html += '<input type="number" id="rsf_biaya" value="' + (data.biaya || '') + '" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+        } else {
+            // CREATE MODE: tampilkan semua field
+            html += '<div class="grid grid-cols-2 gap-3">';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">No. Uji</label>';
+            html += '<input type="text" id="rsf_no_uji" value="' + (data.no_uji || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar <span class="text-red-500">*</span></label>';
+            html += '<input type="date" id="rsf_tanggal_bayar" value="' + (data.tanggal_bayar || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '</div>';
+            html += '<div class="grid grid-cols-2 gap-3">';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Masa Berlaku s/d <span class="text-red-500">*</span></label>';
+            html += '<input type="date" id="rsf_masa_berlaku" value="' + (data.masa_berlaku || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Biaya (Rp) <span class="text-red-500">*</span></label>';
+            html += '<input type="number" id="rsf_biaya" value="' + (data.biaya || '') + '" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '</div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Nama Bank</label>';
+            html += '<input type="text" id="rsf_nama_bank" value="' + (data.nama_bank || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">No. Rekening</label>';
+            html += '<input type="text" id="rsf_no_rekening" value="' + (data.no_rekening || '') + '" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+        }
     }
 
     container.innerHTML = html;
+    
+    // ── TRIGGER AUTO-CALCULATE saat modal dibuka (untuk semua field readonly) ──
+    // Ini memastikan field auto-calculate ter-update dengan benar saat modal load
+    setTimeout(function() {
+        if (['pajak', 'pajak_perpanjang'].includes(data.source_type)) {
+            updateRsfJatuhTempo(); // Pajak: Jatuh Tempo = Tanggal Bayar + 1 tahun
+        } else if (['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'].includes(data.source_type)) {
+            updateRsfTglBerakhir(); // Asuransi: Tgl Berakhir = Tgl Mulai + 1 tahun
+        } else if (['kir', 'kir_perpanjang'].includes(data.source_type)) {
+            updateRsfMasaBerlaku(); // KIR: Masa Berlaku = Tanggal Bayar + 6 bulan
+        }
+    }, 50); // Small delay untuk memastikan DOM sudah ter-render
 }
 
 function closeResubmitSimpleModal() {
@@ -3274,6 +3579,52 @@ function closeResubmitSimpleModal() {
     document.getElementById('resubmitSimpleModal').classList.add('hidden');
     _resubmitSimplePoId = null;
     _resubmitSimpleType = null;
+}
+
+// Auto-calculate Tgl Berakhir (Tgl Mulai + 1 tahun) untuk Asuransi Kendaraan
+function updateRsfTglBerakhir() {
+    const tglMulaiEl   = document.getElementById('rsf_tgl_mulai');
+    const tglBerakhirEl = document.getElementById('rsf_tgl_berakhir');
+    if (!tglMulaiEl || !tglBerakhirEl) return;
+    
+    const tglMulai = tglMulaiEl.value;
+    if (!tglMulai) {
+        tglBerakhirEl.value = '';
+        return;
+    }
+    
+    // Tambah 1 tahun
+    const date = new Date(tglMulai);
+    date.setFullYear(date.getFullYear() + 1);
+    
+    // Format YYYY-MM-DD
+    const yyyy = date.getFullYear();
+    const mm   = String(date.getMonth() + 1).padStart(2, '0');
+    const dd   = String(date.getDate()).padStart(2, '0');
+    tglBerakhirEl.value = yyyy + '-' + mm + '-' + dd;
+}
+
+// Auto-calculate Jatuh Tempo (Tanggal Bayar + 1 tahun) untuk Pajak
+function updateRsfJatuhTempo() {
+    const tglBayarEl     = document.getElementById('rsf_tanggal_bayar');
+    const jatuhTempoEl   = document.getElementById('rsf_jatuh_tempo');
+    if (!tglBayarEl || !jatuhTempoEl) return;
+    
+    const tglBayar = tglBayarEl.value;
+    if (!tglBayar) {
+        jatuhTempoEl.value = '';
+        return;
+    }
+    
+    // Tambah 1 tahun
+    const date = new Date(tglBayar);
+    date.setFullYear(date.getFullYear() + 1);
+    
+    // Format YYYY-MM-DD
+    const yyyy = date.getFullYear();
+    const mm   = String(date.getMonth() + 1).padStart(2, '0');
+    const dd   = String(date.getDate()).padStart(2, '0');
+    jatuhTempoEl.value = yyyy + '-' + mm + '-' + dd;
 }
 
 async function submitResubmitSimple() {
@@ -3290,12 +3641,14 @@ async function submitResubmitSimple() {
     let payload = {};
     if (['pajak', 'pajak_perpanjang'].includes(_resubmitSimpleType)) {
         payload = {
+            tanggal_bayar : getVal('tanggal_bayar'),
+            jatuh_tempo   : getVal('jatuh_tempo'),
             nominal       : getVal('nominal'),
             nama_pemilik  : getVal('nama_pemilik'),
             nama_bank     : getVal('nama_bank'),
             no_rekening   : getVal('no_rekening'),
         };
-        if (!payload.nominal) { alert('Nominal wajib diisi.'); return; }
+        if (!payload.tanggal_bayar || !payload.jatuh_tempo || !payload.nominal) { alert('Tanggal Ketentuan Bayar, Jatuh Tempo, dan Nominal wajib diisi.'); return; }
     } else if (['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'].includes(_resubmitSimpleType)) {
         payload = {
             tgl_mulai     : getVal('tgl_mulai'),
@@ -3429,7 +3782,24 @@ function renderRsaForm(data) {
     // Hidden fields
     document.getElementById('rsa_kendaraan_id').value   = data.kendaraan_id   || '';
     document.getElementById('rsa_nama_asuransi').value  = data.nama_asuransi  || '';
-    document.getElementById('rsa_tanggal_service').value= data.tanggal_service|| '';
+    
+    // Tanggal Service: untuk Service Incident edit mode, tampilkan sebagai editable field
+    const tanggalServiceWrapper = document.getElementById('rsa_tanggal_service_wrapper');
+    const tanggalServiceInput   = document.getElementById('rsa_tanggal_service');
+    const tanggalServiceHidden  = document.getElementById('rsa_tanggal_service_hidden');
+    
+    if (isServiceIncident && _rsaPoId !== null) {
+        // Edit mode Service Incident: tampilkan field editable
+        tanggalServiceWrapper.classList.remove('hidden');
+        tanggalServiceInput.value = data.tanggal_service || '';
+        tanggalServiceHidden.disabled = true; // disable hidden agar tidak terkirim
+    } else {
+        // Service Asuransi atau create mode: hidden saja
+        tanggalServiceWrapper.classList.add('hidden');
+        tanggalServiceHidden.value = data.tanggal_service || '';
+        tanggalServiceHidden.disabled = false;
+    }
+    
     document.getElementById('rsa_periode_mulai').value  = data.periode_mulai  || '';
     document.getElementById('rsa_periode_selesai').value= data.periode_selesai|| '';
     document.getElementById('rsa_kilometer').value      = data.kilometer      || '';
@@ -3437,10 +3807,21 @@ function renderRsaForm(data) {
     // Render kejadian rows
     const container = document.getElementById('rsaKejadianContainer');
     container.innerHTML = '';
+    const hasKejadians = (data.kejadians || []).length > 0;
     (data.kejadians || []).forEach(function(kej, idx) {
         renderRsaKejadian(container, idx, kej);
     });
     updateRsaTotalBiaya();
+    
+    // ── Hide "Tambah Kejadian" button if editing existing items ────────
+    const tambahBtn = document.getElementById('rsaTambahBtn');
+    if (tambahBtn) {
+        if (hasKejadians) {
+            tambahBtn.classList.add('hidden');
+        } else {
+            tambahBtn.classList.remove('hidden');
+        }
+    }
 }
 
 function renderRsaKejadian(container, idx, kej) {
@@ -3483,6 +3864,11 @@ function renderRsaKejadian(container, idx, kej) {
     // Build HTML based on _rsaIsServiceIncident
     let fieldsHtml = '';
     
+    // ── RESUBMIT MODE: Detect if editing ──────────────────
+    // Untuk semua PO yang ditolak: jika ini modal ajukan ulang (_rsaPoId !== null),
+    // maka mode edit — field selain Biaya dan Tanggal harus hidden/readonly.
+    const isEditMode = _rsaPoId !== null;
+    
     if (_rsaIsServiceIncident) {
         // ── Service Incident: Full fields ──────────────────────────────────
 
@@ -3497,6 +3883,10 @@ function renderRsaKejadian(container, idx, kej) {
             const sel = (kej.supplier_id && String(kej.supplier_id) === String(s.id)) ? ' selected' : '';
             return '<option value="' + s.id + '"' + sel + '>' + s.nama_supplier + '</option>';
         }).join('');
+        
+        // Get category name and supplier name for read-only display
+        const categoryName = kej.category_name || kej.kategori || (_rsaCategories.find(c => String(c.id) === String(kej.category_id))?.nama) || '-';
+        const supplierName = kej.supplier_name || kej.supplier || (_rsaSuppliers.find(s => String(s.id) === String(kej.supplier_id))?.nama_supplier) || '-';
 
         // Posisi yang dipilih
         const posisiVal = (kej.posisi || '').replace(/"/g, '&quot;');
@@ -3538,8 +3928,50 @@ function renderRsaKejadian(container, idx, kej) {
         const tglPasang    = kej.tgl_pasang    || rsaTanggalService || '';
         const kmPasang     = kej.kilometer_pasang !== undefined ? kej.kilometer_pasang : (rsaKilometer || '');
 
-        fieldsHtml = `
-            <!-- Row 1: Nama Part + Kategori -->
+        // ── EDIT MODE: Hidden fields + hanya Biaya, Tgl Pasang, dan Tanggal Service yang editable ──
+        if (isEditMode) {
+            fieldsHtml = `
+                <!-- Hidden inputs untuk semua field yang tidak boleh diubah -->
+                <input type="hidden" name="kejadians[${idx}][nama_kejadian]" value="${(kej.nama_kejadian || kej.nama_part || '').replace(/"/g, '&quot;')}">
+                <input type="hidden" name="kejadians[${idx}][category_id]" value="${kej.category_id || ''}">
+                <input type="hidden" name="kejadians[${idx}][posisi]" value="${(kej.posisi || '').replace(/"/g, '&quot;')}">
+                <input type="hidden" name="kejadians[${idx}][part_number]" value="${(kej.part_number || '').replace(/"/g, '&quot;')}">
+                <input type="hidden" name="kejadians[${idx}][serial_number]" value="${(kej.serial_number || '').replace(/"/g, '&quot;')}">
+                <input type="hidden" name="kejadians[${idx}][supplier_id]" value="${kej.supplier_id || ''}">
+                <input type="hidden" name="kejadians[${idx}][kondisi]" value="${kej.kondisi || ''}">
+                <input type="hidden" name="kejadians[${idx}][kilometer_pasang]" value="${kmPasang}">
+                <input type="hidden" name="kejadians[${idx}][nama_bank]" value="${(kej.nama_bank || '').replace(/"/g, '&quot;')}">
+                <input type="hidden" name="kejadians[${idx}][no_rekening]" value="${(kej.no_rekening || '').replace(/"/g, '&quot;')}">
+                <input type="hidden" name="kejadians[${idx}][nama_rekening]" value="${(kej.nama_rekening || '').replace(/"/g, '&quot;')}">
+                <input type="hidden" name="kejadians[${idx}][keterangan]" value="${(kej.keterangan || '').replace(/"/g, '&quot;')}">
+                
+                <!-- Info box saat edit mode (hanya tampilkan di part pertama) -->
+                ${idx === 0 ? `
+                <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-3">
+                    <p class="text-xs text-blue-600 font-semibold mb-1"><i class="fa fa-info-circle"></i> Mode Edit — Ajukan Ulang</p>
+                    <p class="text-xs text-gray-600">Hanya <strong>Tanggal Service</strong>, <strong>Biaya</strong>, dan <strong>Tanggal Pasang</strong> yang dapat diubah. Data lainnya tetap sesuai pengajuan sebelumnya.</p>
+                </div>
+                ` : ''}
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp) <span class="text-red-400">*</span></label>
+                        <input type="number" name="kejadians[${idx}][biaya]" min="0" required
+                            value="${kej.biaya || 0}"
+                            onchange="updateRsaTotalBiaya()" oninput="updateRsaTotalBiaya()"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1 block">Tgl Pasang <span class="text-red-400">*</span></label>
+                        <input type="date" name="kejadians[${idx}][tgl_pasang]" required
+                            value="${tglPasang}"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                    </div>
+                </div>
+            `;
+        } else {
+            // ── CREATE MODE: Full editable fields ──────────────────────────
+            fieldsHtml = `
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Part <span class="text-red-400">*</span></label>
@@ -3681,9 +4113,53 @@ function renderRsaKejadian(container, idx, kej) {
                 <div id="rsa-lampiran-list-${idx}" class="mt-1 space-y-1"></div>
             </div>
         `;
+        }
     } else {
-        // Service Asuransi: Simple fields
-        fieldsHtml = `
+        // ── Service Asuransi ──────────────────────────────────────────────
+        // EDIT MODE: Hidden Nama Kejadian, hanya Biaya & Tanggal yang editable
+        if (isEditMode) {
+            fieldsHtml = `
+                <input type="hidden" name="kejadians[${idx}][id]" value="${kej.id || kej.service_kejadian_id || ''}">
+                <input type="hidden" name="kejadians[${idx}][nama_kejadian]" value="${(kej.nama_kejadian || '').replace(/"/g, '&quot;')}">
+                
+                <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-3">
+                    <p class="text-xs text-blue-600 font-semibold mb-1"><i class="fa fa-info-circle"></i> Mode Edit — Ajukan Ulang</p>
+                    <p class="text-xs text-gray-600">Hanya <strong>Biaya</strong> dan <strong>Tanggal</strong> yang dapat diubah. Data lainnya tetap sesuai pengajuan sebelumnya.</p>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1 block">Biaya (Rp) <span class="text-red-400">*</span></label>
+                        <input type="number" name="kejadians[${idx}][biaya]" min="0" value="${kej.biaya || 0}" required
+                            onchange="updateRsaTotalBiaya()" oninput="updateRsaTotalBiaya()"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1 block">Tanggal Service</label>
+                        <input type="date" name="kejadians[${idx}][tanggal_service]"
+                            value="${kej.tanggal_service || ''}"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Mulai</label>
+                        <input type="date" name="kejadians[${idx}][periode_mulai]"
+                            value="${kej.periode_mulai || ''}"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1 block">Periode Selesai</label>
+                        <input type="date" name="kejadians[${idx}][periode_selesai]"
+                            value="${kej.periode_selesai || ''}"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                    </div>
+                </div>
+            `;
+        } else {
+            // CREATE MODE: Nama Kejadian editable
+            fieldsHtml = `
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="text-xs font-semibold text-gray-500 mb-1 block">Nama Kejadian <span class="text-red-400">*</span></label>
@@ -3722,16 +4198,22 @@ function renderRsaKejadian(container, idx, kej) {
                 </div>
             </div>
         `;
+        }
     }
+
+    // ── Hide delete button in edit mode ───────────────────────────────
+    const deleteButton = isEditMode ? '' : `
+        <button type="button" onclick="removeRsaKejadian(${idx})"
+            class="w-6 h-6 rounded-lg bg-red-100 text-red-500 hover:bg-red-200 flex items-center justify-center text-xs">
+            <i class="fa fa-times"></i>
+        </button>
+    `;
 
     div.innerHTML = `
         ${hiddenLampiranInputs}
         <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-gray-600">${_rsaIsServiceIncident ? 'Part' : 'Kejadian'} #${idx + 1}</span>
-            <button type="button" onclick="removeRsaKejadian(${idx})"
-                class="w-6 h-6 rounded-lg bg-red-100 text-red-500 hover:bg-red-200 flex items-center justify-center text-xs">
-                <i class="fa fa-times"></i>
-            </button>
+            ${deleteButton}
         </div>
         ${fieldsHtml}
         ${lampiranLama.length ? `
@@ -3763,6 +4245,58 @@ function updateRsaTotalBiaya() {
     const el = document.getElementById('rsaTotalBiaya');
     if (el) el.textContent = 'Rp ' + total.toLocaleString('id-ID');
 }
+
+// Function to auto-calculate KIR Masa Berlaku (+6 months from Tanggal Bayar)
+function updateRsfMasaBerlaku() {
+    const tanggalBayar = document.getElementById('rsf_tanggal_bayar');
+    const masaBerlaku = document.getElementById('rsf_masa_berlaku');
+    
+    if (!tanggalBayar || !masaBerlaku || !tanggalBayar.value) return;
+    
+    // Parse the input date
+    const date = new Date(tanggalBayar.value);
+    
+    // Add 6 months
+    date.setMonth(date.getMonth() + 6);
+    
+    // Format as YYYY-MM-DD for date input
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    masaBerlaku.value = `${year}-${month}-${day}`;
+}
+
+// ── AUTO-INITIALIZE: Calculate readonly fields on page load (for Laravel old() values) ──
+// Sama seperti form KIR/Pajak/Asuransi asli yang punya IIFE untuk handle old() values
+(function() {
+    // Pajak: Jatuh Tempo = Tanggal Bayar + 1 tahun
+    const pajakTanggalBayar = document.getElementById('rsf_tanggal_bayar');
+    const pajakJatuhTempo = document.getElementById('rsf_jatuh_tempo');
+    if (pajakTanggalBayar && pajakJatuhTempo && pajakTanggalBayar.value && !pajakJatuhTempo.value) {
+        const d = new Date(pajakTanggalBayar.value);
+        d.setFullYear(d.getFullYear() + 1);
+        pajakJatuhTempo.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    
+    // Asuransi: Tgl Berakhir = Tgl Mulai + 1 tahun
+    const asuransiTglMulai = document.getElementById('rsf_tgl_mulai');
+    const asuransiTglBerakhir = document.getElementById('rsf_tgl_berakhir');
+    if (asuransiTglMulai && asuransiTglBerakhir && asuransiTglMulai.value && !asuransiTglBerakhir.value) {
+        const d = new Date(asuransiTglMulai.value);
+        d.setFullYear(d.getFullYear() + 1);
+        asuransiTglBerakhir.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    
+    // KIR: Masa Berlaku = Tanggal Bayar + 6 bulan
+    const kirTanggalBayar = document.getElementById('rsf_tanggal_bayar');
+    const kirMasaBerlaku = document.getElementById('rsf_masa_berlaku');
+    if (kirTanggalBayar && kirMasaBerlaku && kirTanggalBayar.value && !kirMasaBerlaku.value) {
+        const d = new Date(kirTanggalBayar.value);
+        d.setMonth(d.getMonth() + 6);
+        kirMasaBerlaku.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+})();
 
 function updateRsaLampiranList(idx, input) {
     const list = document.getElementById('rsa-lampiran-list-' + idx);
@@ -4019,7 +4553,15 @@ async function approveStnk(poId, poNumber) {
                 @csrf
                 <input type="hidden" name="kendaraan_id"    id="rsa_kendaraan_id">
                 <input type="hidden" name="nama_asuransi"   id="rsa_nama_asuransi">
-                <input type="hidden" name="tanggal_service" id="rsa_tanggal_service">
+                
+                {{-- Tanggal Service: Hidden untuk Service Asuransi, Visible untuk Service Incident edit mode --}}
+                <div id="rsa_tanggal_service_wrapper" class="hidden">
+                    <label class="text-xs font-semibold text-gray-600 mb-1.5 block">Tanggal Service <span class="text-red-500">*</span></label>
+                    <input type="date" name="tanggal_service" id="rsa_tanggal_service" 
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
+                </div>
+                <input type="hidden" name="tanggal_service" id="rsa_tanggal_service_hidden">
+                
                 <input type="hidden" name="periode_mulai"   id="rsa_periode_mulai">
                 <input type="hidden" name="periode_selesai" id="rsa_periode_selesai">
                 <input type="hidden" name="kilometer"       id="rsa_kilometer">

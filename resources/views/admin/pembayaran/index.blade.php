@@ -932,18 +932,16 @@
                                                     @endphp
                                                     
                                                     {{-- Header info kendaraan Pajak --}}
-                                                    <div class="px-4 py-3 grid grid-cols-3 gap-4 bg-purple-50/50 border-b border-purple-100 text-xs">
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
-                                                            <p class="font-semibold text-gray-800">{{ $kend ? $kend->nopol . ' — ' . $kend->merk : '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jenis Pajak</p>
-                                                            <p class="text-gray-700">{{ $sd['jenis_pajak'] ?? '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jatuh Tempo</p>
-                                                            <p class="text-gray-700">{{ isset($sd['jatuh_tempo']) ? \Carbon\Carbon::parse($sd['jatuh_tempo'])->format('d M Y') : '-' }}</p>
+                                                    <div class="px-4 py-3 bg-purple-50/50 border-b border-purple-100 text-xs">
+                                                        <div class="flex items-center gap-6">
+                                                            <div>
+                                                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                                <p class="font-semibold text-gray-800">{{ $kend ? $kend->nopol . ' — ' . $kend->merk : '-' }}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tanggal Pembayaran</p>
+                                                                <p class="text-gray-700">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}</p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     
@@ -954,9 +952,9 @@
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Pajak</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jatuh Tempo</th>
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Bank</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-center px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nominal</th>
                                                             </tr>
@@ -966,9 +964,9 @@
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['jenis_pajak'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['jatuh_tempo']) ? \Carbon\Carbon::parse($sd['jatuh_tempo'])->format('d M Y') : '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? $sd['nama_pemilik'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 font-mono text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? $sd['nama_pemilik'] ?? '-' }}</td>
                                                                 
                                                                 {{-- Kolom Lampiran --}}
                                                                 <td class="px-4 py-2 text-center">
@@ -1017,18 +1015,16 @@
                                                     @endphp
                                                     
                                                     {{-- Header info kendaraan Asuransi --}}
-                                                    <div class="px-4 py-3 grid grid-cols-3 gap-4 bg-blue-50/50 border-b border-blue-100 text-xs">
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
-                                                            <p class="font-semibold text-gray-800">{{ $kend ? $kend->nopol . ' — ' . $kend->merk : '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Mulai</p>
-                                                            <p class="text-gray-700">{{ isset($sd['tgl_mulai']) ? \Carbon\Carbon::parse($sd['tgl_mulai'])->format('d M Y') : '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Berakhir</p>
-                                                            <p class="text-gray-700">{{ isset($sd['tgl_berakhir']) ? \Carbon\Carbon::parse($sd['tgl_berakhir'])->format('d M Y') : '-' }}</p>
+                                                    <div class="px-4 py-3 bg-blue-50/50 border-b border-blue-100 text-xs">
+                                                        <div class="flex items-center gap-6">
+                                                            <div>
+                                                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                                <p class="font-semibold text-gray-800">{{ $kend ? $kend->nopol . ' — ' . $kend->merk : '-' }}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tanggal Pembayaran</p>
+                                                                <p class="text-gray-700">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}</p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     
@@ -1038,9 +1034,11 @@
                                                             <tr class="bg-gray-50 border-b border-gray-100">
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Perusahaan Asuransi</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Asuransi</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
-                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Mulai</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Berakhir</th>
                                                                 <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Bank</th>
+                                                                <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nominal</th>
                                                             </tr>
@@ -1049,9 +1047,11 @@
                                                             <tr class="border-t border-gray-50">
                                                                 <td class="px-3 py-2 text-gray-700">{{ $asr->nama_asuransi ?? '-' }}</td>
                                                                 <td class="px-3 py-2 text-gray-700">{{ $jAsr->nama_jenis ?? '-' }}</td>
+                                                                <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['tgl_mulai']) ? \Carbon\Carbon::parse($sd['tgl_mulai'])->format('d M Y') : '-' }}</td>
+                                                                <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['tgl_berakhir']) ? \Carbon\Carbon::parse($sd['tgl_berakhir'])->format('d M Y') : '-' }}</td>
+                                                                <td class="px-3 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? $sd['nama_pemilik'] ?? '-' }}</td>
                                                                 <td class="px-3 py-2 text-gray-700">{{ $sd['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-3 py-2 font-mono text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
-                                                                <td class="px-3 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? $sd['nama_pemilik'] ?? '-' }}</td>
                                                                 
                                                                 {{-- Kolom Lampiran --}}
                                                                 <td class="px-3 py-2 text-center">
@@ -1098,18 +1098,16 @@
                                                     @endphp
                                                     
                                                     {{-- Header info kendaraan KIR --}}
-                                                    <div class="px-4 py-3 grid grid-cols-3 gap-4 bg-teal-50/50 border-b border-teal-100 text-xs">
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
-                                                            <p class="font-semibold text-gray-800">{{ $kend ? $kend->nopol . ' — ' . $kend->merk : '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jenis Uji</p>
-                                                            <p class="text-gray-700">{{ $sd['status'] ?? '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Masa Berlaku</p>
-                                                            <p class="text-gray-700">{{ isset($sd['masa_berlaku']) ? \Carbon\Carbon::parse($sd['masa_berlaku'])->format('d M Y') : '-' }}</p>
+                                                    <div class="px-4 py-3 bg-teal-50/50 border-b border-teal-100 text-xs">
+                                                        <div class="flex items-center gap-6">
+                                                            <div>
+                                                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                                <p class="font-semibold text-gray-800">{{ $kend ? $kend->nopol . ' — ' . $kend->merk : '-' }}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tanggal Pembayaran</p>
+                                                                <p class="text-gray-700">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}</p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     
@@ -1118,15 +1116,17 @@
                                                         <thead>
                                                             <tr class="bg-gray-50 border-b border-gray-100">
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. KIR</th>
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Jenis Uji</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No KTP</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama KTP</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lokasi Uji</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Tgl Bayar</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Masa Berlaku</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Penguji</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Status Uji</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No Uji</th>
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
-                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Bank</th>
+                                                                <th class="text-left px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                 <th class="text-center px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                 <th class="text-right px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
                                                             </tr>
@@ -1134,15 +1134,17 @@
                                                         <tbody>
                                                             <tr class="border-t border-gray-50">
                                                                 <td class="px-4 py-2 font-mono text-gray-700">{{ $sd['no_kir'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['status'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 font-mono text-gray-700">{{ $sd['no_ktp'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_ktp'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['lokasi_uji'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ isset($sd['masa_berlaku']) ? \Carbon\Carbon::parse($sd['masa_berlaku'])->format('d M Y') : '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_penguji'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['penguji'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['status_uji'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['no_uji'] ?? '-' }}</td>
+                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? $sd['nama_pemilik'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-700">{{ $sd['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 font-mono text-gray-700">{{ $sd['no_rekening'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-700">{{ $sd['nama_rekening'] ?? $sd['nama_pemilik'] ?? '-' }}</td>
                                                                 
                                                                 {{-- Kolom Lampiran --}}
                                                                 <td class="px-4 py-2 text-center">
@@ -1230,18 +1232,16 @@
                                                         $totalFiltered = collect($filteredGpsItems)->sum(fn($g) => $g['biaya_sewa'] ?? 0);
                                                     @endphp
                                                     {{-- Header info kendaraan GPS --}}
-                                                    <div class="px-4 py-3 grid grid-cols-3 gap-4 bg-green-50/50 border-b border-green-100 text-xs">
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
-                                                            <p class="font-semibold text-gray-800">{{ $kend ? $kend->nopol . ' — ' . $kend->merk : '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Bayar</p>
-                                                            <p class="text-gray-700">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Berlaku s/d</p>
-                                                            <p class="text-gray-700">{{ isset($sd['tanggal_habis']) ? \Carbon\Carbon::parse($sd['tanggal_habis'])->format('d M Y') : '-' }}</p>
+                                                    <div class="px-4 py-3 bg-green-50/50 border-b border-green-100 text-xs">
+                                                        <div class="flex items-center gap-6">
+                                                            <div>
+                                                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Kendaraan</p>
+                                                                <p class="font-semibold text-gray-800">{{ $kend ? $kend->nopol . ' — ' . $kend->merk : '-' }}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tanggal Pembayaran</p>
+                                                                <p class="text-gray-700">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : '-' }}</p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     @if(count($filteredGpsItems) > 0)
@@ -1253,9 +1253,9 @@
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Type GPS</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Tgl Bayar</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Berlaku s/d</th>
-                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Bank</th>
-                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Pemilik Rekening</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">Nama Bank</th>
+                                                                <th class="text-left px-4 py-2 font-semibold text-gray-500">No. Rekening</th>
                                                                 <th class="text-left px-4 py-2 font-semibold text-gray-500">Lampiran</th>
                                                                 <th class="text-right px-4 py-2 font-semibold text-gray-500">Biaya Sewa</th>
                                                                 @if($itemDecMap->isNotEmpty())
@@ -1289,9 +1289,9 @@
                                                                 <td class="px-4 py-2 text-gray-600">
                                                                     {{ isset($sd['tanggal_habis']) ? \Carbon\Carbon::parse($sd['tanggal_habis'])->format('d M Y') : '-' }}
                                                                 </td>
+                                                                <td class="px-4 py-2 text-gray-600">{{ $gitem['nama_pemilik'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-600">{{ $gitem['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 font-mono text-gray-600">{{ $gitem['no_rekening'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-600">{{ $gitem['nama_pemilik'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2">
                                                                     @php
                                                                         $gpsLamp = $sd['temp_files']['gps_items'][$gi]['lampiran'] ?? [];
@@ -1363,18 +1363,16 @@
                                                         $spTotal = collect($filteredParts)->sum(fn($p) => $p['biaya'] ?? 0);
                                                     @endphp
                                                     {{-- Header info kendaraan, tgl service, km --}}
-                                                    <div class="px-4 py-3 grid grid-cols-3 gap-3 bg-orange-50/40 border-b border-orange-100 text-xs">
-                                                        <div>
-                                                            <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Kendaraan</p>
-                                                            <p class="font-semibold text-gray-800">{{ $spKendaraan ? $spKendaraan->nopol . ' — ' . $spKendaraan->merk : '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Tgl Service</p>
-                                                            <p class="text-gray-700">{{ isset($sd['tanggal_service']) ? \Carbon\Carbon::parse($sd['tanggal_service'])->format('d M Y') : '-' }}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">KM / Keluhan</p>
-                                                            <p class="text-gray-700">{{ ($sd['kilometer'] ?? '-') . ($sd['keluhan'] ? ' — ' . \Illuminate\Support\Str::limit($sd['keluhan'], 25) : '') }}</p>
+                                                    <div class="px-4 py-3 bg-orange-50/40 border-b border-orange-100 text-xs">
+                                                        <div class="flex items-center gap-6">
+                                                            <div>
+                                                                <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Kendaraan</p>
+                                                                <p class="font-semibold text-gray-800">{{ $spKendaraan ? $spKendaraan->nopol . ' — ' . $spKendaraan->merk : '-' }}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Tanggal Pembayaran</p>
+                                                                <p class="text-gray-700">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : (isset($sd['tanggal_service']) ? \Carbon\Carbon::parse($sd['tanggal_service'])->format('d M Y') : '-') }}</p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     @if(count($filteredParts) > 0)
@@ -1508,8 +1506,9 @@
                                                                                 }
                                                                             }
 
-                                                                            // 2. Jangka Waktu
-                                                                            if (!empty($snap['limit_interval_label'])) {
+                                                                            // 2. Jangka Waktu - HANYA TAMPIL JIKA ADA LIMIT LAIN
+                                                                            $hasOtherLimit = !empty($snap['limit_biaya']) || !empty($snap['limit_km_target']) || !empty($snap['limit_jumlah']);
+                                                                            if (!empty($snap['limit_interval_label']) && $hasOtherLimit) {
                                                                                 if (!empty($snap['tanggal_lewat'])) {
                                                                                     $ketDimensi[] = ['label' => 'Sudah melebihi batas limit jangka waktu', 'color' => 'bg-red-100 text-red-700'];
                                                                                 } elseif (!empty($snap['tanggal_sama'])) {
@@ -1548,23 +1547,25 @@
                                                                                 }
                                                                             }
 
-                                                                            // Jika tidak ada dimensi limit sama sekali, tampilkan "Belum mencapai limit"
-                                                                            if (empty($ketDimensi)) {
-                                                                                $ketDimensi[] = ['label' => 'Belum mencapai limit', 'color' => 'bg-green-100 text-green-700'];
-                                                                            }
+                                                                            // Jika tidak ada dimensi limit sama sekali, tampilkan "-"
+                                                                            // (tidak menampilkan apapun jika tidak ada limit yang dikonfigurasi)
                                                                         @endphp
+                                                                        @if(!empty($ketDimensi))
                                                                         <div class="flex flex-col gap-0.5">
                                                                             @foreach($ketDimensi as $dim)
                                                                                 <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium {{ $dim['color'] }}">{{ $dim['label'] }}</span>
                                                                             @endforeach
                                                                         </div>
+                                                                        @else
+                                                                            <span class="text-gray-300">—</span>
+                                                                        @endif
                                                                     @else
                                                                         <span class="text-gray-300">—</span>
                                                                     @endif
                                                                 </td>
+                                                                <td class="px-4 py-2 text-gray-600">{{ $spart['nama_rekening'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 text-gray-600">{{ $spart['nama_bank'] ?? '-' }}</td>
                                                                 <td class="px-4 py-2 font-mono text-gray-600">{{ $spart['no_rekening'] ?? '-' }}</td>
-                                                                <td class="px-4 py-2 text-gray-600">{{ $spart['nama_rekening'] ?? '-' }}</td>
 
                                                                 {{-- Kolom LAMPIRAN: dari input part (temp_files) --}}
                                                                 <td class="px-4 py-2">
@@ -1678,25 +1679,15 @@
                                                     @endphp
                                                     <div class="px-4 py-3">
                                                         {{-- Info header --}}
-                                                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 text-xs">
+                                                        <div class="flex items-center gap-6 mb-3 text-xs">
                                                             <div>
                                                                 <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Kendaraan</p>
                                                                 <p class="font-semibold text-gray-800">{{ $saKend ? $saKend->nopol . ' — ' . $saKend->merk : '-' }}</p>
                                                             </div>
                                                             <div>
-                                                                <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Nama Asuransi</p>
-                                                                <p class="text-gray-700">{{ $sd['nama_asuransi'] ?? '-' }}</p>
+                                                                <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Tanggal Pembayaran</p>
+                                                                <p class="text-gray-700">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : (isset($sd['tanggal_service']) ? \Carbon\Carbon::parse($sd['tanggal_service'])->format('d M Y') : '-') }}</p>
                                                             </div>
-                                                            <div>
-                                                                <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Tgl Service</p>
-                                                                <p class="text-gray-700">{{ isset($sd['tanggal_service']) ? \Carbon\Carbon::parse($sd['tanggal_service'])->format('d M Y') : '-' }}</p>
-                                                            </div>
-                                                            @if($saKeterangan)
-                                                            <div>
-                                                                <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Keterangan</p>
-                                                                <p class="font-mono text-[11px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">{{ $saKeterangan }}</p>
-                                                            </div>
-                                                            @endif
                                                         </div>
 
                                                         {{-- Lampiran dari temp_files --}}
@@ -1769,9 +1760,6 @@
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">PR Number</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Kejadian</th>
-                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
-                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
-                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
                                                                         <th class="text-center px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                         <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
                                                                         @if($saDecMap->isNotEmpty())
@@ -1791,9 +1779,6 @@
                                                                             <span class="font-mono text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{{ $_saPrNum }}</span>
                                                                         </td>
                                                                         <td class="px-3 py-2 font-semibold text-gray-800">{{ $saKj['nama_kejadian'] ?? '-' }}</td>
-                                                                        <td class="px-3 py-2 text-gray-600">{{ $saKj['nama_bank'] ?? $sd['nama_bank'] ?? '-' }}</td>
-                                                                        <td class="px-3 py-2 font-mono text-gray-600">{{ $saKj['no_rekening'] ?? $sd['no_rekening'] ?? '-' }}</td>
-                                                                        <td class="px-3 py-2 text-gray-600">{{ $saKj['nama_pemilik'] ?? $saKj['nama_rekening'] ?? $sd['nama_rekening'] ?? $sd['nama_pemilik'] ?? '-' }}</td>
                                                                         <td class="px-3 py-2 text-center">
                                                                             @php $saKjLamp = $saKj['lampiran'] ?? []; @endphp
                                                                             @if(!empty($saKjLamp))
@@ -1907,26 +1892,24 @@
                                                     @endphp
                                                     <div class="px-4 py-3">
                                                         {{-- Info header --}}
-                                                        <div class="grid grid-cols-4 gap-3 mb-3 text-xs">
+                                                        <div class="flex items-center gap-6 mb-3 text-xs">
                                                             <div>
                                                                 <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Kendaraan</p>
                                                                 <p class="font-semibold text-gray-800">{{ $siKend ? $siKend->nopol . ' — ' . $siKend->merk : '-' }}</p>
                                                             </div>
                                                             <div>
-                                                                <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Tgl Service</p>
-                                                                <p class="text-gray-700">{{ isset($sd['tanggal_service']) ? \Carbon\Carbon::parse($sd['tanggal_service'])->format('d M Y') : '-' }}</p>
+                                                                <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Tanggal Pembayaran</p>
+                                                                <p class="text-gray-700">{{ isset($sd['tanggal_bayar']) ? \Carbon\Carbon::parse($sd['tanggal_bayar'])->format('d M Y') : (isset($sd['tanggal_service']) ? \Carbon\Carbon::parse($sd['tanggal_service'])->format('d M Y') : '-') }}</p>
                                                             </div>
-                                                            <div>
-                                                                <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">KM / Keluhan</p>
-                                                                <p class="text-gray-700">{{ $sd['kilometer'] ?? '-' }}{{ isset($sd['keluhan']) ? ' — ' . Str::limit($sd['keluhan'], 25) : '' }}</p>
-                                                            </div>
-                                                            @if($siKeterangan)
-                                                            <div>
-                                                                <p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Keterangan</p>
-                                                                <p class="font-mono text-[11px] text-red-700 bg-red-50 px-1.5 py-0.5 rounded">{{ $siKeterangan }}</p>
-                                                            </div>
-                                                            @endif
                                                         </div>
+
+                                                        {{-- Keluhan (full width) --}}
+                                                        @if(!empty($sd['keluhan']))
+                                                        <div class="mb-3 pb-3 border-b border-red-100">
+                                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Keluhan</p>
+                                                            <p class="text-gray-700 text-sm">{{ $sd['keluhan'] }}</p>
+                                                        </div>
+                                                        @endif
 
                                                         {{-- Tabel parts (lampiran & bukti per item) --}}
                                                         @if(!empty($siParts))
@@ -1937,10 +1920,13 @@
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">#</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">PR Number</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Part</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Posisi</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Serial Number</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Kategori</th>
-                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bank</th>
-                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Supplier</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Pemilik Rekening</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Nama Bank</th>
+                                                                        <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">No. Rekening</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Lampiran</th>
                                                                         <th class="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Bukti</th>
                                                                         <th class="text-right px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Biaya</th>
@@ -1968,6 +1954,19 @@
                                                                             <span class="font-mono text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{{ $_siPrNum }}</span>
                                                                         </td>
                                                                         <td class="px-3 py-2 font-semibold text-gray-800">{{ $siPart['nama_part'] ?? '-' }}</td>
+
+                                                                        {{-- Posisi --}}
+                                                                        <td class="px-3 py-2 text-gray-600">{{ $siPart['posisi'] ?? '-' }}</td>
+
+                                                                        {{-- Serial Number --}}
+                                                                        <td class="px-3 py-2">
+                                                                            @if(!empty($siPart['serial_number']))
+                                                                                <span class="font-mono text-[11px] text-gray-700">{{ $siPart['serial_number'] }}</span>
+                                                                            @else
+                                                                                <span class="text-gray-300 text-[10px]">—</span>
+                                                                            @endif
+                                                                        </td>
+
                                                                         <td class="px-3 py-2">
                                                                             @if($siCat)
                                                                                 <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{{ $siCat->nama }}</span>
@@ -1977,9 +1976,15 @@
                                                                                 <span class="text-gray-400">—</span>
                                                                             @endif
                                                                         </td>
+                                                                        <td class="px-3 py-2 text-gray-600">
+                                                                            @php
+                                                                                $siSupplier = isset($siPart['supplier_id']) ? \App\Models\Supplier::find($siPart['supplier_id']) : null;
+                                                                            @endphp
+                                                                            {{ $siSupplier?->nama_supplier ?? '-' }}
+                                                                        </td>
+                                                                        <td class="px-3 py-2 text-gray-600">{{ $siPart['nama_rekening'] ?? $siPart['nama_pemilik'] ?? '-' }}</td>
                                                                         <td class="px-3 py-2 text-gray-600">{{ $siPart['nama_bank'] ?? '-' }}</td>
                                                                         <td class="px-3 py-2 font-mono text-gray-600">{{ $siPart['no_rekening'] ?? '-' }}</td>
-                                                                        <td class="px-3 py-2 text-gray-600">{{ $siPart['nama_rekening'] ?? $siPart['nama_pemilik'] ?? '-' }}</td>
 
                                                                         {{-- Kolom LAMPIRAN: file yang diupload saat buat service incident --}}
                                                                         <td class="px-3 py-2">
@@ -3209,6 +3214,7 @@ function populateDetailModal(pr, activeTab) {
                 // Asuransi: Grid khusus dengan Perusahaan & Jenis Asuransi
                 if (p.perusahaan_asuransi) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Perusahaan</p><p class="text-gray-700">' + p.perusahaan_asuransi + '</p></div>';
                 if (p.jenis_asuransi) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Jenis Asuransi</p><p class="text-gray-700">' + p.jenis_asuransi + '</p></div>';
+                if (p.tgl_mulai) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Mulai</p><p class="text-gray-700">' + p.tgl_mulai + '</p></div>';
             } else {
                 // Pajak/KIR
                 if (p.tanggal_bayar) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + p.tanggal_bayar + '</p></div>';
@@ -3216,9 +3222,10 @@ function populateDetailModal(pr, activeTab) {
             }
             html += '</div>';
             
-            // ── Grid baris ke-2 untuk Asuransi: No Polis, Tgl Bayar, Masa Berlaku ──
-            if (isAsuransiKendaraan && (p.no_polis || p.tanggal_bayar || p.masa_berlaku)) {
+            // ── Grid baris ke-2 untuk Asuransi: Tgl Berakhir, Tgl Bayar, Masa Berlaku ──
+            if (isAsuransiKendaraan && (p.tgl_berakhir || p.no_polis || p.tanggal_bayar || p.masa_berlaku)) {
                 html += '<div class="grid grid-cols-3 gap-4 text-xs mt-2">';
+                if (p.tgl_berakhir) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Berakhir</p><p class="text-gray-700">' + p.tgl_berakhir + '</p></div>';
                 if (p.no_polis) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">No. Polis</p><p class="text-gray-700">' + p.no_polis + '</p></div>';
                 if (p.tanggal_bayar) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Tgl Bayar</p><p class="text-gray-700">' + p.tanggal_bayar + '</p></div>';
                 if (p.masa_berlaku) html += '<div><p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Masa Berlaku</p><p class="text-gray-700">' + p.masa_berlaku + '</p></div>';
@@ -3258,8 +3265,9 @@ function populateDetailModal(pr, activeTab) {
         const totalDisplay = visibleTotal > 0
             ? visibleTotal.toLocaleString('id-ID')
             : pr.total_nominal_formatted;
-        html += '<div class="border border-gray-100 rounded-xl overflow-hidden">'
-            + '<div class="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">'
+        
+        // Header section
+        html += '<div class="mb-3 flex items-center justify-between">'
             + '<p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Detail Items (' + items.length + ')</p>'
             + '<p class="text-sm font-bold ' + (isTabRejected ? 'text-red-500' : 'text-emerald-600') + '">Total: Rp ' + totalDisplay + '</p>'
             + '</div>';
@@ -3269,30 +3277,162 @@ function populateDetailModal(pr, activeTab) {
             const lampiranArr = item.lampiran || [];
             const bukti = item.bukti || null;
             const hasFiles = lampiranArr.length > 0 || bukti;
+            const itemBiaya = parseInt((item.subtotal || '').toString().replace(/\D/g,'')) || 0;
 
-            html += '<div class="px-4 py-3' + (idx > 0 ? ' border-t border-gray-100' : '') + '">'
-                // Row atas: nama + harga
-                + '<div class="flex items-start justify-between gap-2 mb-2">'
-                + '<div class="flex-1 min-w-0">'
-                + '<div class="flex items-center gap-1.5 flex-wrap">';
-            if (item.kategori) html += '<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">' + item.kategori + '</span>';
+            // Detect service type untuk conditional rendering
+            const isServiceAsr = pr.source_type === 'service_asuransi';
+            const isServicePart = pr.source_type === 'service_part';
+            const isServiceIncident = pr.source_type === 'service_incident';
+
+            // Biaya color & card style sesuai status
+            let biayaColor = 'text-emerald-600';
+            let cardBorderColor = 'border-gray-200';
+            let cardBgColor = 'bg-white';
+            if (item.status_item === 'rejected') {
+                biayaColor = 'text-red-500';
+                cardBorderColor = 'border-red-200';
+                cardBgColor = 'bg-red-50/30';
+            } else if (item.status_item === 'pending' || !item.status_item) {
+                biayaColor = 'text-yellow-600';
+                cardBorderColor = 'border-yellow-200';
+                cardBgColor = 'bg-yellow-50/30';
+            } else if (item.status_item === 'approved') {
+                cardBorderColor = 'border-green-200';
+                cardBgColor = 'bg-green-50/30';
+            }
+            if (isTabRejected) biayaColor = 'text-red-500';
+
+            // Card wrapper
+            html += '<div class="' + (idx > 0 ? 'mt-3' : '') + ' border ' + cardBorderColor + ' rounded-xl overflow-hidden ' + cardBgColor + '">';
+            
+            // Header card: PR Number + Biaya
+            html += '<div class="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-2.5 border-b ' + cardBorderColor + ' flex items-center justify-between">';
+            
+            // Left: PR Number + Status
+            html += '<div class="flex items-center gap-2">';
+            if (item.pr_number) {
+                html += '<span class="text-[11px] font-mono font-bold px-2 py-1 rounded bg-purple-100 text-purple-700 border border-purple-200">' + item.pr_number + '</span>';
+            } else {
+                html += '<span class="text-[11px] font-semibold text-gray-500">Item #' + (idx + 1) + '</span>';
+            }
+            
+            // Badge status
+            if (item.status_item === 'approved') {
+                html += '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fa fa-check text-[8px]"></i> Disetujui</span>';
+            } else if (item.status_item === 'rejected') {
+                html += '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700"><i class="fa fa-times text-[8px]"></i> Ditolak</span>';
+            } else {
+                html += '<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700"><i class="fa fa-clock text-[8px]"></i> Pending</span>';
+            }
+            html += '</div>';
+            
+            // Right: Biaya
+            html += '<span class="text-sm font-bold ' + biayaColor + '">Rp ' + (item.subtotal_formatted || '0') + '</span>';
+            html += '</div>';
+
+            // Body card
+            html += '<div class="px-4 py-3">';
+            
+            // Grid info utama part
+            html += '<div class="grid grid-cols-2 gap-x-4 gap-y-3 mb-3 text-xs">';
+            
+            // Nama Part / Nama Kejadian (full width)
+            html += '<div class="col-span-2">';
+            const namaPartLabel = isServiceAsr ? 'Nama Kejadian' : 'Nama Part';
+            html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-1">' + namaPartLabel + '</p>';
+            html += '<div class="flex items-center gap-1.5 flex-wrap">';
+            if (item.kategori) {
+                html += '<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">' + item.kategori + '</span>';
+            }
             html += '<span class="text-sm font-semibold text-gray-800">' + (item.nama_barang || '-') + '</span>';
-            if (item.part_number) html += '<span class="font-mono text-gray-400 text-[10px]">(' + item.part_number + ')</span>';
-            if (item.kondisi)     html += '<span class="text-[10px] text-gray-400">· ' + item.kondisi + '</span>';
-            html += '</div>'
-                + (item.keterangan ? '<p class="text-[11px] text-gray-400 mt-0.5">' + item.keterangan + '</p>' : '')
-                + '</div>'
-                + '<span class="text-sm font-bold text-emerald-600 flex-shrink-0">Rp ' + (item.subtotal_formatted || '0') + '</span>'
-                + '</div>';
+            html += '</div></div>';
 
-            // ── Limit Snapshot (Service grid) ──────────────────────
-            const snap = item.limit_snapshot || null;
-            if (snap) {
-                html += '<div class="mt-1.5 mb-2 flex flex-col gap-0.5 text-[11px]">'
-                    + '<span class="' + (snap.biaya_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">Rp ' + Number(snap.service_biaya || 0).toLocaleString('id-ID') + '</span>'
-                    + '<span class="' + (snap.tanggal_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">' + (snap.service_tanggal || '—') + '</span>'
-                    + '<span class="' + (snap.km_lewat ? 'text-red-600 font-bold' : 'text-gray-700') + '">KM ' + Number(snap.service_km || 0).toLocaleString('id-ID') + '</span>'
-                    + '</div>';
+            // Part Number (TIDAK untuk Service Asuransi)
+            if (!isServiceAsr) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Part Number</p>';
+                html += '<p class="font-mono text-gray-700 text-sm">' + (item.part_number ? item.part_number : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Tanggal Service (HANYA untuk Service Asuransi)
+            if (isServiceAsr) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Tgl Service</p>';
+                html += '<p class="text-gray-700 text-sm">' + (item.tanggal_service ? item.tanggal_service : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Periode Mulai (HANYA untuk Service Asuransi)
+            if (isServiceAsr) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Periode Mulai</p>';
+                html += '<p class="text-gray-700 text-sm">' + (item.periode_mulai ? item.periode_mulai : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Periode Selesai (HANYA untuk Service Asuransi)
+            if (isServiceAsr) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Periode Selesai</p>';
+                html += '<p class="text-gray-700 text-sm">' + (item.periode_selesai ? item.periode_selesai : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Posisi (untuk Service Parts & Service Incident, TIDAK untuk Service Asuransi)
+            if (isServicePart || isServiceIncident) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Posisi</p>';
+                html += '<p class="text-blue-700 font-medium text-sm">' + (item.posisi && item.posisi !== '-' ? item.posisi : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Serial Number (untuk Service Parts & Service Incident, TIDAK untuk Service Asuransi)
+            if (isServicePart || isServiceIncident) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Serial Number</p>';
+                html += '<p class="font-mono text-gray-700 text-sm">' + (item.serial_number && item.serial_number !== '-' ? item.serial_number : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Tanggal Pasang (untuk Service Parts & Service Incident, TIDAK untuk Service Asuransi)
+            if (isServicePart || isServiceIncident) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Tgl Pasang</p>';
+                html += '<p class="text-gray-700 text-sm">' + (item.tanggal_pasang ? item.tanggal_pasang : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Biaya (menampilkan biaya item)
+            html += '<div>';
+            html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Biaya (Rp)</p>';
+            html += '<p class="font-bold text-emerald-600 text-sm">' + (item.subtotal_formatted || 'Rp 0') + '</p>';
+            html += '</div>';
+
+            // Supplier (untuk Service Parts & Service Incident, TIDAK untuk Service Asuransi)
+            if (isServicePart || isServiceIncident) {
+                html += '<div>';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Supplier</p>';
+                html += '<p class="text-gray-700 text-sm">' + (item.supplier && item.supplier !== '-' ? item.supplier : '-') + '</p>';
+                html += '</div>';
+            }
+
+            // Keterangan Limit (HANYA untuk Service Parts, TIDAK untuk Service Incident & Service Asuransi)
+            if (isServicePart) {
+                html += '<div class="col-span-2">';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Keterangan Limit</p>';
+                html += '<p class="text-gray-700 text-sm">' + (item.keterangan_limit && item.keterangan_limit !== '-' ? item.keterangan_limit : '-') + '</p>';
+                html += '</div>';
+            }
+
+            html += '</div>'; // Close grid
+            
+            // Keterangan
+            if (item.keterangan) {
+                html += '<div class="mb-3 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">';
+                html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Keterangan</p>';
+                html += '<p class="text-[11px] text-gray-700">' + item.keterangan + '</p>';
+                html += '</div>';
             }
 
             // ── Keterangan Limit badges ──────────────────────────────
@@ -3317,43 +3457,67 @@ function populateDetailModal(pr, activeTab) {
 
             // Info Supplier per item (jika ada)
             if (item.supplier) {
-                html += '<div class="flex items-center gap-1.5 text-[11px] text-gray-600 font-medium mb-1.5 px-1">'
-                    + '<i class="fa fa-store text-[9px] text-indigo-400"></i>' + item.supplier
-                    + '</div>';
+                html += '<div class="bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 mb-3">';
+                html += '<p class="text-[10px] font-semibold text-indigo-600 uppercase tracking-wide mb-0.5">Supplier</p>';
+                html += '<p class="text-sm font-medium text-gray-700">' + item.supplier + '</p>';
+                html += '</div>';
             }
 
             // Info Bank per item
             if (hasBank) {
-                html += '<div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 mb-2 px-1">'
-                    + '<span class="flex items-center gap-1"><i class="fa fa-building text-[9px] text-amber-500"></i>'
-                    + (item.nama_bank || '-') + '</span>'
-                    + '<span class="flex items-center gap-1"><i class="fa fa-credit-card text-[9px] text-amber-500"></i>'
-                    + (item.no_rekening || '-') + '</span>'
-                    + (item.nama_rekening ? '<span class="flex items-center gap-1"><i class="fa fa-user text-[9px] text-amber-500"></i>' + item.nama_rekening + '</span>' : '')
-                    + '</div>';
+                html += '<div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-3">';
+                html += '<p class="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-2"><i class="fa fa-building mr-1"></i> Informasi Bank</p>';
+                html += '<div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">';
+                
+                if (item.nama_rekening) {
+                    html += '<div>';
+                    html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Pemilik Rekening</p>';
+                    html += '<p class="font-medium text-gray-700">' + item.nama_rekening + '</p>';
+                    html += '</div>';
+                }
+                
+                if (item.nama_bank) {
+                    html += '<div>';
+                    html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">Nama Bank</p>';
+                    html += '<p class="font-medium text-gray-700">' + item.nama_bank + '</p>';
+                    html += '</div>';
+                }
+                
+                if (item.no_rekening) {
+                    html += '<div>';
+                    html += '<p class="text-[10px] text-gray-400 uppercase font-semibold mb-0.5">No. Rekening</p>';
+                    html += '<p class="font-mono font-medium text-gray-700">' + item.no_rekening + '</p>';
+                    html += '</div>';
+                }
+                
+                html += '</div></div>';
             }
 
             // Lampiran + Bukti per item
             if (hasFiles) {
+                html += '<div class="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">';
+                html += '<p class="text-[10px] font-semibold text-blue-600 uppercase tracking-wide mb-2"><i class="fa fa-paperclip mr-1"></i> Lampiran & Bukti</p>';
                 html += '<div class="flex flex-wrap gap-1.5">';
                 if (lampiranArr.length > 0) {
                     lampiranArr.forEach(function(f) {
-                        html += fileChip(f.url, f.name, 'bg-blue-50 border-blue-200 text-blue-700');
+                        html += fileChip(f.url, f.name, 'bg-white border-blue-300 text-blue-700');
                     });
                 }
                 if (bukti) {
-                    html += fileChip(bukti.url, bukti.name, 'bg-emerald-50 border-emerald-200 text-emerald-700');
+                    html += fileChip(bukti.url, bukti.name, 'bg-white border-emerald-300 text-emerald-700');
                 }
-                html += '</div>';
+                html += '</div></div>';
             }
-            html += '</div>';
+            
+            html += '</div>'; // Close card body
+            html += '</div>'; // Close card wrapper
         });
 
         // Total row
-        html += '<div class="border-t-2 border-gray-200 bg-gray-50 px-4 py-2.5 flex justify-end">'
-            // + '<span class="text-sm font-bold ' + (isTabRejected ? 'text-red-500' : 'text-emerald-600') + '">Rp ' + totalDisplay + '</span>'
+        html += '<div class="mt-3 bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 rounded-xl px-4 py-3 flex justify-between items-center">'
+            + '<span class="text-sm font-semibold text-gray-600">Total Keseluruhan</span>'
+            + '<span class="text-lg font-bold ' + (isTabRejected ? 'text-red-500' : 'text-emerald-600') + '">Rp ' + totalDisplay + '</span>'
             + '</div>';
-        html += '</div>';
 
     } else if (pr.barang_jasa) {
         html += '<div class="border border-gray-100 rounded-xl px-4 py-3">'

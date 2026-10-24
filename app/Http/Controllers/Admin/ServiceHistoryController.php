@@ -2018,8 +2018,24 @@ class ServiceHistoryController extends Controller
         $sisaPasang  = $jumlahAda ? ($limitJumlah - $aktifCount) : null; // bisa negatif
 
         // Tidak ada satu pun limit yang dikonfigurasi → "-"
-        $adaLimit = $hargaLimit || $intervalAda || $kmAda || $jumlahAda;
+        $adaLimit = $hargaLimit || $kmAda || $jumlahAda;
+        
+        // Debug log untuk troubleshooting
+        \Log::info('🔍 GenerateKeteranganLimit Debug', [
+            'category_id' => $limitRule ? $limitRule->category_id : null,
+            'kendaraan_id' => $limitRule ? $limitRule->kendaraan_id : null,
+            'hargaLimit' => $hargaLimit,
+            'kmLimit' => $kmLimit,
+            'kmAda' => $kmAda,
+            'jumlahAda' => $jumlahAda,
+            'intervalAda' => $intervalAda,
+            'intervalNilai' => $intervalNilai,
+            'adaLimit' => $adaLimit,
+            'RESULT' => $adaLimit ? 'WILL GENERATE' : 'RETURN "-"'
+        ]);
+        
         if (!$adaLimit) {
+            \Log::info('✅ Returning "-" because no limit configured');
             return '-';
         }
 
@@ -2033,8 +2049,8 @@ class ServiceHistoryController extends Controller
             else               $kalimat[] = 'Belum mencapai batas limit KM (sisa ' . number_format($sisaKm, 0, ',', '.') . ' km)';
         }
 
-        // Jangka waktu — status + sisa waktu jika belum lewat
-        if ($intervalAda) {
+        // Jangka waktu — hanya tampilkan jika ada limit lain yang aktif
+        if ($intervalAda && ($kmAda || $hargaLimit || $jumlahAda)) {
             if ($waktuSama)       $kalimat[] = 'Sudah mencapai batas limit jangka waktu';
             elseif ($waktuLewat)  $kalimat[] = 'Sudah melebihi batas limit jangka waktu';
             else {

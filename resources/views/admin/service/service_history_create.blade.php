@@ -246,6 +246,16 @@
                 </button>
             </div>
 
+            {{-- Info box saat mode Edit PO --}}
+            @if($isEditPo)
+            <div class="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                <i class="fa fa-circle-info text-blue-500"></i>
+                <p class="text-xs text-blue-700">
+                    <strong>Mode Edit — Ajukan Ulang.</strong> Hanya <strong>Biaya</strong> dan <strong>Tanggal Pasang</strong> yang dapat diubah. Field lainnya dikunci sesuai pengajuan sebelumnya.
+                </p>
+            </div>
+            @endif
+
             {{-- Total biaya override --}}
             <div class="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
                 <div class="flex items-center gap-2">
@@ -774,7 +784,7 @@ function recalcAllKeterangan() {
 // ── Lock fields pada baris part saat ajukan ulang dari PO ditolak ────────
 // Field yang BOLEH diedit: Tgl Pasang, Biaya
 // Field yang TIDAK BOLEH diedit: Nama Part, Kategori, Posisi, Part Number,
-//   Serial Number, Info Pembayaran, Supplier
+//   Serial Number, Kondisi, Info Pembayaran, Supplier
 function lockPartRowFields(idx) {
     const row = document.getElementById('part-row-' + idx);
     if (!row) return;
@@ -829,6 +839,14 @@ function lockPartRowFields(idx) {
     const snEl = row.querySelector('[name="parts[' + idx + '][serial_number]"]');
     lockInput(snEl); addLockToLabel(snEl);
 
+    // Kondisi (select) - NEW: Lock this field too
+    const kondisiEl = row.querySelector('[name="parts[' + idx + '][kondisi]"]');
+    if (kondisiEl) { lockSelect(kondisiEl); addLockToLabel(kondisiEl); }
+
+    // KM Pasang - NEW: Lock this field (read-only)
+    const kmEl = row.querySelector('[name="parts[' + idx + '][kilometer_pasang]"]');
+    lockInput(kmEl); addLockToLabel(kmEl);
+
     // Info Pembayaran: Nama Rekening, Nama Bank, No Rekening
     ['nama_rekening', 'nama_bank', 'no_rekening'].forEach(function(field) {
         const el = row.querySelector('[name="parts[' + idx + '][' + field + ']"]');
@@ -846,6 +864,18 @@ function lockPartRowFields(idx) {
     // Supplier (select)
     const supplierEl = row.querySelector('#supplier-select-' + idx);
     if (supplierEl) { lockSelect(supplierEl); addLockToLabel(supplierEl); }
+
+    // Lampiran baru — disable file input (lampiran lama tetap dipertahankan)
+    const lampEl = row.querySelector('#bukti-input-' + idx);
+    if (lampEl) {
+        lampEl.disabled = true;
+        // Hide label/button upload
+        const lampLabel = lampEl.closest('label');
+        if (lampLabel) lampLabel.style.display = 'none';
+        // Sembunyikan hint "Format: JPG, PNG..." juga
+        const lampHint = lampLabel?.nextElementSibling;
+        if (lampHint && lampHint.tagName === 'P') lampHint.style.display = 'none';
+    }
 
     // Tombol hapus part — sembunyikan saat edit_po (tidak boleh hapus part)
     const removeBtn = row.querySelector('button[onclick^="removePartRow"]');
@@ -1751,6 +1781,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         nama_rekening:    part.nama_rekening    || '',
                         old_files:        oldBukti,
                     });
+                    
+                    // ── LOCK FIELDS yang tidak boleh diedit ────────────────────
+                    // Delay sedikit agar DOM sudah ter-render
+                    setTimeout(function() {
+                        lockPartRowFields(idx);
+                    }, 10);
                 });
                 // Setelah semua row ditambahkan, fetch kumulatif biaya terbaru dari DB
                 // agar keterangan ditampilkan berdasarkan kondisi terkini (bukan snapshot lama).

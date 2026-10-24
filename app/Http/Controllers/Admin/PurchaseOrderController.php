@@ -512,6 +512,9 @@ class PurchaseOrderController extends Controller
             'masa_berlaku'  => $sourceData['masa_berlaku'] ?? '-',
             'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '-',
             'biaya'         => $sourceData['biaya'] ?? 0,
+            'nama_bank'     => $sourceData['nama_bank'] ?? '-',
+            'no_rekening'   => $sourceData['no_rekening'] ?? '-',
+            'nama_rekening' => $sourceData['nama_rekening'] ?? '-',
             'lampiran'      => $lampiran,
         ];
     }
@@ -558,8 +561,16 @@ class PurchaseOrderController extends Controller
                     ->filter(fn($k, $i) => !in_array($i, $lockedApprovedIdx))
                     ->all();
             } elseif ($tab === 'Ditolak') {
-                // Tidak ada item_decisions dan tab Ditolak: tidak ada kejadian ditolak, tampilkan kosong
-                $kejadians = [];
+                // FIX: Tab Ditolak + decMap kosong = PO fully rejected
+                // Check PO status: jika "Ditolak", tampilkan semua kejadians
+                $poStatus = $sourceData['po_status'] ?? 'Pending';
+                if ($poStatus === 'Ditolak') {
+                    // PO fully rejected: tampilkan semua items dengan action = 'rejected'
+                    $kejadians = $allKejadians;
+                } else {
+                    // Edge case: tab Ditolak tapi PO tidak berstatus Ditolak dan tidak ada item_decisions
+                    $kejadians = [];
+                }
             } else {
                 $kejadians = $allKejadians;
             }
@@ -612,16 +623,33 @@ class PurchaseOrderController extends Controller
             // Ambil action dari item_decisions
             $decMapForAction = collect($itemDecisions)->keyBy('idx');
             $decEntry = $decMapForAction->get($origIdx);
+            
+            // FIX: Fallback action berdasarkan PO status jika item_decisions kosong
+            $itemAction = $decEntry['action'] ?? null;
+            if ($itemAction === null) {
+                $poStatus = $sourceData['po_status'] ?? 'Pending';
+                if ($poStatus === 'Ditolak' && $tab === 'Ditolak') {
+                    // PO fully rejected: semua items dianggap rejected
+                    $itemAction = 'rejected';
+                } elseif ($poStatus === 'Disetujui' && $tab === 'Disetujui') {
+                    // PO fully approved: semua items dianggap approved
+                    $itemAction = 'approved';
+                } elseif ($poStatus === 'Pending') {
+                    // PO pending: semua items pending
+                    $itemAction = 'pending';
+                }
+            }
 
             $items[] = [
                 'po_number'        => $sourceData['item_po_numbers'][$origIdx] ?? null,
                 'nama_kejadian'    => $kej['nama_kejadian'] ?? '-',
                 'biaya'            => (int) ($kej['biaya'] ?? 0),
-                'tanggal_service'  => $kej['tanggal_service'] ?? null,
+                // FIX: Fallback dari 'tanggal_service' ke 'tanggal' (key asli di source_data)
+                'tanggal_service'  => $kej['tanggal_service'] ?? ($kej['tanggal'] ?? null),
                 'periode_mulai'    => $kej['periode_mulai'] ?? null,
                 'periode_selesai'  => $kej['periode_selesai'] ?? null,
                 'lampiran'         => $lampiran,
-                'action'           => $decEntry['action'] ?? null,
+                'action'           => $itemAction,
                 'catatan_penolakan'=> $decEntry['catatan'] ?? null,
                 'bukti'            => $buktiAdmin && isset($buktiAdmin['path'])
                     ? ['url' => asset($buktiAdmin['path']), 'name' => $buktiAdmin['original_name'] ?? basename($buktiAdmin['path'])]
@@ -749,7 +777,10 @@ class PurchaseOrderController extends Controller
                 'nama_part'        => $part['nama_part'] ?? '-',
                 'category_nama'    => $category ? $category->nama : ($part['nama_category_baru'] ?? '-'),
                 'part_number'      => $part['part_number'] ?? '-',
+                'kondisi'          => $part['kondisi'] ?? '-',
                 'posisi'           => $part['posisi'] ?? '-',
+                'serial_number'    => $part['serial_number'] ?? '-',
+                'tanggal_pasang'   => $part['tanggal_pasang'] ?? $part['tgl_pasang'] ?? null,
                 'biaya'            => $part['biaya'] ?? 0,
                 'keterangan'       => $part['keterangan_limit'] ?? $part['keterangan'] ?? '-',
                 'nama_bank'        => $part['nama_bank'] ?? '-',
@@ -841,8 +872,19 @@ class PurchaseOrderController extends Controller
                     ->values()
                     ->all();
             } elseif ($tab === 'Ditolak') {
-                // Tidak ada item_decisions dan tab Ditolak: tidak ada item ditolak, tampilkan kosong
-                $gpsItems = [];
+                // FIX: Tab Ditolak + decMap kosong = PO fully rejected
+                // Check PO status: jika "Ditolak", tampilkan semua gps items
+                $poStatus = $sourceData['po_status'] ?? 'Pending';
+                if ($poStatus === 'Ditolak') {
+                    // PO fully rejected: tampilkan semua items dengan action = 'rejected'
+                    $gpsItems = collect($allGpsItems)
+                        ->map(fn($g, $i) => array_merge($g, ['_orig_idx' => $i]))
+                        ->values()
+                        ->all();
+                } else {
+                    // Edge case: tab Ditolak tapi PO tidak berstatus Ditolak dan tidak ada item_decisions
+                    $gpsItems = [];
+                }
             } else {
                 $gpsItems = collect($allGpsItems)
                     ->map(fn($g, $i) => array_merge($g, ['_orig_idx' => $i])) // ← INJECT ORIGINAL INDEX
@@ -928,6 +970,9 @@ class PurchaseOrderController extends Controller
                 } elseif ($poStatus === 'Disetujui' && empty($itemDecisions) && empty($lockedApprovedIdx)) {
                     // PO full approved (legacy atau simple approval) → semua item approved
                     $itemAction = 'approved';
+                } elseif ($poStatus === 'Ditolak' && empty($itemDecisions)) {
+                    // FIX: PO fully rejected → semua item rejected
+                    $itemAction = 'rejected';
                 }
                 // else: $itemAction tetap null (edge case, seharusnya tidak terjadi)
             }
@@ -2160,6 +2205,8 @@ class PurchaseOrderController extends Controller
                     
                     return [
                         // Map part fields ke format yang expected di modal
+                        'id'                => $part['service_part_id'] ?? $part['id'] ?? null, // PENTING: kirim id untuk edit mode detection
+                        'service_part_id'   => $part['service_part_id'] ?? $part['id'] ?? null,
                         'nama_kejadian'     => $part['nama_part'] ?? '-',
                         'nama_part'         => $part['nama_part'] ?? '-',
                         'biaya'             => $part['biaya'] ?? 0,
@@ -2292,22 +2339,26 @@ class PurchaseOrderController extends Controller
             $kendaraan   = $kendaraanId ? \App\Models\Kendaraan::find($kendaraanId) : null;
 
             $base = [
-                'success'       => true,
-                'po_id'         => $po->id,
-                'po_number'     => $po->po_id,
-                'source_type'   => $po->source_type,
-                'catatan'       => $po->catatan_approval,
-                'nopol'         => $kendaraan ? $kendaraan->nopol : '-',
-                'merk'          => $kendaraan ? $kendaraan->merk  : '-',
-                'kendaraan_id'  => $kendaraanId,
+                'success'            => true,
+                'po_id'              => $po->id,
+                'po_number'          => $po->po_id,
+                'source_type'        => $po->source_type,
+                'catatan'            => $po->catatan_approval,
+                'nopol'              => $kendaraan ? $kendaraan->nopol : '-',
+                'merk'               => $kendaraan ? $kendaraan->merk  : '-',
+                'kendaraan_id'       => $kendaraanId,
+                'existing_record_id' => $sourceData['existing_record_id'] ?? $po->id, // Flag untuk detect edit mode
+                'id'                 => $po->id, // Alternatif flag untuk detect edit mode
             ];
 
             if (in_array($po->source_type, ['pajak', 'pajak_perpanjang'])) {
                 return response()->json(array_merge($base, [
-                    'nominal'       => $sourceData['nominal']      ?? '',
-                    'nama_pemilik'  => $sourceData['nama_pemilik'] ?? '',
-                    'nama_bank'     => $sourceData['nama_bank']    ?? '',
-                    'no_rekening'   => $sourceData['no_rekening']  ?? '',
+                    'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? '',
+                    'jatuh_tempo'   => $sourceData['jatuh_tempo']   ?? '',
+                    'nominal'       => $sourceData['nominal']       ?? '',
+                    'nama_pemilik'  => $sourceData['nama_pemilik']  ?? '',
+                    'nama_bank'     => $sourceData['nama_bank']     ?? '',
+                    'no_rekening'   => $sourceData['no_rekening']   ?? '',
                 ]));
             }
 

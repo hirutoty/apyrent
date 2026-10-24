@@ -514,6 +514,8 @@ class PembayaranController extends Controller
                     $pajakKirAsuransiInfo['perusahaan_asuransi'] = $asrModel ? $asrModel->nama_asuransi : ($sd['nama_asuransi'] ?? null);
                     $pajakKirAsuransiInfo['jenis_asuransi'] = $jenisAsrModel ? $jenisAsrModel->nama_jenis : ($sd['jenis_asuransi'] ?? null);
                     $pajakKirAsuransiInfo['no_polis'] = $sd['no_polis'] ?? null;
+                    $pajakKirAsuransiInfo['tgl_mulai'] = isset($sd['tgl_mulai']) ? \Carbon\Carbon::parse($sd['tgl_mulai'])->format('d M Y') : null;
+                    $pajakKirAsuransiInfo['tgl_berakhir'] = isset($sd['tgl_berakhir']) ? \Carbon\Carbon::parse($sd['tgl_berakhir'])->format('d M Y') : null;
                 }
             }
 
@@ -683,6 +685,11 @@ class PembayaranController extends Controller
                             'part_number'        => !empty($part['part_number']) && $part['part_number'] !== '-' ? $part['part_number'] : null,
                             'kategori'           => $cat ? $cat->nama : ($part['category_nama'] ?? '-'),
                             'kondisi'            => $part['kondisi'] ?? null,
+                            'posisi'             => $part['posisi'] ?? null,
+                            'serial_number'      => $part['serial_number'] ?? null,
+                            'tanggal_pasang'     => !empty($part['tanggal_pasang']) 
+                                ? \Carbon\Carbon::parse($part['tanggal_pasang'])->format('d M Y') 
+                                : (!empty($part['tgl_pasang']) ? \Carbon\Carbon::parse($part['tgl_pasang'])->format('d M Y') : null),
                             'qty'                => 1,
                             'satuan'             => 'unit',
                             'subtotal'           => $part['biaya'] ?? 0,
