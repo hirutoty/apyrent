@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\KendaraanController;
 use App\Http\Controllers\Admin\JenisController;
 use App\Http\Controllers\Admin\KirController;
 use App\Http\Controllers\Admin\KirHistoryController;
+use App\Http\Controllers\Admin\LaporanKehilanganController;
 use App\Http\Controllers\Admin\PelangganController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Admin\MemberKendaraanController;
@@ -1104,4 +1105,12 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   // ── CHART DATA (centralized AJAX endpoint) ──────────────────────────────
   Route::get('/chart-data/{page}', [\App\Http\Controllers\Admin\ChartDataController::class, 'getData'])
     ->name('chart-data');
+
+  // ── LAPORAN KEHILANGAN ───────────────────────────────────────────────────
+  Route::get('/laporan-kehilangan',              [LaporanKehilanganController::class, 'index'])  ->name('laporan-kehilangan.index');
+  Route::get('/laporan-kehilangan/create',       [LaporanKehilanganController::class, 'create']) ->name('laporan-kehilangan.create');
+  Route::post('/laporan-kehilangan',             [LaporanKehilanganController::class, 'store'])  ->name('laporan-kehilangan.store');
+  Route::get('/laporan-kehilangan/{id}',         [LaporanKehilanganController::class, 'show'])   ->name('laporan-kehilangan.show');
+  Route::post('/laporan-kehilangan/{id}/status', [LaporanKehilanganController::class, 'updateStatus']) ->name('laporan-kehilangan.update-status');
+  Route::delete('/laporan-kehilangan/{id}',      [LaporanKehilanganController::class, 'destroy'])->name('laporan-kehilangan.destroy');
 });

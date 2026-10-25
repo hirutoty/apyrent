@@ -613,6 +613,15 @@
                                     @endif
                                 </a>
 
+                                @php
+                                    $isKehilanganActive = request()->is('admin/laporan-kehilangan*');
+                                @endphp
+                                <a href="/admin/laporan-kehilangan"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all font-medium
+                                    {{ $isKehilanganActive ? 'bg-sidebar-active text-white' : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white' }}">
+                                    <i class="bi bi-exclamation-triangle-fill w-4 text-center shrink-0"></i> Laporan Kehilangan
+                                </a>
+
                             @endif
 
                             {{-- Pembayaran: tampil untuk semua role di grup Operasi --}}
