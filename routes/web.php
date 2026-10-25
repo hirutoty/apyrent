@@ -1107,10 +1107,12 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('chart-data');
 
   // ── LAPORAN KEHILANGAN ───────────────────────────────────────────────────
-  Route::get('/laporan-kehilangan',              [LaporanKehilanganController::class, 'index'])  ->name('laporan-kehilangan.index');
-  Route::get('/laporan-kehilangan/create',       [LaporanKehilanganController::class, 'create']) ->name('laporan-kehilangan.create');
-  Route::post('/laporan-kehilangan',             [LaporanKehilanganController::class, 'store'])  ->name('laporan-kehilangan.store');
-  Route::get('/laporan-kehilangan/{id}',         [LaporanKehilanganController::class, 'show'])   ->name('laporan-kehilangan.show');
-  Route::post('/laporan-kehilangan/{id}/status', [LaporanKehilanganController::class, 'updateStatus']) ->name('laporan-kehilangan.update-status');
-  Route::delete('/laporan-kehilangan/{id}',      [LaporanKehilanganController::class, 'destroy'])->name('laporan-kehilangan.destroy');
+  Route::get('/laporan-kehilangan',                      [LaporanKehilanganController::class, 'index'])             ->name('laporan-kehilangan.index');
+  Route::get('/laporan-kehilangan/create',               [LaporanKehilanganController::class, 'create'])            ->name('laporan-kehilangan.create');
+  Route::post('/laporan-kehilangan',                     [LaporanKehilanganController::class, 'store'])             ->name('laporan-kehilangan.store');
+  Route::post('/laporan-kehilangan/tambah-laporan',      [LaporanKehilanganController::class, 'tambahLaporanIndex'])->name('laporan-kehilangan.tambah-laporan-index');
+  Route::get('/laporan-kehilangan/{id}',                 [LaporanKehilanganController::class, 'show'])              ->name('laporan-kehilangan.show');
+  Route::post('/laporan-kehilangan/{id}/status',         [LaporanKehilanganController::class, 'updateStatus'])      ->name('laporan-kehilangan.update-status');
+  Route::post('/laporan-kehilangan/{id}/tambah-laporan', [LaporanKehilanganController::class, 'tambahLaporan'])     ->name('laporan-kehilangan.tambah-laporan');
+  Route::delete('/laporan-kehilangan/{id}',              [LaporanKehilanganController::class, 'destroy'])           ->name('laporan-kehilangan.destroy');
 });

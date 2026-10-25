@@ -171,13 +171,19 @@
         {{-- KOLOM KANAN: Timeline History --}}
         <div class="lg:col-span-2">
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div class="px-5 py-4 border-b border-gray-100">
+                <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
                     <h3 class="font-semibold text-gray-800 flex items-center gap-2">
                         <i class="bi bi-clock-history text-indigo-500"></i> Riwayat Laporan
                         <span class="text-xs bg-gray-100 text-gray-500 font-medium px-2 py-0.5 rounded-full ml-1">
                             {{ $kehilangan->laporans->count() }} entri
                         </span>
                     </h3>
+                    @if($kehilangan->status !== 'ditemukan')
+                        <button onclick="document.getElementById('modalTambahUpdate').classList.remove('hidden')"
+                                class="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors font-medium">
+                            <i class="bi bi-plus-lg"></i> Tambah Update
+                        </button>
+                    @endif
                 </div>
 
                 <div class="p-5">
@@ -330,6 +336,100 @@
         </form>
     </div>
 </div>
+@endif
+
+{{-- MODAL TAMBAH UPDATE LAPORAN --}}
+@if($kehilangan->status !== 'ditemukan')
+<div id="modalTambahUpdate" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-8">
+
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h3 class="font-bold text-gray-800 text-base flex items-center gap-2">
+                <i class="bi bi-plus-circle-fill text-indigo-500"></i> Tambah Update Laporan
+            </h3>
+            <button onclick="document.getElementById('modalTambahUpdate').classList.add('hidden')"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
+                <i class="bi bi-x-lg text-sm"></i>
+            </button>
+        </div>
+
+        <form action="{{ route('laporan-kehilangan.tambah-laporan', $kehilangan->id) }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            <div class="px-6 py-5 space-y-4">
+
+                {{-- Isi Laporan --}}
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                        Isi Laporan / Update <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="laporan" rows="3" required
+                              placeholder="Contoh: Kendaraan terakhir terlihat di area Cempaka Putih, sudah dilaporkan ke Polsek setempat..."
+                              class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"></textarea>
+                </div>
+
+                {{-- Tanggal + Lokasi (2 kolom) --}}
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                            Tanggal <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" name="tanggal_laporan" value="{{ date('Y-m-d') }}" required
+                               class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                            Lokasi Pencarian <span class="text-gray-400 font-normal text-xs">(opsional)</span>
+                        </label>
+                        <input type="text" name="lokasi_pencarian"
+                               placeholder="Area pencarian"
+                               class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    </div>
+                </div>
+
+                {{-- Keterangan --}}
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                        Keterangan Tambahan <span class="text-gray-400 font-normal text-xs">(opsional)</span>
+                    </label>
+                    <textarea name="keterangan" rows="2"
+                              placeholder="Detail tambahan..."
+                              class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"></textarea>
+                </div>
+
+                {{-- File --}}
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                        Lampiran <span class="text-gray-400 font-normal text-xs">(opsional — foto/dokumen maks 10MB)</span>
+                    </label>
+                    <input type="file" name="file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                           class="w-full text-sm text-gray-600 border border-gray-200 rounded-xl px-4 py-2.5
+                                  file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0
+                                  file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700
+                                  hover:file:bg-indigo-100">
+                </div>
+
+            </div>
+
+            <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3 rounded-b-2xl">
+                <button type="button"
+                        onclick="document.getElementById('modalTambahUpdate').classList.add('hidden')"
+                        class="px-5 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                    Batal
+                </button>
+                <button type="submit"
+                        class="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-colors flex items-center gap-2">
+                    <i class="bi bi-send"></i> Simpan Update
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('modalTambahUpdate').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.add('hidden');
+});
+</script>
 @endif
 
 @endsection
