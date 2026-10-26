@@ -41,6 +41,7 @@ class ServiceHistoryController extends Controller
         $data = ServiceHistory::with([
                 'kendaraan.jenis',
                 'attachments',
+                'pembayaran', // Load relasi pembayaran untuk cek status approved
                 // Load SEMUA parts (tidak dibatasi bulan) agar riwayat lengkap
                 'parts.category',
                 'parts.supplier',

@@ -6,70 +6,93 @@
 <div class="space-y-6">
 
     {{-- PAGE HEADER --}}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-gray-800">Laporan Kehilangan Kendaraan</h1>
-            <p class="text-sm text-gray-500 mt-0.5">Kelola laporan kendaraan yang hilang beserta status penanganannya</p>
+            <h1 class="text-2xl font-bold text-slate-800">Laporan Kehilangan Kendaraan</h1>
+            <p class="text-sm text-slate-500 mt-1">Kelola laporan kendaraan yang hilang beserta status penanganannya</p>
         </div>
         <div class="flex items-center gap-2">
             <button onclick="document.getElementById('modalTambahLaporan').classList.remove('hidden')"
-                    class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors">
-                <i class="bi bi-journal-plus"></i> Tambah Laporan
+                    class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-4 py-2 rounded-xl text-sm font-medium transition inline-flex items-center gap-2">
+                <i class="bi bi-journal-plus"></i>
+                Tambah Laporan
             </button>
             <button onclick="document.getElementById('modalBuatLaporan').classList.remove('hidden')"
-                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors">
-                <i class="bi bi-plus-lg"></i> Buat Laporan
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition inline-flex items-center gap-2">
+                <i class="bi bi-plus-lg"></i>
+                Buat Laporan
             </button>
         </div>
     </div>
 
     {{-- SUMMARY CARDS --}}
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Sementara</p>
-                    <h2 class="text-3xl font-bold text-yellow-600 mt-1">{{ $countSementara }}</h2>
-                    <p class="text-xs text-gray-400 mt-1">Sedang dalam penyelidikan</p>
+                    <p class="text-sm text-slate-500">Sementara</p>
+                    <h3 class="text-3xl font-bold text-yellow-600 mt-2">{{ $countSementara }}</h3>
+                    <p class="text-xs text-slate-400 mt-1">Sedang dalam penyelidikan</p>
                 </div>
-                <div class="w-12 h-12 rounded-xl bg-yellow-50 text-yellow-500 flex items-center justify-center">
-                    <i class="bi bi-hourglass-split text-xl"></i>
+                <div class="w-14 h-14 rounded-2xl bg-yellow-100 text-yellow-600 flex items-center justify-center">
+                    <i class="bi bi-hourglass-split text-2xl"></i>
                 </div>
             </div>
         </div>
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Permanen</p>
-                    <h2 class="text-3xl font-bold text-red-600 mt-1">{{ $countPermanen }}</h2>
-                    <p class="text-xs text-gray-400 mt-1">Hilang permanen, keluar stok</p>
+                    <p class="text-sm text-slate-500">Permanen</p>
+                    <h3 class="text-3xl font-bold text-red-600 mt-2">{{ $countPermanen }}</h3>
+                    <p class="text-xs text-slate-400 mt-1">Hilang permanen, keluar stok</p>
                 </div>
-                <div class="w-12 h-12 rounded-xl bg-red-50 text-red-500 flex items-center justify-center">
-                    <i class="bi bi-exclamation-triangle-fill text-xl"></i>
+                <div class="w-14 h-14 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center">
+                    <i class="bi bi-exclamation-triangle-fill text-2xl"></i>
                 </div>
             </div>
         </div>
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Ditemukan</p>
-                    <h2 class="text-3xl font-bold text-green-600 mt-1">{{ $countDitemukan }}</h2>
-                    <p class="text-xs text-gray-400 mt-1">Kendaraan kembali ke stok</p>
+                    <p class="text-sm text-slate-500">Ditemukan</p>
+                    <h3 class="text-3xl font-bold text-green-600 mt-2">{{ $countDitemukan }}</h3>
+                    <p class="text-xs text-slate-400 mt-1">Kendaraan kembali ke stok</p>
                 </div>
-                <div class="w-12 h-12 rounded-xl bg-green-50 text-green-500 flex items-center justify-center">
-                    <i class="bi bi-check-circle-fill text-xl"></i>
+                <div class="w-14 h-14 rounded-2xl bg-green-100 text-green-600 flex items-center justify-center">
+                    <i class="bi bi-check-circle-fill text-2xl"></i>
                 </div>
             </div>
         </div>
     </div>
 
+    {{-- CHART FILTER --}}
+    <x-chart-filter 
+        id="laporanKehilanganChartFilter" 
+        defaultFilter="year" 
+        :showCustomRange="true"
+    />
+
+    {{-- CHART CONTAINER --}}
+    <x-chart-container
+        id="laporanKehilanganChartContainer"
+        layout="stacked"
+        pieTitle="Distribusi Status Kehilangan" 
+        pieId="laporanKehilanganPieChart"
+        barTitle="Jumlah Laporan per Periode" 
+        barId="laporanKehilanganBarChart"
+        lineTitle="Trend Kehilangan Sementara" 
+        lineId="laporanKehilanganLineChart"
+        :showStats="true" 
+        :statsData="[]"
+    />
+
     {{-- MAIN CARD --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
 
         {{-- TAB HEADER + SEARCH --}}
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-slate-100">
             {{-- Nav Tabs --}}
-            <nav class="inline-flex gap-1 bg-gray-100 rounded-xl p-1">
+            <nav class="flex items-center gap-2">
                 @php
                     $tabs = [
                         ['key' => 'sementara', 'label' => 'Sementara',  'count' => $countSementara, 'icon' => 'bi bi-hourglass-split',          'color' => 'text-yellow-600'],
@@ -79,12 +102,12 @@
                 @endphp
                 @foreach ($tabs as $t)
                     <a href="{{ route('laporan-kehilangan.index', ['tab' => $t['key'], 'search' => $search]) }}"
-                       class="flex items-center gap-2 px-4 py-2 text-sm font-semibold whitespace-nowrap rounded-lg transition-all duration-150
-                           {{ $tab === $t['key'] ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/60' }}">
-                        <i class="{{ $t['icon'] }} {{ $tab === $t['key'] ? $t['color'] : '' }}"></i>
+                       class="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold whitespace-nowrap rounded-lg transition-all duration-150
+                           {{ $tab === $t['key'] ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">
+                        <i class="{{ $t['icon'] }}"></i>
                         {{ $t['label'] }}
                         <span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-bold rounded-full
-                            {{ $tab === $t['key'] ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600' }}">
+                            {{ $tab === $t['key'] ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600' }}">
                             {{ $t['count'] }}
                         </span>
                     </a>
@@ -117,124 +140,218 @@
             <table class="w-full text-sm">
                 <thead>
                     <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide border-b border-gray-100">
-                        <th class="px-3 py-3 w-8"></th>
-                        <th class="px-5 py-3 text-left font-semibold">No</th>
-                        <th class="px-5 py-3 text-left font-semibold">Kendaraan</th>
-                        <th class="px-5 py-3 text-left font-semibold">Tanggal Hilang</th>
-                        <th class="px-5 py-3 text-left font-semibold">Lokasi Kejadian</th>
-                        <th class="px-5 py-3 text-left font-semibold">Pelanggan</th>
-                        <th class="px-5 py-3 text-left font-semibold">Pengurus</th>
-                        <th class="px-5 py-3 text-left font-semibold">Status</th>
-                        <th class="px-5 py-3 text-center font-semibold">Aksi</th>
+                        <th class="px-4 py-3 text-center font-semibold w-12">
+                            <i class="bi bi-chevron-down text-gray-400"></i>
+                        </th>
+                        <th class="px-4 py-3 text-left font-semibold w-16">ID</th>
+                        <th class="px-4 py-3 text-left font-semibold">Kendaraan</th>
+                        <th class="px-4 py-3 text-center font-semibold">Status</th>
+                        <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Tanggal Hilang</th>
+                        <th class="px-4 py-3 text-left font-semibold">Keterangan</th>
+                        <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Lokasi Kejadian</th>
+                        <th class="px-4 py-3 text-left font-semibold">Pelanggan</th>
+                        <th class="px-4 py-3 text-left font-semibold">Pengurus</th>
+                        <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Informasi GPS</th>
+                        <th class="px-4 py-3 text-center font-semibold">Lampiran</th>
+                        <th class="px-4 py-3 text-center font-semibold">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($data as $i => $item)
                         {{-- MAIN ROW --}}
-                        <tr class="hover:bg-gray-50/60 transition-colors border-b border-gray-50 cursor-pointer"
-                            onclick="toggleExpand({{ $item->id }})">
-                            <td class="px-3 py-3.5 text-center">
-                                <i id="chevron-{{ $item->id }}"
-                                   class="bi bi-chevron-right text-gray-400 text-xs transition-transform duration-200"></i>
+                        <tr class="hover:bg-gray-50/60 transition-colors border-b border-gray-50 cursor-pointer row-main" 
+                            data-row-id="{{ $item->id }}"
+                            onclick="toggleExpandRow({{ $item->id }})">
+                            {{-- Expand Icon --}}
+                            <td class="px-4 py-3.5 text-center">
+                                <i class="bi bi-chevron-right text-gray-400 transition-transform duration-200" 
+                                   id="icon-{{ $item->id }}"></i>
                             </td>
-                            <td class="px-5 py-3.5 text-gray-400 font-mono text-xs">
-                                {{ ($data->currentPage() - 1) * $data->perPage() + $i + 1 }}
+                            
+                            {{-- ID --}}
+                            <td class="px-4 py-3.5 text-gray-600 font-mono text-xs">
+                                #{{ $i + 1 }}
                             </td>
-                            <td class="px-5 py-3.5">
-                                <div class="font-semibold text-gray-800">{{ $item->kendaraan->nopol ?? '-' }}</div>
-                                <div class="text-xs text-gray-400 mt-0.5">{{ $item->kendaraan->merk ?? '-' }}</div>
+                            
+                            {{-- Kendaraan --}}
+                            <td class="px-4 py-3.5">
+                                <div class="font-semibold text-gray-800 whitespace-nowrap">{{ $item->nopol }}</div>
+                                <div class="text-xs text-gray-400 mt-0.5">{{ $item->merk }}</div>
                             </td>
-                            <td class="px-5 py-3.5 text-gray-600">
+                            
+                            {{-- Status --}}
+                            <td class="px-4 py-3.5 text-center" onclick="event.stopPropagation()">
+                                @if($item->status === 'sementara')
+                                    <button onclick="openQuickStatusModal({{ $item->id }}, '{{ $item->nopol }}')"
+                                            class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $item->statusBadgeClass() }} whitespace-nowrap hover:opacity-80 transition-opacity">
+                                        {{ $item->statusLabel() }}
+                                    </button>
+                                @else
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $item->statusBadgeClass() }} whitespace-nowrap">
+                                        {{ $item->statusLabel() }}
+                                    </span>
+                                @endif
+                            </td>
+                            
+                            {{-- Tanggal Hilang --}}
+                            <td class="px-4 py-3.5 text-gray-600 whitespace-nowrap">
                                 {{ $item->tanggal ? $item->tanggal->format('d M Y') : '-' }}
                             </td>
-                            <td class="px-5 py-3.5 text-gray-600 max-w-[180px]">
+                            
+                            {{-- Keterangan --}}
+                            <td class="px-4 py-3.5 text-gray-600 max-w-[200px]">
+                                <span class="line-clamp-2 text-xs">{{ $item->keterangan ?: '-' }}</span>
+                            </td>
+                            
+                            {{-- Lokasi Kejadian --}}
+                            <td class="px-4 py-3.5 text-gray-600 max-w-[180px]">
                                 <span class="line-clamp-2 text-xs">{{ $item->lokasi_kejadian ?: '-' }}</span>
                             </td>
-                            <td class="px-5 py-3.5 text-gray-600 text-xs">
-                                {{ $item->pelanggan->nama_pelanggan ?? '-' }}
+                            
+                            {{-- Pelanggan --}}
+                            <td class="px-4 py-3.5 text-gray-600">
+                                <div class="text-xs whitespace-nowrap">{{ $item->pelanggan->nama_pelanggan ?? '-' }}</div>
                             </td>
-                            <td class="px-5 py-3.5 text-gray-600 text-xs">
-                                {{ $item->pengurus ?: '-' }}
+                            
+                            {{-- Pengurus --}}
+                            <td class="px-4 py-3.5 text-gray-600">
+                                <span class="text-xs whitespace-nowrap">{{ $item->pengurus ?: '-' }}</span>
                             </td>
-                            <td class="px-5 py-3.5">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $item->statusBadgeClass() }}">
-                                    {{ $item->statusLabel() }}
-                                </span>
+                            
+                            {{-- Informasi GPS --}}
+                            <td class="px-4 py-3.5 text-gray-600 max-w-[150px]">
+                                <span class="font-mono text-xs break-all">{{ $item->informasi_gps ?: '-' }}</span>
                             </td>
-                            <td class="px-5 py-3.5 text-center" onclick="event.stopPropagation()">
+                            
+                            {{-- Lampiran --}}
+                            <td class="px-4 py-3.5 text-center" onclick="event.stopPropagation()">
+                                @if($item->file)
+                                    @php 
+                                        $ext = pathinfo($item->file, PATHINFO_EXTENSION);
+                                        $filename = basename($item->file);
+                                        // Extract original filename (remove timestamp prefix if exists)
+                                        // Format: timestamp_uniqid_originalname.ext
+                                        $displayName = preg_replace('/^\d+_[a-f0-9]+_/', '', $filename) ?: $filename;
+                                    @endphp
+                                    <a href="{{ asset($item->file) }}" target="_blank"
+                                       class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors font-medium max-w-[180px]"
+                                       title="{{ $displayName }}">
+                                        @if(in_array(strtolower($ext), ['jpg','jpeg','png','gif']))
+                                            <i class="bi bi-image"></i>
+                                        @elseif(strtolower($ext) === 'pdf')
+                                            <i class="bi bi-file-pdf"></i>
+                                        @else
+                                            <i class="bi bi-file-earmark-text"></i>
+                                        @endif
+                                        <span class="truncate">{{ $displayName }}</span>
+                                    </a>
+                                @else
+                                    <span class="text-xs text-gray-400">-</span>
+                                @endif
+                            </td>
+                            
+                            {{-- Aksi --}}
+                            <td class="px-4 py-3.5 text-center" onclick="event.stopPropagation()">
                                 <a href="{{ route('laporan-kehilangan.show', $item->id) }}"
-                                   class="inline-flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors font-medium">
+                                   class="inline-flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors font-medium whitespace-nowrap">
                                     <i class="bi bi-eye"></i> Detail
                                 </a>
                             </td>
                         </tr>
 
-                        {{-- EXPANDABLE ROW: Riwayat Laporan --}}
-                        <tr id="expand-{{ $item->id }}" class="hidden">
-                            <td colspan="9" class="px-0 py-0 bg-indigo-50/40">
-                                <div class="px-10 py-4 border-t border-indigo-100">
-
-                                    <p class="text-xs font-bold text-indigo-600 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                                        <i class="bi bi-clock-history"></i>
-                                        Riwayat Laporan
-                                        <span class="bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
-                                            {{ $item->laporans->count() }}
-                                        </span>
-                                    </p>
-
-                                    @if($item->laporans->isEmpty())
-                                        <p class="text-xs text-gray-400 italic">Belum ada riwayat laporan.</p>
-                                    @else
-                                        <div class="space-y-2">
-                                            @foreach($item->laporans as $laporan)
-                                                <div class="flex gap-3">
-                                                    {{-- Dot --}}
-                                                    <div class="flex flex-col items-center shrink-0">
-                                                        <div class="w-2 h-2 rounded-full mt-1.5 {{ $loop->first ? 'bg-blue-500' : 'bg-indigo-300' }}"></div>
-                                                        @if(!$loop->last)
-                                                            <div class="w-px flex-1 bg-indigo-200 my-1"></div>
-                                                        @endif
-                                                    </div>
-                                                    {{-- Content --}}
-                                                    <div class="flex-1 pb-1">
-                                                        <div class="flex flex-wrap items-center gap-2 mb-0.5">
-                                                            <span class="text-xs font-semibold text-gray-700">{{ $laporan->laporan }}</span>
-                                                            <span class="text-[10px] text-gray-400">
-                                                                {{ $laporan->tanggal_laporan?->format('d M Y') }}
-                                                            </span>
-                                                        </div>
-                                                        @if($laporan->keterangan)
-                                                            <p class="text-xs text-gray-500">{{ $laporan->keterangan }}</p>
-                                                        @endif
-                                                        @if($laporan->lokasi_pencarian)
-                                                            <p class="text-[10px] text-gray-400 mt-0.5">
-                                                                <i class="bi bi-geo-alt mr-0.5"></i>{{ $laporan->lokasi_pencarian }}
-                                                            </p>
-                                                        @endif
-                                                        @if($laporan->file)
-                                                            @php $ext = pathinfo($laporan->file, PATHINFO_EXTENSION); @endphp
-                                                            <a href="{{ asset($laporan->file) }}" target="_blank"
-                                                               class="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:underline mt-0.5">
-                                                                @if(in_array(strtolower($ext), ['jpg','jpeg','png']))
-                                                                    <i class="bi bi-image"></i> Lihat Foto
+                        {{-- EXPANDABLE ROW --}}
+                        <tr id="expand-row-{{ $item->id }}" class="hidden border-b border-gray-100 bg-gray-50/30">
+                            <td colspan="12" class="px-0 py-0">
+                                <div class="px-6 py-4">
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                            <i class="bi bi-clock-history text-indigo-600 text-sm"></i>
+                                        </div>
+                                        <h4 class="text-sm font-semibold text-gray-800">
+                                            Riwayat Laporan Perkembangan
+                                            <span class="text-xs bg-indigo-100 text-indigo-700 font-medium px-2 py-0.5 rounded-full ml-2">
+                                                {{ $item->laporans->count() }} entri
+                                            </span>
+                                        </h4>
+                                    </div>
+                                    
+                                    @if($item->laporans->count() > 0)
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full text-sm border border-gray-200 rounded-lg">
+                                                <thead>
+                                                    <tr class="bg-white border-b border-gray-200">
+                                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 w-12">#</th>
+                                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Laporan</th>
+                                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 whitespace-nowrap">Tanggal Laporan</th>
+                                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Keterangan</th>
+                                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 whitespace-nowrap">Lokasi Pencarian</th>
+                                                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600">File</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach ($item->laporans as $idx => $laporan)
+                                                        <tr class="bg-white border-b border-gray-100 hover:bg-gray-50">
+                                                            <td class="px-3 py-2.5 text-gray-500 font-mono text-xs">{{ $idx + 1 }}</td>
+                                                            <td class="px-3 py-2.5 text-gray-800 text-xs">
+                                                                {{ $laporan->laporan }}
+                                                            </td>
+                                                            <td class="px-3 py-2.5 text-gray-600 text-xs whitespace-nowrap">
+                                                                {{ $laporan->tanggal_laporan ? $laporan->tanggal_laporan->format('d M Y') : '-' }}
+                                                            </td>
+                                                            <td class="px-3 py-2.5 text-gray-600 text-xs">
+                                                                {{ $laporan->keterangan ?: '-' }}
+                                                            </td>
+                                                            <td class="px-3 py-2.5 text-gray-600 text-xs">
+                                                                @if($laporan->lokasi_pencarian)
+                                                                    <span class="inline-flex items-center gap-1">
+                                                                        <i class="bi bi-geo-alt text-gray-400"></i>
+                                                                        {{ $laporan->lokasi_pencarian }}
+                                                                    </span>
                                                                 @else
-                                                                    <i class="bi bi-file-earmark-text"></i> Lihat Lampiran
+                                                                    -
                                                                 @endif
-                                                            </a>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            @endforeach
+                                                            </td>
+                                                            <td class="px-3 py-2.5 text-center">
+                                                                @if($laporan->file)
+                                                                    @php 
+                                                                        $ext2 = pathinfo($laporan->file, PATHINFO_EXTENSION);
+                                                                        $filename2 = basename($laporan->file);
+                                                                        $displayName2 = preg_replace('/^\d+_[a-f0-9]+_/', '', $filename2) ?: $filename2;
+                                                                    @endphp
+                                                                    <a href="{{ asset($laporan->file) }}" target="_blank"
+                                                                       class="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                                                                       title="{{ $displayName2 }}">
+                                                                        @if(in_array(strtolower($ext2), ['jpg','jpeg','png','gif']))
+                                                                            <i class="bi bi-image"></i>
+                                                                        @elseif(strtolower($ext2) === 'pdf')
+                                                                            <i class="bi bi-file-pdf"></i>
+                                                                        @else
+                                                                            <i class="bi bi-file-earmark-text"></i>
+                                                                        @endif
+                                                                        <span class="truncate max-w-[120px]">{{ $displayName2 }}</span>
+                                                                    </a>
+                                                                @else
+                                                                    <span class="text-xs text-gray-400">-</span>
+                                                                @endif
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @else
+                                        <div class="text-center py-6 bg-white border border-gray-200 rounded-lg">
+                                            <i class="bi bi-inbox text-3xl text-gray-300"></i>
+                                            <p class="text-xs text-gray-400 mt-2 italic">Belum ada laporan perkembangan</p>
                                         </div>
                                     @endif
-
                                 </div>
                             </td>
                         </tr>
 
                     @empty
                         <tr>
-                            <td colspan="9" class="px-5 py-16 text-center">
+                            <td colspan="12" class="px-5 py-16 text-center">
                                 <div class="flex flex-col items-center gap-3 text-gray-400">
                                     <i class="bi bi-inbox text-5xl"></i>
                                     <p class="text-sm font-medium">Tidak ada laporan kehilangan dengan status
@@ -264,12 +381,69 @@
     </div>
 
     {{-- Flash message --}}
-    @if(session('success'))
-        <div id="flashMsg"
-             class="fixed bottom-6 right-6 z-50 bg-green-600 text-white text-sm font-medium px-5 py-3 rounded-xl shadow-lg flex items-center gap-2">
-            <i class="bi bi-check-circle-fill"></i> {{ session('success') }}
+    @if(session('success') || session('error') || $errors->any())
+        <div id="alertOverlay" class="fixed inset-0 z-[99999999] flex items-start justify-center pt-6"
+            style="background:rgba(0,0,0,0.18);opacity:0;transition:opacity 0.2s;pointer-events:none">
+
+            <div id="alertBox"
+                class="bg-white rounded-xl shadow-xl border border-gray-100 px-5 py-4 flex items-start gap-3 w-full max-w-md mx-4"
+                style="transform:translateY(-16px);transition:transform 0.25s">
+
+                @if(session('success'))
+                    <div class="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0 text-green-600 text-xl">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-gray-800">Berhasil!</p>
+                        <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{{ session('success') }}</p>
+                    </div>
+                @elseif(session('error'))
+                    <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-gray-800">Terjadi Kesalahan!</p>
+                        <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{{ session('error') }}</p>
+                    </div>
+                @else
+                    <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 text-red-500 text-xl">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-gray-800">Terjadi Kesalahan!</p>
+                        <ul class="text-xs text-gray-500 mt-0.5 leading-relaxed list-disc ml-4 space-y-0.5">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <button onclick="closeAlert()"
+                    class="text-gray-400 hover:text-gray-600 transition-colors text-lg leading-none mt-0.5 flex-shrink-0"
+                    aria-label="Tutup">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+
+            </div>
         </div>
-        <script>setTimeout(() => { const el = document.getElementById('flashMsg'); if(el) el.remove(); }, 4000);</script>
+
+        <script>
+        window.closeAlert = function() {
+            const overlay = document.getElementById('alertOverlay');
+            if (overlay) overlay.style.display = 'none';
+        };
+
+        (function() {
+            const overlay = document.getElementById('alertOverlay');
+            if (!overlay) return;
+            overlay.style.pointerEvents = 'auto';
+            overlay.style.opacity = '1';
+            const box = document.getElementById('alertBox');
+            if (box) box.style.transform = 'translateY(0)';
+            setTimeout(closeAlert, 4000);
+        })();
+        </script>
     @endif
 
 </div>
@@ -309,24 +483,44 @@
 
             <div class="px-6 py-5 space-y-4">
 
-                {{-- Kendaraan + Tanggal (2 kolom) --}}
+                {{-- Kendaraan --}}
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                        Kendaraan <span class="text-red-500">*</span>
+                    </label>
+                    <select name="kendaraan_id" required
+                            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 @error('kendaraan_id') border-red-400 @enderror">
+                        <option value="">-- Pilih Kendaraan --</option>
+                        @foreach ($kendaraans as $k)
+                            <option value="{{ $k->id }}" {{ old('kendaraan_id') == $k->id ? 'selected' : '' }}>
+                                {{ $k->nopol }} — {{ $k->merk }} ({{ ucfirst($k->status_kendaraan) }})
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('kendaraan_id')
+                        <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Status + Tanggal (2 kolom) --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="sm:col-span-2">
+                    <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1.5">
-                            Kendaraan <span class="text-red-500">*</span>
+                            Status Kehilangan <span class="text-red-500">*</span>
                         </label>
-                        <select name="kendaraan_id" required
-                                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 @error('kendaraan_id') border-red-400 @enderror">
-                            <option value="">-- Pilih Kendaraan --</option>
-                            @foreach ($kendaraans as $k)
-                                <option value="{{ $k->id }}" {{ old('kendaraan_id') == $k->id ? 'selected' : '' }}>
-                                    {{ $k->nopol }} — {{ $k->merk }} ({{ ucfirst($k->status_kendaraan) }})
-                                </option>
-                            @endforeach
+                        <select name="status" required
+                                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
+                            <option value="sementara" {{ old('status', 'sementara') == 'sementara' ? 'selected' : '' }}>
+                                Sementara
+                            </option>
+                            <option value="permanen" {{ old('status') == 'permanen' ? 'selected' : '' }}>
+                                Permanen
+                            </option>
                         </select>
-                        @error('kendaraan_id')
-                            <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
-                        @enderror
+                        <p class="text-xs text-gray-500 mt-1">
+                            <span class="font-medium">Sementara:</span> kendaraan sedang dicari. 
+                            <span class="font-medium">Permanen:</span> kendaraan hilang tetap &amp; keluar dari stok.
+                        </p>
                     </div>
 
                     <div>
@@ -336,21 +530,22 @@
                         <input type="date" name="tanggal" value="{{ old('tanggal', date('Y-m-d')) }}" required
                                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
                     </div>
+                </div>
 
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">
-                            Pelanggan Terkait <span class="text-gray-400 font-normal text-xs">(opsional)</span>
-                        </label>
-                        <select name="pelanggan_id"
-                                class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
-                            <option value="">-- Tidak ada --</option>
-                            @foreach ($pelanggans as $p)
-                                <option value="{{ $p->id }}" {{ old('pelanggan_id') == $p->id ? 'selected' : '' }}>
-                                    {{ $p->nama_pelanggan }}{{ $p->kontak_pelanggan ? ' (' . $p->kontak_pelanggan . ')' : '' }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
+                {{-- Pelanggan --}}
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                        Pelanggan Terkait <span class="text-gray-400 font-normal text-xs">(opsional)</span>
+                    </label>
+                    <select name="pelanggan_id"
+                            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        <option value="">-- Tidak ada --</option>
+                        @foreach ($pelanggans as $p)
+                            <option value="{{ $p->id }}" {{ old('pelanggan_id') == $p->id ? 'selected' : '' }}>
+                                {{ $p->nama_pelanggan }}{{ $p->kontak_pelanggan ? ' (' . $p->kontak_pelanggan . ')' : '' }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 {{-- Lokasi --}}
@@ -431,15 +626,6 @@ function tutupModal() {
     document.getElementById('modalBuatLaporan').classList.add('hidden');
 }
 
-function toggleExpand(id) {
-    const row     = document.getElementById('expand-' + id);
-    const chevron = document.getElementById('chevron-' + id);
-    const isHidden = row.classList.contains('hidden');
-
-    row.classList.toggle('hidden', !isHidden);
-    chevron.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
-}
-
 // Tutup modal klik di luar
 document.getElementById('modalBuatLaporan').addEventListener('click', function(e) {
     if (e.target === this) tutupModal();
@@ -501,13 +687,16 @@ function previewModalFile(input) {
                     <select name="kehilangan_id" required
                             class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300">
                         <option value="">-- Pilih kasus --</option>
-                        @foreach(\App\Models\Kehilangan::with('kendaraan')->whereIn('status', ['sementara','permanen'])->orderBy('created_at','desc')->get() as $kasus)
+                        @foreach(\App\Models\Kehilangan::with('kendaraan')->where('status', 'sementara')->orderBy('created_at','desc')->get() as $kasus)
                             <option value="{{ $kasus->id }}">
-                                {{ $kasus->kendaraan->nopol ?? '-' }} — {{ $kasus->kendaraan->merk ?? '-' }}
-                                ({{ $kasus->statusLabel() }}, {{ $kasus->tanggal?->format('d M Y') }})
+                                {{ $kasus->nopol }} — {{ $kasus->merk }}
+                                ({{ $kasus->tanggal?->format('d M Y') }})
                             </option>
                         @endforeach
                     </select>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Hanya menampilkan kasus dengan status <span class="font-semibold">Sementara</span> (sedang dalam pencarian)
+                    </p>
                 </div>
 
                 {{-- Isi Laporan --}}
@@ -582,6 +771,190 @@ function previewModalFile(input) {
 document.getElementById('modalTambahLaporan').addEventListener('click', function(e) {
     if (e.target === this) this.classList.add('hidden');
 });
+
+// ========================================
+// QUICK STATUS CHANGE MODAL
+// ========================================
+let currentKehilanganId = null;
+
+function openQuickStatusModal(kehilanganId, nopol) {
+    currentKehilanganId = kehilanganId;
+    document.getElementById('quickStatusNopol').textContent = nopol;
+    
+    // Set form action dinamis
+    const form = document.getElementById('quickStatusForm');
+    form.action = `/admin/laporan-kehilangan/${kehilanganId}/status`;
+    
+    document.getElementById('modalQuickStatus').classList.remove('hidden');
+    // Reset radio selection
+    document.querySelectorAll('input[name="quick_status_baru"]').forEach(el => el.checked = false);
+    document.getElementById('quickStatusInput').value = '';
+}
+
+function closeQuickStatusModal() {
+    document.getElementById('modalQuickStatus').classList.add('hidden');
+    currentKehilanganId = null;
+}
+
+function submitQuickStatusChange() {
+    const selectedStatus = document.querySelector('input[name="quick_status_baru"]:checked');
+    if (!selectedStatus) {
+        alert('Silakan pilih status terlebih dahulu');
+        return;
+    }
+    
+    if (!currentKehilanganId) {
+        alert('Terjadi kesalahan: ID kehilangan tidak ditemukan');
+        return;
+    }
+
+    const confirmMsg = selectedStatus.value === 'permanen' 
+        ? 'Ubah status ke PERMANEN? Kendaraan akan dihapus dari stok.'
+        : 'Ubah status ke DITEMUKAN? Kendaraan akan dikembalikan ke stok.';
+    
+    if (!confirm(confirmMsg)) return;
+
+    // Submit form
+    document.getElementById('quickStatusForm').submit();
+}
+
+// Close modal on outside click
+document.getElementById('modalQuickStatus')?.addEventListener('click', function(e) {
+    if (e.target === this) closeQuickStatusModal();
+});
+</script>
+
+{{-- ══════════════════════════════════════════
+     MODAL QUICK STATUS CHANGE (dari tabel index)
+══════════════════════════════════════════ --}}
+<div id="modalQuickStatus" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <div>
+                <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                    <i class="bi bi-arrow-repeat text-indigo-500"></i> Ubah Status
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Kendaraan: <span id="quickStatusNopol" class="font-semibold text-slate-700"></span></p>
+            </div>
+            <button onclick="closeQuickStatusModal()"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <form id="quickStatusForm" method="POST" action="">
+            @csrf
+            <input type="hidden" name="from_index" value="1">
+            <input type="hidden" name="status_baru" id="quickStatusInput">
+            
+            <div class="px-6 py-5">
+                <label class="block text-sm font-semibold text-slate-700 mb-3">
+                    Pilih Status Baru <span class="text-red-500">*</span>
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                    {{-- Permanen --}}
+                    <label class="cursor-pointer">
+                        <input type="radio" name="quick_status_baru" value="permanen" class="peer sr-only" 
+                               onchange="document.getElementById('quickStatusInput').value = 'permanen'">
+                        <div class="border-2 border-slate-200 peer-checked:border-red-400 peer-checked:bg-red-50 rounded-xl p-4 text-center transition-all hover:border-slate-300">
+                            <i class="bi bi-exclamation-triangle-fill text-3xl text-red-500 block mb-2"></i>
+                            <p class="text-sm font-bold text-slate-800">Permanen</p>
+                            <p class="text-xs text-slate-500 mt-1">Keluar dari stok</p>
+                        </div>
+                    </label>
+
+                    {{-- Ditemukan --}}
+                    <label class="cursor-pointer">
+                        <input type="radio" name="quick_status_baru" value="ditemukan" class="peer sr-only"
+                               onchange="document.getElementById('quickStatusInput').value = 'ditemukan'">
+                        <div class="border-2 border-slate-200 peer-checked:border-green-400 peer-checked:bg-green-50 rounded-xl p-4 text-center transition-all hover:border-slate-300">
+                            <i class="bi bi-check-circle-fill text-3xl text-green-500 block mb-2"></i>
+                            <p class="text-sm font-bold text-slate-800">Ditemukan</p>
+                            <p class="text-xs text-slate-500 mt-1">Kembali tersedia</p>
+                        </div>
+                    </label>
+                </div>
+                <p class="text-xs text-slate-500 mt-3">
+                    <i class="bi bi-info-circle mr-1"></i>
+                    Detail tambahan dapat ditambahkan di halaman detail setelah perubahan status.
+                </p>
+            </div>
+
+            <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3 rounded-b-2xl">
+                <button type="button" onclick="closeQuickStatusModal()"
+                        class="px-5 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                    Batal
+                </button>
+                <button type="button" onclick="submitQuickStatusChange()"
+                        class="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-colors flex items-center gap-2">
+                    <i class="bi bi-check-lg"></i> Ubah Status
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- CHART INITIALIZATION --}}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ asset('js/chart-manager.js') }}"></script>
+<script>
+// ========================================
+// CHART INITIALIZATION — Laporan Kehilangan
+// ========================================
+const chartManager = new ChartManager();
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Init charts dengan filter default (akan di-trigger oleh chart-filter component)
+    // Tidak perlu manual init karena component akan auto-dispatch default filter
+});
+
+// Listen to chart filter changes dari component
+document.addEventListener('chartFilterChange', async function(e) {
+    const { filterId, filterType, startDate, endDate, specificYear, categoryId } = e.detail;
+    
+    // Only handle events for this page's filter
+    if (filterId !== 'laporanKehilanganChartFilter') return;
+
+    // Build filter object (only include non-null values)
+    const filters = {
+        filter_type: filterType
+    };
+    
+    // Only add optional parameters if they have values
+    if (startDate) filters.start_date = startDate;
+    if (endDate) filters.end_date = endDate;
+    if (specificYear) filters.specific_year = specificYear;
+    if (categoryId) filters.category_id = categoryId;
+
+    try {
+        await chartManager.updateChartsFromAPI('laporan-kehilangan', {
+            pie:  'laporanKehilanganPieChart',
+            bar:  'laporanKehilanganBarChart',
+            line: 'laporanKehilanganLineChart'
+        }, filters, { isCurrency: false }, { isCurrency: false });
+    } catch (error) {
+        console.error('Error updating charts:', error);
+    }
+});
+
+// ========================================
+// EXPANDABLE ROW FUNCTIONALITY
+// ========================================
+function toggleExpandRow(rowId) {
+    const expandRow = document.getElementById('expand-row-' + rowId);
+    const icon = document.getElementById('icon-' + rowId);
+    
+    if (!expandRow || !icon) return;
+    
+    if (expandRow.classList.contains('hidden')) {
+        expandRow.classList.remove('hidden');
+        icon.classList.add('rotate-90');
+    } else {
+        expandRow.classList.add('hidden');
+        icon.classList.remove('rotate-90');
+    }
+}
 </script>
 
 @endsection

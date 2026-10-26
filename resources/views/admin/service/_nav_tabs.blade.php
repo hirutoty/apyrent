@@ -7,6 +7,7 @@
                 ['label' => 'Service Asuransi', 'url' => '/admin/service-asuransi',   'icon' => 'bi bi-shield-fill-check', 'role' => null],
                 ['label' => 'Service Incident', 'url' => '/admin/service-incident',   'icon' => 'bi bi-exclamation-triangle-fill', 'role' => null],
                 ['label' => 'Reminder Service', 'url' => '/admin/reminder-service',   'icon' => 'bi bi-bell-fill', 'role' => null],
+                ['label' => 'Ceklist Kondisi',  'url' => '/admin/ceklist-kondisi',    'icon' => 'bi bi-clipboard-check-fill', 'role' => null],
                 ['label' => 'Kategori Service', 'url' => '/admin/service-categories', 'icon' => 'bi bi-tags-fill', 'role' => 'superadmin'],
             ];
         @endphp
@@ -21,6 +22,7 @@
                             'asuransi' => $item['url'] === '/admin/service-asuransi',
                             'incident' => $item['url'] === '/admin/service-incident',
                             'reminder' => $item['url'] === '/admin/reminder-service',
+                            'ceklist' => $item['url'] === '/admin/ceklist-kondisi',
                             'categories' => $item['url'] === '/admin/service-categories',
                             default => $isActiveTab
                         };

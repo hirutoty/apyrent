@@ -152,28 +152,52 @@ class ChartDataService
         $filterType   = $config['filter_type'] ?? null;
         $autoDaily    = $config['autoDaily'] ?? true; // default true agar semua chart responsive terhadap filter_type
 
-        // Auto-switch ke daily per tanggal saat filter bulan ini
-        if ($autoDaily && $filterType === 'today') {
-            $data = $this->getTodayBarData($query, $valueColumns, $dateColumn, $labels);
-        } elseif ($autoDaily && $filterType === 'week') {
-            $data = $this->getCurrentWeekDailyBarData($query, $valueColumns, $dateColumn, $labels);
-        } elseif ($autoDaily && $filterType === 'month' && $groupBy === 'month') {
-            $data = $this->getCurrentMonthDailyBarData($query, $valueColumns, $dateColumn, $labels);
-        } elseif ($autoDaily && $filterType === 'year' && $groupBy === 'month') {
-            $data = $this->getCurrentYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels);
-        } elseif ($autoDaily && $filterType === 'specific_year' && $groupBy === 'month') {
-            $specificYear = (int) ($config['specific_year'] ?? Carbon::now()->year);
-            $data = $this->getSpecificYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels, $specificYear);
-        } elseif ($autoDaily && $filterType === 'custom' && !empty($config['start_date']) && !empty($config['end_date'])) {
-            $data = $this->getCustomRangeBarData($query, $valueColumns, $dateColumn, $labels, $config['start_date'], $config['end_date']);
-        } elseif ($groupBy === 'month') {
-            $data = $this->getMonthlyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
-        } elseif ($groupBy === 'week') {
-            $data = $this->getWeeklyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
-        } elseif ($groupBy === 'day') {
-            $data = $this->getDailyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
+        // Handle different filter types based on autoDaily setting
+        if ($autoDaily) {
+            // RESPONSIVE MODE: Auto-switch grouping based on filter_type
+            if ($filterType === 'today') {
+                $data = $this->getTodayBarData($query, $valueColumns, $dateColumn, $labels);
+            } elseif ($filterType === 'week') {
+                $data = $this->getCurrentWeekDailyBarData($query, $valueColumns, $dateColumn, $labels);
+            } elseif ($filterType === 'month' && $groupBy === 'month') {
+                $data = $this->getCurrentMonthDailyBarData($query, $valueColumns, $dateColumn, $labels);
+            } elseif ($filterType === 'year' && $groupBy === 'month') {
+                $data = $this->getCurrentYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels);
+            } elseif ($filterType === 'specific_year' && $groupBy === 'month') {
+                $specificYear = (int) ($config['specific_year'] ?? Carbon::now()->year);
+                $data = $this->getSpecificYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels, $specificYear);
+            } elseif ($filterType === 'custom' && !empty($config['start_date']) && !empty($config['end_date'])) {
+                $data = $this->getCustomRangeBarData($query, $valueColumns, $dateColumn, $labels, $config['start_date'], $config['end_date']);
+            } else {
+                // Fallback ke default groupBy
+                $data = $this->getDefaultBarData($query, $groupBy, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
+            }
         } else {
-            $data = $this->getCategoryBarData($query, $groupBy, $valueColumns, $aggregation, $labels);
+            // FIXED MODE: Default shows Jan-Dec, but still responsive to filters
+            if ($groupBy === 'month') {
+                // User explicitly selected a filter: be responsive
+                if ($filterType === 'today') {
+                    $data = $this->getTodayBarData($query, $valueColumns, $dateColumn, $labels);
+                } elseif ($filterType === 'week') {
+                    $data = $this->getCurrentWeekDailyBarData($query, $valueColumns, $dateColumn, $labels);
+                } elseif ($filterType === 'month' || $filterType === 'year' || $filterType === null) {
+                    // When filter is "month" OR "year" OR no filter: show Jan-Dec of current year
+                    $data = $this->getCurrentYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels);
+                } elseif ($filterType === 'specific_year') {
+                    // Show Jan-Dec of selected year
+                    $specificYear = (int) ($config['specific_year'] ?? Carbon::now()->year);
+                    $data = $this->getSpecificYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels, $specificYear);
+                } elseif ($filterType === 'custom' && !empty($config['start_date']) && !empty($config['end_date'])) {
+                    // Custom range: per-date
+                    $data = $this->getCustomRangeBarData($query, $valueColumns, $dateColumn, $labels, $config['start_date'], $config['end_date']);
+                } else {
+                    // Fallback: show Jan-Dec of current year
+                    $data = $this->getCurrentYearMonthlyBarData($query, $valueColumns, $dateColumn, $labels);
+                }
+            } else {
+                // Fallback ke default groupBy
+                $data = $this->getDefaultBarData($query, $groupBy, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
+            }
         }
 
         // Debug logging for bar chart data
@@ -233,6 +257,24 @@ class ChartDataService
             }
         }
         return $q;
+    }
+
+    /**
+     * Apply where clause to query for filtering (used in line charts)
+     * Supports: ['col' => 'val'], ['col' => ['a','b']] (whereIn), ['__raw' => 'SQL']
+     */
+    private function applyWhereClause(Builder $query, array $whereConditions): Builder
+    {
+        foreach ($whereConditions as $col => $val) {
+            if ($col === '__raw') {
+                $query->whereRaw($val);
+            } elseif (is_array($val)) {
+                $query->whereIn($col, $val);
+            } else {
+                $query->where($col, $val);
+            }
+        }
+        return $query;
     }
 
     /**
@@ -533,26 +575,57 @@ class ChartDataService
         $startDate   = $config['start_date'] ?? null;
         $endDate     = $config['end_date'] ?? null;
 
-        // Auto-switch groupBy tergantung filter_type (sama seperti bar)
-        if ($autoDaily && $filterType === 'today') {
-            $data = $this->getTodayLineTrendData($query, $valueColumn, $dateColumn);
-        } elseif ($autoDaily && $filterType === 'week') {
-            $data = $this->getCurrentWeekDailyLineTrendData($query, $valueColumn, $dateColumn);
-        } elseif ($autoDaily && $filterType === 'month' && $groupBy === 'month') {
-            $data = $this->getCurrentMonthDailyLineTrendData($query, $valueColumn, $dateColumn);
-        } elseif ($autoDaily && $filterType === 'year' && $groupBy === 'month') {
-            $data = $this->getCurrentYearMonthlyLineTrendData($query, $valueColumn, $dateColumn);
-        } elseif ($autoDaily && $filterType === 'specific_year' && $groupBy === 'month') {
-            $specificYear = (int) ($config['specific_year'] ?? Carbon::now()->year);
-            $data = $this->getSpecificYearMonthlyLineTrendData($query, $valueColumn, $dateColumn, $specificYear);
-        } elseif ($autoDaily && $filterType === 'custom' && $startDate && $endDate) {
-            $data = $this->getCustomRangeLineTrendData($query, $valueColumn, $dateColumn, $startDate, $endDate);
-        } elseif ($groupBy === 'month') {
-            $data = $this->getMonthlyTrendData($query, $valueColumn, $aggregation, $dateColumn, $limit);
-        } elseif ($groupBy === 'week') {
-            $data = $this->getWeeklyTrendData($query, $valueColumn, $aggregation, $dateColumn, $limit);
+        // Apply where clause if provided (for filtering specific status, etc)
+        if (isset($config['where'])) {
+            $query = $this->applyWhereClause($query, $config['where']);
+        }
+
+        // Handle different filter types based on autoDaily setting
+        if ($autoDaily) {
+            // RESPONSIVE MODE: Auto-switch grouping based on filter_type
+            if ($filterType === 'today') {
+                $data = $this->getTodayLineTrendData($query, $valueColumn, $dateColumn);
+            } elseif ($filterType === 'week') {
+                $data = $this->getCurrentWeekDailyLineTrendData($query, $valueColumn, $dateColumn);
+            } elseif ($filterType === 'month' && $groupBy === 'month') {
+                $data = $this->getCurrentMonthDailyLineTrendData($query, $valueColumn, $dateColumn);
+            } elseif ($filterType === 'year' && $groupBy === 'month') {
+                $data = $this->getCurrentYearMonthlyLineTrendData($query, $valueColumn, $dateColumn);
+            } elseif ($filterType === 'specific_year' && $groupBy === 'month') {
+                $specificYear = (int) ($config['specific_year'] ?? Carbon::now()->year);
+                $data = $this->getSpecificYearMonthlyLineTrendData($query, $valueColumn, $dateColumn, $specificYear);
+            } elseif ($filterType === 'custom' && $startDate && $endDate) {
+                $data = $this->getCustomRangeLineTrendData($query, $valueColumn, $dateColumn, $startDate, $endDate);
+            } else {
+                // Fallback ke default groupBy
+                $data = $this->getDefaultLineTrendData($query, $groupBy, $valueColumn, $aggregation, $dateColumn, $limit);
+            }
         } else {
-            $data = $this->getDailyTrendData($query, $valueColumn, $aggregation, $dateColumn, $limit);
+            // FIXED MODE: Default shows Jan-Dec, but still responsive to filters
+            if ($groupBy === 'month') {
+                // User explicitly selected a filter: be responsive
+                if ($filterType === 'today') {
+                    $data = $this->getTodayLineTrendData($query, $valueColumn, $dateColumn);
+                } elseif ($filterType === 'week') {
+                    $data = $this->getCurrentWeekDailyLineTrendData($query, $valueColumn, $dateColumn);
+                } elseif ($filterType === 'month' || $filterType === 'year' || $filterType === null) {
+                    // When filter is "month" OR "year" OR no filter: show Jan-Dec of current year
+                    $data = $this->getCurrentYearMonthlyLineTrendData($query, $valueColumn, $dateColumn);
+                } elseif ($filterType === 'specific_year') {
+                    // Show Jan-Dec of selected year
+                    $specificYear = (int) ($config['specific_year'] ?? Carbon::now()->year);
+                    $data = $this->getSpecificYearMonthlyLineTrendData($query, $valueColumn, $dateColumn, $specificYear);
+                } elseif ($filterType === 'custom' && $startDate && $endDate) {
+                    // Custom range: per-date
+                    $data = $this->getCustomRangeLineTrendData($query, $valueColumn, $dateColumn, $startDate, $endDate);
+                } else {
+                    // Fallback: show Jan-Dec of current year
+                    $data = $this->getCurrentYearMonthlyLineTrendData($query, $valueColumn, $dateColumn);
+                }
+            } else {
+                // Fallback ke default groupBy
+                $data = $this->getDefaultLineTrendData($query, $groupBy, $valueColumn, $aggregation, $dateColumn, $limit);
+            }
         }
 
         return [
@@ -829,6 +902,36 @@ class ChartDataService
     }
 
     // ==================== PRIVATE HELPER METHODS ====================
+
+    /**
+     * Get default bar data based on groupBy (fallback method)
+     */
+    private function getDefaultBarData($query, $groupBy, $valueColumns, $aggregation, $dateColumn, $limit, $labels)
+    {
+        if ($groupBy === 'month') {
+            return $this->getMonthlyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
+        } elseif ($groupBy === 'week') {
+            return $this->getWeeklyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
+        } elseif ($groupBy === 'day') {
+            return $this->getDailyBarData($query, $valueColumns, $aggregation, $dateColumn, $limit, $labels);
+        } else {
+            return $this->getCategoryBarData($query, $groupBy, $valueColumns, $aggregation, $labels);
+        }
+    }
+
+    /**
+     * Get default line trend data based on groupBy (fallback method)
+     */
+    private function getDefaultLineTrendData($query, $groupBy, $valueColumn, $aggregation, $dateColumn, $limit)
+    {
+        if ($groupBy === 'month') {
+            return $this->getMonthlyTrendData($query, $valueColumn, $aggregation, $dateColumn, $limit);
+        } elseif ($groupBy === 'week') {
+            return $this->getWeeklyTrendData($query, $valueColumn, $aggregation, $dateColumn, $limit);
+        } else {
+            return $this->getDailyTrendData($query, $valueColumn, $aggregation, $dateColumn, $limit);
+        }
+    }
 
     private function getAggregationFunction(string $type, string $column): string
     {

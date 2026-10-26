@@ -556,4 +556,29 @@ class KendaraanController extends Controller
             'categories'
         ));
     }
+
+    /**
+     * API endpoint untuk mendapatkan data kendaraan (untuk modal ceklist kondisi)
+     */
+    public function getKendaraanData($id)
+    {
+        try {
+            $kendaraan = Kendaraan::findOrFail($id);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $kendaraan->id,
+                    'nopol' => $kendaraan->nopol,
+                    'merk' => $kendaraan->merk,
+                    'kilometer_sekarang' => $kendaraan->kilometer_sekarang,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kendaraan tidak ditemukan'
+            ], 404);
+        }
+    }
 }
