@@ -81,6 +81,7 @@ class LaporanKehilanganController extends Controller
     {
         $request->validate([
             'kendaraan_id'    => 'required|exists:kendaraan,id',
+            'status'          => 'required|in:sementara,permanen',
             'tanggal'         => 'required|date',
             'keterangan'      => 'nullable|string|max:2000',
             'lokasi_kejadian' => 'nullable|string|max:500',
@@ -96,9 +97,12 @@ class LaporanKehilanganController extends Controller
                 $filePath = $this->uploadFile($request->file('file'));
             }
 
+            // Ambil data kendaraan untuk snapshot
+            $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
+
             $kehilangan = Kehilangan::create([
                 'kendaraan_id'    => $request->kendaraan_id,
-                'status'          => 'sementara',
+                'status'          => $request->status,
                 'tanggal'         => $request->tanggal,
                 'keterangan'      => $request->keterangan,
                 'lokasi_kejadian' => $request->lokasi_kejadian,
@@ -106,12 +110,52 @@ class LaporanKehilanganController extends Controller
                 'pengurus'        => $request->pengurus,
                 'informasi_gps'   => $request->informasi_gps,
                 'file'            => $filePath,
+                // Simpan snapshot data kendaraan
+                'kendaraan_nopol' => $kendaraan->nopol,
+                'kendaraan_merk'  => $kendaraan->merk,
+                'kendaraan_type'  => null, // tidak ada kolom type di kendaraan
+                'kendaraan_warna' => $kendaraan->warna ?? null,
+                'kendaraan_tahun' => $kendaraan->tahun_pembuatan ?? null,
+            ]);
+
+            // Update status kendaraan berdasarkan status kehilangan
+            $kehilangan->load('kendaraan');
+            
+            \Log::info('DEBUG Kehilangan Created', [
+                'kehilangan_id' => $kehilangan->id,
+                'kendaraan_id' => $request->kendaraan_id,
+                'status_kehilangan' => $request->status,
+                'status_kendaraan_sebelum' => $kendaraan->status_kendaraan,
+                'snapshot_saved' => [
+                    'nopol' => $kehilangan->kendaraan_nopol,
+                    'merk'  => $kehilangan->kendaraan_merk,
+                ],
+            ]);
+            
+            if ($request->status === 'sementara') {
+                // Sementara: status kendaraan jadi 'hilang', tapi masih ada di stok
+                $kendaraan->update(['status_kendaraan' => 'hilang']);
+                $kendaraanStatusMsg = 'Status kendaraan diubah menjadi Hilang (Sementara).';
+                
+            } elseif ($request->status === 'permanen') {
+                // Permanen: HAPUS kendaraan dari stok (soft delete)
+                $kendaraan->delete();
+                $kendaraanStatusMsg = 'Kendaraan dihapus dari stok karena status permanen.';
+            } else {
+                $kendaraanStatusMsg = '';
+            }
+            
+            \Log::info('DEBUG Kendaraan Updated', [
+                'status_kehilangan' => $request->status,
+                'action' => $request->status === 'permanen' ? 'DELETED' : 'STATUS_CHANGED',
             ]);
 
             // Log pertama otomatis
+            $statusLabel = $request->status === 'sementara' ? 'Sementara (Sedang Dicari)' : 'Permanen (Hilang Tetap)';
+            
             LaporanKehilangan::create([
                 'kehilangan_id'    => $kehilangan->id,
-                'laporan'          => 'Laporan kehilangan dibuat oleh ' . Auth::user()->name . '.',
+                'laporan'          => 'Laporan kehilangan dibuat oleh ' . Auth::user()->name . ' dengan status ' . $statusLabel . ($kendaraanStatusMsg ? '. ' . $kendaraanStatusMsg : '.'),
                 'tanggal_laporan'  => $request->tanggal,
                 'keterangan'       => $request->keterangan,
                 'lokasi_pencarian' => $request->lokasi_kejadian,
@@ -119,8 +163,8 @@ class LaporanKehilanganController extends Controller
             ]);
         });
 
-        return redirect()->route('laporan-kehilangan.index', ['tab' => 'sementara'])
-            ->with('success', 'Laporan kehilangan berhasil dibuat.');
+        return redirect()->route('laporan-kehilangan.index', ['tab' => $request->status])
+            ->with('success', 'Laporan kehilangan berhasil dibuat dengan status ' . ucfirst($request->status) . '.');
     }
 
     /*
@@ -215,10 +259,7 @@ class LaporanKehilanganController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status_baru'       => 'required|in:permanen,ditemukan',
-            'keterangan_update' => 'nullable|string|max:1000',
-            'lokasi_pencarian'  => 'nullable|string|max:500',
-            'file'              => 'nullable|file|max:10240|mimes:jpg,jpeg,png,pdf,doc,docx',
+            'status_baru' => 'required|in:permanen,ditemukan',
         ]);
 
         $kehilangan = Kehilangan::with('kendaraan')->findOrFail($id);
@@ -232,22 +273,38 @@ class LaporanKehilanganController extends Controller
             $statusLama = $kehilangan->status;
             $statusBaru = $request->status_baru;
 
-            $filePath = null;
-            if ($request->hasFile('file')) {
-                $filePath = $this->uploadFile($request->file('file'));
-            }
-
             $kehilangan->update(['status' => $statusBaru]);
 
+            // Logic berdasarkan status baru
             if ($statusBaru === 'permanen') {
-                $kehilangan->kendaraan->update(['status_kendaraan' => 'hilang']);
+                // Permanen: HAPUS kendaraan dari stok (soft delete)
+                $kehilangan->kendaraan->delete();
+                $kendaraanMsg = 'Kendaraan dihapus dari stok.';
+                
             } elseif ($statusBaru === 'ditemukan') {
-                $kehilangan->kendaraan->update(['status_kendaraan' => 'tersedia']);
+                // Ditemukan: kembalikan kendaraan ke status 'tersedia'
+                // Cek apakah kendaraan masih ada (belum dihapus permanen)
+                $kendaraan = Kendaraan::withTrashed()->find($kehilangan->kendaraan_id);
+                
+                if ($kendaraan && $kendaraan->trashed()) {
+                    // Restore kendaraan yang sudah soft deleted
+                    $kendaraan->restore();
+                    $kendaraan->update(['status_kendaraan' => 'tersedia']);
+                    $kendaraanMsg = 'Kendaraan dikembalikan ke stok dengan status Tersedia.';
+                } elseif ($kendaraan) {
+                    // Kendaraan masih ada, cukup update status
+                    $kendaraan->update(['status_kendaraan' => 'tersedia']);
+                    $kendaraanMsg = 'Kendaraan kembali tersedia.';
+                } else {
+                    $kendaraanMsg = 'Kendaraan tidak dapat dikembalikan (sudah dihapus permanen).';
+                }
+            } else {
+                $kendaraanMsg = '';
             }
 
             $pesanLog = match($statusBaru) {
-                'permanen'  => 'Status diubah ke Permanen oleh ' . Auth::user()->name . '. Kendaraan dikeluarkan dari stok.',
-                'ditemukan' => 'Status diubah ke Ditemukan oleh ' . Auth::user()->name . '. Kendaraan kembali tersedia.',
+                'permanen'  => 'Status diubah ke Permanen oleh ' . Auth::user()->name . '. ' . $kendaraanMsg,
+                'ditemukan' => 'Status diubah ke Ditemukan oleh ' . Auth::user()->name . '. ' . $kendaraanMsg,
                 default     => 'Status diubah dari ' . $statusLama . ' ke ' . $statusBaru . ' oleh ' . Auth::user()->name . '.',
             };
 
@@ -255,11 +312,17 @@ class LaporanKehilanganController extends Controller
                 'kehilangan_id'    => $kehilangan->id,
                 'laporan'          => $pesanLog,
                 'tanggal_laporan'  => now()->toDateString(),
-                'keterangan'       => $request->keterangan_update,
-                'lokasi_pencarian' => $request->lokasi_pencarian,
-                'file'             => $filePath,
+                'keterangan'       => null,
+                'lokasi_pencarian' => null,
+                'file'             => null,
             ]);
         });
+
+        // Redirect ke index jika dari quick change, ke detail jika dari detail page
+        if ($request->has('from_index')) {
+            return redirect()->route('laporan-kehilangan.index', ['tab' => $request->status_baru])
+                ->with('success', 'Status berhasil diubah ke "' . ucfirst($request->status_baru) . '".');
+        }
 
         return redirect()->route('laporan-kehilangan.show', $id)
             ->with('success', 'Status berhasil diubah ke "' . ucfirst($request->status_baru) . '".');
@@ -274,8 +337,12 @@ class LaporanKehilanganController extends Controller
     {
         $kehilangan = Kehilangan::findOrFail($id);
 
-        if ($kehilangan->status !== 'sementara') {
-            return back()->withErrors(['delete' => 'Laporan hanya bisa dihapus jika masih berstatus Sementara.']);
+        if ($kehilangan->status === 'permanen') {
+            return back()->withErrors(['delete' => 'Laporan dengan status Permanen tidak bisa dihapus karena sudah mempengaruhi stok kendaraan.']);
+        }
+
+        if ($kehilangan->status === 'ditemukan') {
+            return back()->withErrors(['delete' => 'Laporan dengan status Ditemukan tidak bisa dihapus karena sudah diselesaikan.']);
         }
 
         if ($kehilangan->file && file_exists(public_path($kehilangan->file))) {

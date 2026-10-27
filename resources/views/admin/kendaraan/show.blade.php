@@ -20,7 +20,7 @@
             </div>
 
             {{-- SUMMARY CARDS --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
 
                 <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
                     <div class="flex items-center justify-between">
@@ -69,6 +69,32 @@
                         </div>
                         <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center">
                             <i class="fa fa-wrench text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Bermasalah</p>
+                            <h2 class="text-3xl font-bold text-red-600 mt-1">
+                                {{ $data->where('status_kendaraan', 'bermasalah')->count() }}</h2>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-red-50 text-red-500 flex items-center justify-center">
+                            <i class="fa fa-exclamation-triangle text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Hilang</p>
+                            <h2 class="text-3xl font-bold text-purple-600 mt-1">
+                                {{ $data->where('status_kendaraan', 'hilang')->count() }}</h2>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-500 flex items-center justify-center">
+                            <i class="fa fa-map-marker-alt-slash text-xl"></i>
                         </div>
                     </div>
                 </div>
@@ -301,6 +327,13 @@
                                                 class="inline-flex items-center gap-1.5 bg-red-100 text-red-700 text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-red-200 transition-colors">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>
                                                 Bermasalah
+                                            </button>
+                                        @elseif($d->status_kendaraan === 'hilang')
+                                            <button type="button"
+                                                onclick="ubahStatus({{ $d->id }}, '{{ $d->status_kendaraan }}', '', '')"
+                                                class="inline-flex items-center gap-1.5 bg-purple-100 text-purple-700 text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-purple-200 transition-colors">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block"></span>
+                                                Hilang
                                             </button>
                                         @endif
                                     </td>
@@ -1653,6 +1686,7 @@
                     disewa: ['bg-blue-100 text-blue-700', 'bg-blue-500', 'Disewa'],
                     service: ['bg-amber-100 text-amber-700', 'bg-amber-400', 'Service'],
                     bermasalah: ['bg-red-100 text-red-700', 'bg-red-500', 'Bermasalah'],
+                    hilang: ['bg-purple-100 text-purple-700', 'bg-purple-500', 'Hilang'],
                 };
                 var m = map[val] || map['service'];
                 return '<span class="inline-flex items-center gap-1.5 ' + m[0] +

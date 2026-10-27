@@ -207,6 +207,13 @@
                                         title="Lihat detail service kendaraan ini">
                                         Detail
                                     </a>
+                                    {{-- Tombol Ceklist Kondisi: muncul jika belum ada ceklist ATAU ada part baru yang di-approve --}}
+                                    @if($d->kendaraan && $d->kendaraan->shouldShowCeklistButton())
+                                        <button type="button" onclick="openCeklistModal({{ $d->kendaraan_id }})"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
+                                            <i class="bi bi-clipboard-check-fill text-xs"></i> Ceklist Kondisi
+                                        </button>
+                                    @endif
                                     {{-- Tombol Terpasang di level service: muncul saat status aktif --}}
                                     @php
                                         $bisaTerpasang = $d->status === 'aktif'
@@ -2068,6 +2075,7 @@ document.addEventListener('DOMContentLoaded', function() {
 @endif
 </script>
 
-
+{{-- INCLUDE MODAL CEKLIST KONDISI --}}
+@include('admin.service.ceklist_kondisi._modal_create')
 
 @endsection

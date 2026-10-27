@@ -4,12 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\ServiceHistory;
 use App\Models\Pelanggan;
 
 class Kendaraan extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'kendaraan'; // ⚠️ sesuaikan dengan migrasi
 
@@ -122,13 +123,18 @@ class Kendaraan extends Model
     }
 
     public function kir()
-{
-    return $this->hasOne(Kir::class);
-}
+    {
+        return $this->hasOne(Kir::class);
+    }
 
     public function serviceHistories()
     {
         return $this->hasMany(ServiceHistory::class);
+    }
+
+    public function ceklistKondisi()
+    {
+        return $this->hasMany(CeklistKondisi::class)->orderBy('tanggal', 'desc')->orderBy('created_at', 'desc');
     }
 
     /**
@@ -177,4 +183,48 @@ class Kendaraan extends Model
         'tanggal_terakhir_service' => 'date',
         'foto_masalah' => 'array',
     ];
+
+    /*
+    | HELPER METHODS
+    */
+
+    /**
+     * Cek apakah tombol Ceklist Kondisi harus ditampilkan
+     * 
+     * LOGIKA BARU:
+     * Tampil HANYA jika ada part yang PEMBAYARANNYA sudah di-approve
+     * DAN belum ada ceklist setelah approval tersebut
+     * 
+     * Tidak tampil jika:
+     * - Belum ada part yang pembayarannya di-approve
+     * - Sudah isi ceklist setelah approval terakhir
+     * - Hanya approve PO (tanggal_approval masih NULL)
+     * 
+     * Catatan: tanggal_approval di-set saat PEMBAYARAN di-approve, bukan saat PO di-approve
+     */
+    public function shouldShowCeklistButton()
+    {
+        // Cari part dengan pembayaran paling baru yang sudah di-approve
+        $latestApprovedPayment = $this->serviceParts()
+            ->where('persetujuan', 'Disetujui')
+            ->whereNotNull('tanggal_approval') // Harus ada tanggal_approval (pembayaran sudah di-approve)
+            ->orderBy('tanggal_approval', 'desc')
+            ->first();
+
+        // Jika tidak ada part yang pembayarannya di-approve, JANGAN tampilkan tombol
+        if (!$latestApprovedPayment) {
+            return false;
+        }
+
+        // Cek apakah sudah ada ceklist SETELAH approval terakhir
+        $lastCeklist = $this->ceklistKondisi()->first();
+
+        // Jika belum ada ceklist sama sekali, tampilkan tombol
+        if (!$lastCeklist) {
+            return true;
+        }
+
+        // Tampilkan tombol jika approval lebih baru dari ceklist terakhir
+        return $latestApprovedPayment->tanggal_approval > $lastCeklist->created_at;
+    }
 }

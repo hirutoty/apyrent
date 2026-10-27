@@ -29,24 +29,41 @@ class ChartDataController extends Controller
      */
     public function getData(Request $request, string $page): JsonResponse
     {
-        // Validate request
+        // Debug log incoming request
+        \Log::info('Chart Data Request', [
+            'page' => $page,
+            'all_params' => $request->all(),
+        ]);
+
+        // Validate request (allow null/empty for specific_year)
         $validated = $request->validate([
             'filter_type'   => 'nullable|in:today,week,month,year,specific_year,custom',
             'start_date'    => 'nullable|string',
             'end_date'      => 'nullable|string',
-            'specific_year' => 'nullable|integer|min:2000|max:2099',
+            'specific_year' => 'nullable',  // Allow null, empty, or integer
             'kendaraan_id'  => 'nullable|integer|exists:kendaraan,id',
-            'category_id'   => 'nullable|integer',
+            'category_id'   => 'nullable',  // Allow empty string or integer
             'departemen'    => 'nullable|string',
             'kontrak_id'    => 'nullable|integer',
         ]);
+
+        // Clean up specific_year (convert to int or null)
+        $specificYear = $request->input('specific_year');
+        if ($specificYear && is_numeric($specificYear)) {
+            $specificYear = (int) $specificYear;
+            if ($specificYear < 2000 || $specificYear > 2099) {
+                $specificYear = null;
+            }
+        } else {
+            $specificYear = null;
+        }
 
         try {
             // Get filter parameters
             $filterType  = $request->input('filter_type', 'month');
             $startDate   = $request->input('start_date');
             $endDate     = $request->input('end_date');
-            $specificYear = $request->input('specific_year') ? (int) $request->input('specific_year') : null;
+            // $specificYear already set above from validation cleanup
             $kendaraanId = $request->input('kendaraan_id');
             $categoryId  = $request->input('category_id');
             $departemen  = $request->input('departemen');
@@ -209,6 +226,8 @@ class ChartDataController extends Controller
             'jenis-asuransi'  => $this->getJenisAsuransiConfig(),
             'supplier'        => $this->getSupplierConfig(),
             'jenis-kendaraan' => $this->getJenisKendaraanConfig(),
+            // Laporan Kehilangan
+            'laporan-kehilangan' => $this->getLaporanKehilanganConfig(),
             // History list pages
             'pajak-history' => $this->getPajakHistoryConfig(),
             'asuransi-history' => $this->getAsuransiHistoryConfig(),
@@ -316,6 +335,8 @@ class ChartDataController extends Controller
             'jenis-asuransi'  => \App\Models\JenisAsuransi::query(),
             'supplier'        => \App\Models\Supplier::query(),
             'jenis-kendaraan' => \App\Models\Jenis::query(),
+            // Laporan Kehilangan
+            'laporan-kehilangan' => \App\Models\Kehilangan::query(),
             // History list pages
             'pajak-history' => \App\Models\PajakHistory::query(),
             'asuransi-history' => \App\Models\AsuransiHistory::query(),
@@ -3394,6 +3415,102 @@ class ChartDataController extends Controller
                     'icon'   => 'fa fa-car',
                     'trendComparison' => 'last_month',
                     'dateColumn' => 'created_at',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Chart config for Laporan Kehilangan page
+     */
+    protected function getLaporanKehilanganConfig(): array
+    {
+        return [
+            'dateColumn' => 'tanggal',
+            'pie' => [
+                'title'       => 'Distribusi Status Kehilangan',
+                'ignoreFilter' => true,
+                'groupBy'     => 'status',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'labels'      => [
+                    'sementara' => 'Sementara',
+                    'permanen'  => 'Permanen',
+                    'ditemukan' => 'Ditemukan',
+                ],
+                'colors' => ['#f59e0b', '#ef4444', '#10b981'],
+            ],
+            'bar' => [
+                'title'        => 'Jumlah Laporan Kehilangan per Periode',
+                'groupBy'      => 'month',
+                'autoDaily'    => false,
+                'valueColumns' => [
+                    ['count' => true, 'label' => 'Total Laporan'],
+                    ['where' => ['status' => 'sementara'], 'column' => 'id', 'label' => 'Sementara', 'aggregation' => 'count'],
+                    ['where' => ['status' => 'permanen'],  'column' => 'id', 'label' => 'Permanen',  'aggregation' => 'count'],
+                    ['where' => ['status' => 'ditemukan'], 'column' => 'id', 'label' => 'Ditemukan', 'aggregation' => 'count'],
+                ],
+                'aggregation'  => 'count',
+                'dateColumn'   => 'tanggal',
+                'limit'        => 12,
+                'labels'       => ['Total Laporan', 'Sementara', 'Permanen', 'Ditemukan'],
+                'colors'       => ['#6366f1', '#f59e0b', '#ef4444', '#10b981'],
+                'format'       => 'number',
+            ],
+            'line' => [
+                'title'       => 'Trend Kehilangan Sementara',
+                'groupBy'     => 'month',
+                'autoDaily'   => false,
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'where'       => ['status' => 'sementara'],
+                'dateColumn'  => 'tanggal',
+                'limit'       => 12,
+                'label'       => 'Hilang Sementara',
+                'color'       => '#f59e0b',
+                'format'      => 'number',
+            ],
+            'stats' => [
+                [
+                    'label'  => 'Total Laporan',
+                    'type'   => 'count',
+                    'column' => 'id',
+                    'format' => 'number',
+                    'color'  => '#6366f1',
+                    'iconBg' => '#e0e7ff',
+                    'icon'   => 'bi bi-exclamation-triangle-fill',
+                    'trendComparison' => 'last_month',
+                    'dateColumn' => 'tanggal',
+                ],
+                [
+                    'label'  => 'Sementara',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'sementara'],
+                    'format' => 'number',
+                    'color'  => '#f59e0b',
+                    'iconBg' => '#fef3c7',
+                    'icon'   => 'bi bi-hourglass-split',
+                ],
+                [
+                    'label'  => 'Permanen',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'permanen'],
+                    'format' => 'number',
+                    'color'  => '#ef4444',
+                    'iconBg' => '#fee2e2',
+                    'icon'   => 'bi bi-exclamation-triangle-fill',
+                ],
+                [
+                    'label'  => 'Ditemukan',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status' => 'ditemukan'],
+                    'format' => 'number',
+                    'color'  => '#10b981',
+                    'iconBg' => '#d1fae5',
+                    'icon'   => 'bi bi-check-circle-fill',
                 ],
             ],
         ];

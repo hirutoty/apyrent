@@ -553,6 +553,10 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::get('/chart-data/{page}', [App\Http\Controllers\Admin\ChartDataController::class, 'getData'])
     ->name('chart.data');
 
+  // API endpoint untuk ceklist kondisi - ambil data kendaraan
+  Route::get('api/kendaraan/{id}', [KendaraanController::class, 'getKendaraanData'])
+    ->name('api.kendaraan.show');
+
   Route::resource('kendaraan', KendaraanController::class);
 
   // Service History per Kendaraan
@@ -609,6 +613,20 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
 
 
   Route::resource('service', ServiceController::class);
+
+  // ── Ceklist Kondisi Routes ──────────────────────────────────
+  Route::get('ceklist-kondisi', [App\Http\Controllers\Admin\CeklistKondisiController::class, 'index'])
+      ->name('ceklist-kondisi.index');
+  Route::get('ceklist-kondisi/create/{kendaraan}', [App\Http\Controllers\Admin\CeklistKondisiController::class, 'create'])
+      ->name('ceklist-kondisi.create');
+  Route::post('ceklist-kondisi', [App\Http\Controllers\Admin\CeklistKondisiController::class, 'store'])
+      ->name('ceklist-kondisi.store');
+  Route::get('ceklist-kondisi/{id}', [App\Http\Controllers\Admin\CeklistKondisiController::class, 'show'])
+      ->name('ceklist-kondisi.show');
+  Route::get('ceklist-kondisi/{id}/print', [App\Http\Controllers\Admin\CeklistKondisiController::class, 'print'])
+      ->name('ceklist-kondisi.print');
+  Route::delete('ceklist-kondisi/{id}', [App\Http\Controllers\Admin\CeklistKondisiController::class, 'destroy'])
+      ->name('ceklist-kondisi.destroy');
 
   // Route tambahan Service History — HARUS di atas resource agar tidak bentrok dengan {service_history} param
   Route::post('service-history/categories', [ServiceHistoryController::class, 'storeCategory'])

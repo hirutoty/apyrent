@@ -21,6 +21,12 @@ class Kehilangan extends Model
         'pengurus',
         'informasi_gps',
         'file',
+        // Snapshot data kendaraan
+        'kendaraan_nopol',
+        'kendaraan_merk',
+        'kendaraan_type',
+        'kendaraan_warna',
+        'kendaraan_tahun',
     ];
 
     protected $casts = [
@@ -35,7 +41,8 @@ class Kehilangan extends Model
 
     public function kendaraan()
     {
-        return $this->belongsTo(Kendaraan::class);
+        // Sertakan soft deleted untuk bisa akses kendaraan yang sudah dihapus (status permanen)
+        return $this->belongsTo(Kendaraan::class)->withTrashed();
     }
 
     public function pelanggan()
@@ -91,5 +98,31 @@ class Kehilangan extends Model
             'ditemukan' => [],
             default     => [],
         };
+    }
+
+    /**
+     * Get kendaraan nopol (snapshot or relation)
+     */
+    public function getNopolAttribute(): string
+    {
+        return $this->kendaraan_nopol ?? $this->kendaraan->nopol ?? '-';
+    }
+
+    /**
+     * Get kendaraan merk (snapshot or relation)
+     */
+    public function getMerkAttribute(): string
+    {
+        return $this->kendaraan_merk ?? $this->kendaraan->merk ?? '-';
+    }
+
+    /**
+     * Get display name kendaraan
+     */
+    public function getKendaraanDisplayAttribute(): string
+    {
+        $nopol = $this->nopol;
+        $merk = $this->merk;
+        return "{$nopol} — {$merk}";
     }
 }
