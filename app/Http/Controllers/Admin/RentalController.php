@@ -121,6 +121,36 @@ class RentalController extends Controller
             ])->filter(fn($r) => $r['mulai'] && $r['selesai'])->values())
             ->toArray();
 
+        // ── HITUNG DATA CHART PEMBAYARAN ──
+        $allRentals = Rental::all();
+        
+        // Total Pembayaran = Total Pendapatan (sum dari total_biaya semua rental)
+        $totalSemuaPembayaran = $totalPendapatan;
+        
+        // 1. Total Lunas = rental yang LUNAS penuh (jenis_pembayaran 'lunas' ATAU ada bukti_pelunasan)
+        $totalLunas = $allRentals->filter(function($r) {
+            // Lunas jika: bayar langsung lunas ATAU DP yang sudah upload pelunasan
+            return ($r->jenis_pembayaran === 'lunas' && $r->bukti_lunas) || 
+                   ($r->bukti_pelunasan);
+        })->sum('total_biaya');
+        
+        // 2. Total DP = nominal_dp dari rental yang BELUM pelunasan (hanya yang masih menunggak)
+        $totalDp = $allRentals->filter(function($r) {
+            // Hanya hitung DP yang BELUM upload pelunasan
+            return ($r->jenis_pembayaran === 'dp' || $r->bukti_dp) && 
+                   $r->nominal_dp > 0 && 
+                   !$r->bukti_pelunasan;
+        })->sum('nominal_dp');
+        
+        // 3. Belum Bayar = sisa tagihan dari rental DP yang BELUM pelunasan
+        $totalBelumBayar = $allRentals->filter(function($r) {
+            return ($r->jenis_pembayaran === 'dp' || $r->bukti_dp) && !$r->bukti_pelunasan;
+        })->sum(function($r) {
+            $sudahBayar = ($r->nominal_dp ?? 0);
+            $sisa = max(0, $r->total_biaya - $sudahBayar);
+            return $sisa;
+        });
+
         return view('admin.rental.index', [
             'rentals'          => $rentals,
             'totalRental'      => $totalRental,
@@ -134,6 +164,11 @@ class RentalController extends Controller
             'pelangganJson'    => Pelanggan::select('id', 'nama_pelanggan', 'kontak_pelanggan', 'email_pelanggan', 'jenis_pelanggan', 'alamat')->get(),
             'kendaraans'       => Kendaraan::all(),
             'bookedDates'      => $bookedDates,
+            // Data chart pembayaran
+            'totalLunas'       => $totalLunas,
+            'totalDp'          => $totalDp,
+            'totalBelumBayar'  => $totalBelumBayar,
+            'totalSemuaPembayaran' => $totalSemuaPembayaran,
         ]);
     }
 
@@ -311,17 +346,19 @@ class RentalController extends Controller
             $kendaraan = Kendaraan::findOrFail($request->kendaraan_id);
 
             if ($request->durasi_tahun) {
-                // 1 tahun = 12 bulan = 12 * 30 hari
-                $biayaDasar = $request->durasi_tahun * 12 * 30 * $kendaraan->harga_sewa_per_hari;
+                // 1 tahun = 12 bulan × harga bulan
+                $biayaDasar = $request->durasi_tahun * 12 * $kendaraan->harga_sewa_per_jam; // per_jam = per bulan
             } elseif ($request->durasi_bulan) {
-                $biayaDasar = $request->durasi_bulan * 30 * $kendaraan->harga_sewa_per_hari;
+                // Bulan × harga bulan
+                $biayaDasar = $request->durasi_bulan * $kendaraan->harga_sewa_per_jam; // per_jam = per bulan
             } elseif ($request->durasi_hari) {
                 $biayaDasar = $request->durasi_hari * $kendaraan->harga_sewa_per_hari;
             } else {
                 $biayaDasar = 0;
             }
 
-            $biayaDriver = $request->biaya_driver ?? 0;
+            // Biaya driver sudah TOTAL dari form (bukan rate per hari), jangan dikali lagi!
+            $biayaDriver = ($request->biaya_driver ?? 0);
 
             /*
             |------------------------------------------------------------------
@@ -329,8 +366,64 @@ class RentalController extends Controller
             |------------------------------------------------------------------
             */
             $rental->biaya_dasar          = $biayaDasar;
+            $rental->biaya_driver         = $biayaDriver; // Simpan total biaya driver
             $rental->total_biaya          = $biayaDasar + $biayaDriver;
             $rental->save();
+
+            // ── Catat pembayaran ke Keuangan & Buku Besar ───────────────────
+            // Jika ada DP → catat DP
+            // Jika full payment (no DP tapi ada bukti bayar) → catat full payment
+            
+            if (($rental->nominal_dp ?? 0) > 0) {
+                // Ada DP → catat DP saja
+                $kodeJurnal = 'DP-' . $rental->id;
+                $nominalBayar = $rental->nominal_dp;
+                $keteranganBayar = 'DP Rental #' . $rental->id . ' - ' . $kendaraan->merk . ' ' . $kendaraan->nopol;
+            } elseif ($sudahBayar && $rental->total_biaya > 0) {
+                // Full payment (ada bukti bayar, tapi no DP)
+                $kodeJurnal = 'FULL-' . $rental->id;
+                $nominalBayar = $rental->total_biaya;
+                $keteranganBayar = 'Pembayaran Full Rental #' . $rental->id . ' - ' . $kendaraan->merk . ' ' . $kendaraan->nopol;
+            } else {
+                $kodeJurnal = null;
+                $nominalBayar = 0;
+            }
+            
+            // Catat ke Keuangan
+            if ($kodeJurnal && $nominalBayar > 0) {
+                if (!Keuangan::where('reference', $kodeJurnal)->exists()) {
+                    $lastSaldo = (float) DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+                    Keuangan::create([
+                        'tanggal'     => now()->toDateString(),
+                        'reference'   => $kodeJurnal,
+                        'user_id'     => auth()->id(),
+                        'divisi'      => 'Keuangan',
+                        'kategori'    => 'Pemasukan',
+                        'metode'      => 'Cash',
+                        'keterangan'  => $keteranganBayar,
+                        'pemasukan'   => $nominalBayar,
+                        'pengeluaran' => 0,
+                        'saldo'       => $lastSaldo + $nominalBayar,
+                        'sumber'      => 'auto',
+                    ]);
+                }
+                
+                // Catat ke Buku Besar juga
+                if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+                    $saldoBBTerakhir = (float) DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+                    Bukubesar::create([
+                        'kode_jurnal' => $kodeJurnal,
+                        'transaksi'   => $keteranganBayar,
+                        'kategori'    => 'Pendapatan',
+                        'tanggal'     => now()->toDateString(),
+                        'debit'       => 0,
+                        'kredit'      => $nominalBayar,
+                        'saldo'       => $saldoBBTerakhir + $nominalBayar,
+                        'aktivitas'   => 'Operasi',
+                        'keterangan'  => $keteranganBayar,
+                    ]);
+                }
+            }
 
             DB::commit();
 
@@ -384,7 +477,7 @@ class RentalController extends Controller
             $rental->status            = 'aktif';
             $rental->save();
 
-            // Auto-create entri Keuangan untuk pelunasan
+            // Langsung catat pelunasan ke Keuangan (tidak perlu tunggu rental selesai)
             $kodeJurnal = 'PLS-' . $rental->id;
             if (!Keuangan::where('reference', $kodeJurnal)->exists()) {
                 $lastSaldo = (float) DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
@@ -400,6 +493,22 @@ class RentalController extends Controller
                     'pengeluaran' => 0,
                     'saldo'       => $lastSaldo + $request->nominal_pelunasan,
                     'sumber'      => 'auto',
+                ]);
+            }
+            
+            // Catat pelunasan ke Buku Besar juga
+            if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
+                $saldoBBTerakhir = (float) DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
+                Bukubesar::create([
+                    'kode_jurnal' => $kodeJurnal,
+                    'transaksi'   => 'Pelunasan Rental #' . $rental->id . ' - ' . optional($rental->kendaraan)->merk . ' ' . optional($rental->kendaraan)->nopol,
+                    'kategori'    => 'Pendapatan',
+                    'tanggal'     => now()->toDateString(),
+                    'debit'       => 0,
+                    'kredit'      => $request->nominal_pelunasan,
+                    'saldo'       => $saldoBBTerakhir + $request->nominal_pelunasan,
+                    'aktivitas'   => 'Operasi',
+                    'keterangan'  => 'Pelunasan Rental - ' . optional($rental->kendaraan)->merk . ' (' . optional($rental->kendaraan)->nopol . ')',
                 ]);
             }
 
@@ -436,6 +545,18 @@ class RentalController extends Controller
         try {
             DB::transaction(function () use ($request, $id) {
                 $rental = Rental::findOrFail($id);
+                
+                // ✅ VALIDASI: Jika dari aktif → selesai DAN pembayaran DP (bukan full)
+                // Cek apakah sudah upload pelunasan
+                if ($request->status === 'selesai' && $rental->status === 'aktif') {
+                    // Cek apakah rental ini pakai DP (ada DP tapi bukan full payment)
+                    $pakaiDP = ($rental->jenis_pembayaran === 'dp' || $rental->bukti_dp) && !$rental->bukti_lunas;
+                    
+                    if ($pakaiDP && !$rental->bukti_pelunasan) {
+                        throw new \Exception('Rental ini masih DP. Silakan upload bukti pelunasan terlebih dahulu di halaman detail.');
+                    }
+                }
+                
                 $rental->status = $request->status;
                 $rental->save();
 
@@ -451,42 +572,10 @@ class RentalController extends Controller
                 }
 
                 if ($request->status === 'selesai') {
-                    // Gunakan lockForUpdate untuk mencegah race condition
-                    $lastSaldo = (float) DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-                    $kodeJurnal = 'RNT-' . $rental->id;
-
-                    // Pastikan belum ada jurnal yang sama sebelumnya
-                    if (!Keuangan::where('reference', $kodeJurnal)->exists()) {
-                        Keuangan::create([
-                            'tanggal'     => now()->toDateString(),
-                            'reference'   => $kodeJurnal,
-                            'user_id'     => auth()->id(),
-                            'divisi'      => 'Keuangan',
-                            'kategori'    => 'Pemasukan',
-                            'metode'      => 'Cash',
-                            'keterangan'  => 'Rental ' . $rental->kendaraan->merk . ' - ' . $rental->kendaraan->nopol,
-                            'pemasukan'   => $rental->total_biaya,
-                            'pengeluaran' => 0,
-                            'saldo'       => $lastSaldo + $rental->total_biaya,
-                            'sumber'      => 'auto',
-                        ]);
-                    }
-
-                    // Auto-posting ke Buku Besar
-                    if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
-                        $saldoBBTerakhir = (float) DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-                        Bukubesar::create([
-                            'kode_jurnal' => $kodeJurnal,
-                            'transaksi'   => 'Pendapatan Rental - ' . $rental->kendaraan->merk . ' ' . $rental->kendaraan->nopol,
-                            'kategori'    => 'Pendapatan',
-                            'tanggal'     => now()->toDateString(),
-                            'debit'       => 0,
-                            'kredit'      => $rental->total_biaya,
-                            'saldo'       => $saldoBBTerakhir + $rental->total_biaya,
-                            'aktivitas'   => 'Operasi',
-                            'keterangan'  => 'Auto-posting: Rental selesai - ' . $rental->kendaraan->merk . ' (' . $rental->kendaraan->nopol . ')',
-                        ]);
-                    }
+                    // JANGAN catat ke Keuangan dan Buku Besar lagi
+                    // Sudah dicatat saat pembayaran masuk:
+                    // 1. DP → dicatat saat create rental (DP-{id})
+                    // 2. Pelunasan → dicatat saat upload pelunasan (PLS-{id})
                 }
             });
 
@@ -730,14 +819,18 @@ class RentalController extends Controller
         // Hitung subTotal: kendaraan + driver + biaya tambahan
         $durasi = $rental->durasi_tahun ?? $rental->durasi_bulan ?? $rental->durasi_hari ?? 1;
         $biayaDasar      = (float) ($rental->biaya_dasar ?? 0);
-        $biayaDriver     = (float) ($rental->biaya_driver ?? 0) * $durasi;
+        $biayaDriver     = (float) ($rental->biaya_driver ?? 0); // Sudah total dari DB, jangan dikali lagi
         $biayaTambahan   = (float) ($rental->biaya_tambahan_total ?? 0);
         $subTotal        = $biayaDasar + $biayaDriver + $biayaTambahan;
 
         // Terapkan PPN dari setting
         $ppnPct          = floatval($setting?->ppn_default ?? 0);
         $ppnNom          = round($subTotal * $ppnPct / 100);
-        $grandTotal      = (int) ($subTotal + $ppnNom);
+        $afterPpn        = (int) ($subTotal + $ppnNom);
+        
+        // Kurangi dengan DP jika ada
+        $nominalDp       = (float) ($rental->nominal_dp ?? 0);
+        $grandTotal      = (int) ($afterPpn - $nominalDp);
         $terbilang       = ucwords(trim($this->penyebutRental($grandTotal))) . ' Rupiah';
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.rental.invoice-pdf', [
@@ -783,6 +876,18 @@ class RentalController extends Controller
         try {
             DB::transaction(function () use ($request, $id) {
                 $rental = Rental::findOrFail($id);
+                
+                // ✅ VALIDASI: Jika dari aktif → selesai DAN pembayaran DP (bukan full)
+                // Cek apakah sudah upload pelunasan
+                if ($request->status === 'selesai' && $rental->status === 'aktif') {
+                    // Cek apakah rental ini pakai DP (ada DP tapi bukan full payment)
+                    $pakaiDP = ($rental->jenis_pembayaran === 'dp' || $rental->bukti_dp) && !$rental->bukti_lunas;
+                    
+                    if ($pakaiDP && !$rental->bukti_pelunasan) {
+                        throw new \Exception('Rental ini masih DP. Silakan upload bukti pelunasan terlebih dahulu di halaman detail.');
+                    }
+                }
+                
                 $rental->status = $request->status;
                 $rental->save();
 
@@ -798,39 +903,10 @@ class RentalController extends Controller
                 }
 
                 if ($request->status === 'selesai') {
-                    $lastSaldo = (float) DB::table('keuangans')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-                    $kodeJurnal = 'RNT-' . $rental->id;
-
-                    if (!Keuangan::where('reference', $kodeJurnal)->exists()) {
-                        Keuangan::create([
-                            'tanggal'     => now()->toDateString(),
-                            'reference'   => $kodeJurnal,
-                            'user_id'     => auth()->id(),
-                            'divisi'      => 'Keuangan',
-                            'kategori'    => 'Pemasukan',
-                            'metode'      => 'Cash',
-                            'keterangan'  => 'Rental ' . $rental->kendaraan->merk . ' - ' . $rental->kendaraan->nopol,
-                            'pemasukan'   => $rental->total_biaya,
-                            'pengeluaran' => 0,
-                            'saldo'       => $lastSaldo + $rental->total_biaya,
-                            'sumber'      => 'auto',
-                        ]);
-                    }
-                    // Auto-posting ke Buku Besar
-                    if (!Bukubesar::where('kode_jurnal', $kodeJurnal)->exists()) {
-                        $saldoBBTerakhir = (float) DB::table('bukubesars')->lockForUpdate()->orderBy('id', 'desc')->value('saldo') ?? 0;
-                        Bukubesar::create([
-                            'kode_jurnal' => $kodeJurnal,
-                            'transaksi'   => 'Pendapatan Rental - ' . $rental->kendaraan->merk . ' ' . $rental->kendaraan->nopol,
-                            'kategori'    => 'Pendapatan',
-                            'tanggal'     => now()->toDateString(),
-                            'debit'       => 0,
-                            'kredit'      => $rental->total_biaya,
-                            'saldo'       => $saldoBBTerakhir + $rental->total_biaya,
-                            'aktivitas'   => 'Operasi',
-                            'keterangan'  => 'Auto-posting: Rental selesai - ' . $rental->kendaraan->merk . ' (' . $rental->kendaraan->nopol . ')',
-                        ]);
-                    }
+                    // JANGAN catat ke Keuangan dan Buku Besar lagi
+                    // Pembayaran sudah dicatat saat:
+                    // 1. DP/Full payment → dicatat saat create rental (DP-{id} atau FULL-{id})
+                    // 2. Pelunasan → dicatat saat upload pelunasan (PLS-{id})
                 }
             });
 

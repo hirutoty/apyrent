@@ -715,13 +715,8 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Warna TNKB
                                     <span class="text-red-500">*</span></label>
-                                <select name="warna_tnkb" required
+                                <input name="warna_tnkb" required placeholder="Masukkan Warna TNKB"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">-- Pilih Warna TNKB --</option>
-                                    <option value="Hitam">Hitam</option>
-                                    <option value="Putih">Putih</option>
-                                    <option value="Merah">Merah</option>
-                                </select>
                             </div>
                             {{-- Kode Lokasi --}}
                             <div>
@@ -1010,13 +1005,8 @@
                             {{-- Warna TNKB (dropdown) --}}
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Warna TNKB</label>
-                                <select name="warna_tnkb" id="e_warna_tnkb"
+                                <input name="warna_tnkb" id="e_warna_tnkb" placeholder="Masukkan Warna TNKB"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                    <option value="">-- Pilih Warna TNKB --</option>
-                                    <option value="Hitam">Hitam</option>
-                                    <option value="Putih">Putih</option>
-                                    <option value="Merah">Merah</option>
-                                </select>
                             </div>
                             {{-- Kode Lokasi --}}
                             <div>

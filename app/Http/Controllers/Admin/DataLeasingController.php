@@ -9,6 +9,7 @@ use App\Imports\DataLeasingImport;
 use App\Models\DataKontrak;
 use App\Models\DataLeasing;
 use App\Models\Kendaraan;
+use App\Services\LeasingPaymentService;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -154,7 +155,7 @@ class DataLeasingController extends Controller
     /* ─────────────────────────────────────────────
        STORE
     ───────────────────────────────────────────── */
-    public function store(Request $request)
+    public function store(Request $request, LeasingPaymentService $paymentService)
     {
         $request->validate([
             'data_kontrak_id'    => 'nullable|exists:data_kontraks,id',
@@ -182,7 +183,7 @@ class DataLeasingController extends Controller
             }
         }
 
-        DataLeasing::create([
+        $leasing = DataLeasing::create([
             'data_kontrak_id'    => $request->data_kontrak_id ?: null,
             'no_kontrak'         => $request->no_kontrak,
             'mobil'              => $request->mobil,
@@ -199,8 +200,21 @@ class DataLeasingController extends Controller
             'asuransi_leasing'   => $request->asuransi_leasing,
         ]);
 
-        return redirect()->route('data-leasing.index')
-            ->with('success', 'Data Leasing berhasil ditambahkan.');
+        // Catat cicilan yang sudah jatuh tempo atas nama user yang login
+        try {
+            $result = $paymentService->catatCicilanLeasing($leasing, auth()->id());
+            
+            $message = 'Data Leasing berhasil ditambahkan.';
+            if ($result['total_dicatat'] > 0) {
+                $message .= ' ' . $result['total_dicatat'] . ' cicilan otomatis tercatat ke Keuangan.';
+            }
+            
+            return redirect()->route('data-leasing.index')
+                ->with('success', $message);
+        } catch (\Exception $e) {
+            return redirect()->route('data-leasing.index')
+                ->with('success', 'Data Leasing berhasil ditambahkan, namun gagal mencatat cicilan: ' . $e->getMessage());
+        }
     }
 
     /* ─────────────────────────────────────────────

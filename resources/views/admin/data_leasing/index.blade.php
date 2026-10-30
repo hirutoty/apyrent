@@ -479,16 +479,16 @@
                                 </td>
                                 <td class="px-4 py-3">
                                     @if($item->attachments->count() > 0)
-                                        @php
-                                            $leasingAtts = $item->attachments->map(fn($a) => ['path' => asset($a->file_path), 'name' => $a->file_name])->values()->toArray();
-                                        @endphp
-                                        <button type="button"
-                                            onclick="openSlideshow(JSON.parse(this.dataset.imgs),0)"
-                                            data-imgs="{!! json_encode($leasingAtts, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_SLASHES) !!}"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
-                                            <i class="bi bi-images text-sm"></i>
-                                            Lihat ({{ $item->attachments->count() }})
-                                        </button>
+                                        <div class="flex flex-col gap-1">
+                                            @foreach($item->attachments as $att)
+                                                <button type="button"
+                                                    onclick="openSlideshow([{path:'{{ asset($att->file_path) }}', name:'{{ addslashes($att->file_name) }}'}], 0)"
+                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-left">
+                                                    <i class="bi bi-image text-sm"></i>
+                                                    <span class="truncate max-w-[150px]" title="{{ $att->file_name }}">{{ $att->file_name }}</span>
+                                                </button>
+                                            @endforeach
+                                        </div>
                                     @else
                                     <span class="text-gray-400 text-xs">-</span>
                                     @endif
@@ -713,9 +713,11 @@
 
             {{-- Preview Cicilan --}}
             <div id="cl_cicilan_preview" class="hidden rounded-xl bg-blue-50 border border-blue-200 px-4 py-3">
-                <p class="text-xs text-blue-600 font-semibold mb-1">Preview Cicilan</p>
-                <div class="flex gap-6 text-sm">
-                    <span>Total: <strong id="cl_preview_total" class="text-blue-700">-</strong></span>
+                <p class="text-xs text-blue-600 font-semibold mb-1">Preview Cicilan (otomatis)</p>
+                <div class="flex flex-wrap gap-4 text-sm">
+                    <span>Total Cicilan: <strong id="cl_preview_total" class="text-blue-700">-</strong></span>
+                    <span>Total Nilai: <strong id="cl_preview_nilai" class="text-green-700">-</strong></span>
+                    <span>Sisa Cicilan: <strong id="cl_preview_sisa" class="text-orange-600">-</strong></span>
                 </div>
             </div>
 
@@ -967,6 +969,7 @@
                 <div class="flex flex-wrap gap-4 text-sm">
                     <span>Total Cicilan: <strong id="ck_preview_total" class="text-indigo-700">-</strong></span>
                     <span>Total Nilai: <strong id="ck_preview_nilai" class="text-green-700">-</strong></span>
+                    <span>Sisa Cicilan: <strong id="ck_preview_sisa" class="text-orange-600">-</strong></span>
                 </div>
             </div>
 
@@ -1156,10 +1159,11 @@
 
             {{-- Preview Cicilan --}}
             <div id="ek_cicilan_preview" class="rounded-xl bg-indigo-50 border border-indigo-200 px-4 py-3">
-                <p class="text-xs text-indigo-600 font-semibold mb-1">Info Cicilan (otomatis)</p>
+                <p class="text-xs text-indigo-600 font-semibold mb-1">Preview Cicilan (otomatis)</p>
                 <div class="flex flex-wrap gap-4 text-sm">
                     <span>Total Cicilan: <strong id="ek_preview_total" class="text-indigo-700">-</strong></span>
                     <span>Total Nilai: <strong id="ek_preview_nilai" class="text-green-700">-</strong></span>
+                    <span>Sisa Cicilan: <strong id="ek_preview_sisa" class="text-orange-600">-</strong></span>
                 </div>
             </div>
 
@@ -1606,7 +1610,9 @@ function hitungCicilan(mulai, selesai) {
     if (!mulai || !selesai) return 0;
     const d1 = new Date(mulai);
     const d2 = new Date(selesai);
-    return Math.max(0, (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth()));
+    // Tambah 1 untuk include bulan awal
+    // Contoh: Okt - Des = (11-9) + 1 = 3 bulan ✅
+    return Math.max(0, (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth()) + 1);
 }
 
 function formatRupiah(n) {
@@ -1621,12 +1627,32 @@ function updateCicilanPreview(prefix) {
     const total   = hitungCicilan(mulai, selesai);
     const previewEl = document.getElementById(prefix + '_cicilan_preview');
 
-    if (total > 0) {
+    if (total > 0 && angsuran > 0) {
         if (previewEl) previewEl.classList.remove('hidden');
         const totalEl = document.getElementById(prefix + '_preview_total');
         const nilaiEl = document.getElementById(prefix + '_preview_nilai');
+        const sisaEl  = document.getElementById(prefix + '_preview_sisa');
+        
         if (totalEl) totalEl.textContent = total + 'x cicilan';
         if (nilaiEl) nilaiEl.textContent = formatRupiah(total * angsuran);
+        
+        // Untuk form create (cl/ck): sisa cicilan = total cicilan (belum mulai)
+        // Untuk form edit (ek): hitung sisa cicilan berdasarkan periode yang sudah lewat
+        let sisaCicilan = total;
+        
+        if (prefix === 'ek' && mulai) {
+            // Hitung berapa bulan yang sudah lewat dari periode mulai
+            const now = new Date();
+            const periodeStart = new Date(mulai);
+            
+            if (now >= periodeStart) {
+                const bulanLewat = (now.getFullYear() - periodeStart.getFullYear()) * 12 
+                                 + (now.getMonth() - periodeStart.getMonth());
+                sisaCicilan = Math.max(0, total - bulanLewat);
+            }
+        }
+        
+        if (sisaEl) sisaEl.textContent = formatRupiah(sisaCicilan * angsuran);
     } else {
         if (previewEl) previewEl.classList.add('hidden');
     }
@@ -1921,6 +1947,7 @@ function deleteAttachment(id) {
     })
     .catch(e => console.error('Error delete attachment:', e));
 }
+
 </script>
 
 <script>
@@ -1936,6 +1963,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 filter_type: e.detail.filterType,
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
+                specific_year: e.detail.specificYear,
             };
             if (!leasingChartManager.hasChart('leasingBarChart')) {
                 initLeasingCharts(filters);

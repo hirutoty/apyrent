@@ -34,20 +34,20 @@
         </div>
 
         {{-- CHART FILTER --}}
-        <x-chart-filter id="rentalChartFilter" defaultFilter="month" :showCustomRange="true" />
+        <x-chart-filter id="rentalChartFilter" defaultFilter="specific_year" :showCustomRange="true" />
 
         {{-- CHART CONTAINER --}}
         <x-chart-container
             id="rentalChartContainer"
             layout="stacked"
-            pieTitle="Distribusi Status Pembayaran" pieId="rentalPieChart"
-            barTitle="Pendapatan Rental per Periode" barId="rentalBarChart"
+            pieTitle="Distribusi Pembayaran Rental" pieId="rentalPieChart"
+            barTitle="Perbandingan Nilai Pembayaran" barId="rentalBarChart"
             lineTitle="Trend Pendapatan Rental" lineId="rentalLineChart"
             :showStats="true" :statsData="[]"
         />
 
         {{-- SUMMARY CARDS --}}
-        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div class="grid grid-cols-3 gap-4">
 
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <div class="flex items-center justify-between">
@@ -57,20 +57,6 @@
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
                         <i class="bi bi-car-front text-2xl text-blue-600"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-500">Total Pendapatan</p>
-                        <h2 class="text-lg font-bold text-green-600 mt-2 leading-tight">
-                            Rp {{ number_format($totalPendapatan, 0, ',', '.') }}
-                        </h2>
-                    </div>
-                    <div class="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center">
-                        <i class="bi bi-cash-stack text-2xl text-green-600"></i>
                     </div>
                 </div>
             </div>
@@ -140,6 +126,69 @@
                 </div>
             </div>
 
+        </div>
+
+        {{-- CHART PEMBAYARAN --}}
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Statistik Pembayaran</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                
+                {{-- Total Semua --}}
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 border border-purple-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm font-medium text-purple-700">Total Pembayaran</p>
+                        <div class="w-10 h-10 rounded-lg bg-purple-200 flex items-center justify-center">
+                            <i class="bi bi-wallet2 text-lg text-purple-700"></i>
+                        </div>
+                    </div>
+                    <h2 class="text-xl font-bold text-purple-900">
+                        Rp {{ number_format($totalSemuaPembayaran, 0, ',', '.') }}
+                    </h2>
+                </div>
+
+                {{-- Lunas --}}
+                <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 border border-green-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm font-medium text-green-700">Lunas</p>
+                        <div class="w-10 h-10 rounded-lg bg-green-200 flex items-center justify-center">
+                            <i class="bi bi-check-circle-fill text-lg text-green-700"></i>
+                        </div>
+                    </div>
+                    <h2 class="text-xl font-bold text-green-900">
+                        Rp {{ number_format($totalLunas, 0, ',', '.') }}
+                    </h2>
+                    <p class="text-xs text-green-600 mt-1">Pembayaran langsung lunas</p>
+                </div>
+
+                {{-- DP --}}
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm font-medium text-blue-700">DP</p>
+                        <div class="w-10 h-10 rounded-lg bg-blue-200 flex items-center justify-center">
+                            <i class="bi bi-cash-coin text-lg text-blue-700"></i>
+                        </div>
+                    </div>
+                    <h2 class="text-xl font-bold text-blue-900">
+                        Rp {{ number_format($totalDp, 0, ',', '.') }}
+                    </h2>
+                    <p class="text-xs text-blue-600 mt-1">Down Payment diterima</p>
+                </div>
+
+                {{-- Belum Bayar --}}
+                <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-5 border border-orange-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm font-medium text-orange-700">Belum Bayar</p>
+                        <div class="w-10 h-10 rounded-lg bg-orange-200 flex items-center justify-center">
+                            <i class="bi bi-hourglass-split text-lg text-orange-700"></i>
+                        </div>
+                    </div>
+                    <h2 class="text-xl font-bold text-orange-900">
+                        Rp {{ number_format($totalBelumBayar, 0, ',', '.') }}
+                    </h2>
+                    <p class="text-xs text-orange-600 mt-1">Sisa tagihan rental DP</p>
+                </div>
+
+            </div>
         </div>
 
         {{-- TABLE CARD --}}
@@ -289,11 +338,18 @@
                                             class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
                                             <i class="bi bi-car-front text-blue-400 text-xs"></i>
                                         </div>
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-800">
-                                                {{ $r->kendaraan->merk ?? '-' }}</p>
-                                            <span
-                                                class="font-mono text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{{ $r->kendaraan->nopol ?? '-' }}</span>
+                                        <div class="flex items-center gap-1.5">
+                                            <div>
+                                                <p class="text-sm font-semibold text-gray-800">
+                                                    {{ $r->kendaraan->merk ?? '-' }}</p>
+                                                <span
+                                                    class="font-mono text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{{ $r->kendaraan->nopol ?? '-' }}</span>
+                                            </div>
+                                            @if($r->kendaraan && $r->kendaraan->trashed())
+                                                <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700 uppercase tracking-wide">
+                                                    <i class="fa fa-trash text-[8px]"></i> Dihapus
+                                                </span>
+                                            @endif
                                         </div>
                                     </div>
                                 </td>
@@ -1095,12 +1151,13 @@
 
             hitungBiayaDasar();
             updateTanggalSelesai();
+            updateHargaDisplay(); // Update tampilan harga sesuai tipe rental
         }
 
 
 
         /* -------------------------------------------------------------------------
-           HITUNG BIAYA DASAR � support tahun | bulan | hari
+           HITUNG BIAYA DASAR – support tahun | bulan | hari
            ------------------------------------------------------------------------- */
         function hitungBiayaDasar() {
             let total = 0,
@@ -1108,16 +1165,19 @@
 
             if (tipeRental === 'tahun') {
                 const tahun = parseInt(document.getElementById('durasiTahun')?.value) || 0;
-                total = tahun * 12 * 30 * hargaHari;
-                rumus = `${tahun} Tahun (x12 Bulan x30 Hari) x Rp ${hargaHari.toLocaleString('id-ID')}`;
+                // Per Tahun: harga bulan × 12 bulan × jumlah tahun
+                total = tahun * 12 * hargaBulan;
+                rumus = `${tahun} Tahun × 12 Bulan × Rp ${hargaBulan.toLocaleString('id-ID')}`;
             } else if (tipeRental === 'bulan') {
                 const bulan = parseInt(document.getElementById('durasiBulan')?.value) || 0;
-                total = bulan * 30 * hargaHari;
-                rumus = `${bulan} Bulan (x30 Hari) x Rp ${hargaHari.toLocaleString('id-ID')}`;
+                // Per Bulan: harga bulan × jumlah bulan
+                total = bulan * hargaBulan;
+                rumus = `${bulan} Bulan × Rp ${hargaBulan.toLocaleString('id-ID')}`;
             } else {
                 const hari = parseInt(document.getElementById('durasiHari')?.value) || 0;
+                // Per Hari: harga hari × jumlah hari
                 total = hari * hargaHari;
-                rumus = `${hari} Hari x Rp ${hargaHari.toLocaleString('id-ID')}`;
+                rumus = `${hari} Hari × Rp ${hargaHari.toLocaleString('id-ID')}`;
             }
 
             const re = document.getElementById('rumusBiaya');
@@ -1462,8 +1522,9 @@
         /* -----------------------------
             STATE
         ---------------------------- */
-        let tipeRental = 'bulan';
+        let tipeRental = 'hari'; // Default hari sesuai HTML
         let hargaHari = 0;
+        let hargaBulan = 0;
         let biayaDasar = 0;
         let fpInstance = null; // Flatpickr instance
 
@@ -1708,9 +1769,14 @@
 
         function setHargaKendaraan() {
             const sel = document.getElementById('kendaraanSelect');
-            hargaHari = parseInt(sel?.options[sel.selectedIndex]?.dataset.hari) || 0;
-            const el = document.getElementById('hargaHariText');
-            if (el) el.innerText = hargaHari.toLocaleString('id-ID');
+            const option = sel?.options[sel.selectedIndex];
+            
+            // Ambil harga hari dan jam (jam = bulanan di database)
+            hargaHari = parseInt(option?.dataset.hari) || 0;
+            hargaBulan = parseInt(option?.dataset.jam) || 0; // data-jam adalah harga bulanan
+            
+            // Update tampilan harga sesuai tipe rental yang aktif
+            updateHargaDisplay();
 
             const tanggalMulaiEl = document.getElementById('tanggalMulai');
             if (tanggalMulaiEl) tanggalMulaiEl.value = '';
@@ -1723,6 +1789,28 @@
 
             refreshDatePicker();
             hitungBiayaDasar();
+        }
+
+        // Fungsi baru untuk update tampilan harga sesuai tipe rental
+        function updateHargaDisplay() {
+            const hargaContainer = document.querySelector('.border.border-gray-200.rounded-lg.px-3.py-2\\.5.bg-blue-50');
+            if (!hargaContainer) return;
+            
+            const labelEl = hargaContainer.querySelector('.text-xs.text-gray-500');
+            const hargaTextEl = document.getElementById('hargaHariText');
+            
+            if (tipeRental === 'tahun') {
+                // Untuk tahun: tampilkan nominal tahunan langsung (harga bulan × 12)
+                const hargaTahun = hargaBulan * 12;
+                if (labelEl) labelEl.textContent = 'Harga Per Tahun';
+                if (hargaTextEl) hargaTextEl.textContent = hargaTahun.toLocaleString('id-ID');
+            } else if (tipeRental === 'bulan') {
+                if (labelEl) labelEl.textContent = 'Harga Per Bulan';
+                if (hargaTextEl) hargaTextEl.textContent = hargaBulan.toLocaleString('id-ID');
+            } else { // hari
+                if (labelEl) labelEl.textContent = 'Harga Per Hari';
+                if (hargaTextEl) hargaTextEl.textContent = hargaHari.toLocaleString('id-ID');
+            }
         }
 
 
@@ -1913,9 +2001,23 @@
                 ));
 
             } else if (status === 'aktif') {
-                options.appendChild(buatTombolStatus(
-                    'Selesai', 'fa-flag-checkered', 'bg-gray-800 hover:bg-gray-900', id
-                ));
+                // ✅ VALIDASI: Cek apakah rental DP sudah pelunasan
+                const pakaiDP = (rental.jenis_pembayaran === 'dp' || rental.bukti_dp) && !rental.bukti_lunas;
+                const sudahPelunasan = rental.bukti_pelunasan;
+                
+                if (pakaiDP && !sudahPelunasan) {
+                    // Jika DP tapi belum pelunasan → tombol disabled + redirect ke detail
+                    options.appendChild(buatTombolRedirect(
+                        'Selesai', 'fa-flag-checkered', 'bg-gray-400', id,
+                        'Rental ini masih DP. Silakan upload bukti pelunasan terlebih dahulu.'
+                    ));
+                } else {
+                    // Jika sudah pelunasan atau bukan DP → tombol normal
+                    options.appendChild(buatTombolStatus(
+                        'Selesai', 'fa-flag-checkered', 'bg-gray-800 hover:bg-gray-900', id
+                    ));
+                }
+                
                 options.appendChild(buatTombolStatus(
                     'Batal', 'fa-times-circle', 'bg-red-600 hover:bg-red-700', id
                 ));
@@ -1959,6 +2061,38 @@
                     saveStatus(rentalId, label.toLowerCase());
                 };
             }
+
+            return btn;
+        }
+
+        /**
+         * Buat tombol yang redirect ke halaman detail (untuk rental DP yang belum pelunasan)
+         */
+        function buatTombolRedirect(label, icon, colorClass, rentalId, warningMsg) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className =
+                'flex items-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white cursor-pointer transition-colors ' +
+                colorClass + ' hover:opacity-80';
+            btn.innerHTML = '<i class="fa ' + icon + '"></i> ' + label + ' <span class="ml-auto text-xs">(Upload Pelunasan Dulu)</span>';
+            
+            // Event: tampilkan warning saat hover
+            btn.addEventListener('mouseenter', function() {
+                document.getElementById('warningBuktiText').textContent = warningMsg;
+                document.getElementById('warningBukti').classList.remove('hidden');
+            });
+            btn.addEventListener('mouseleave', function() {
+                document.getElementById('warningBukti').classList.add('hidden');
+            });
+            
+            // Event: redirect ke detail saat klik
+            btn.onclick = function() {
+                closeStatusModal();
+                tampilkanToast(warningMsg, 'error');
+                setTimeout(function() {
+                    window.location.href = updateStatusUrl + '/' + rentalId;
+                }, 1500);
+            };
 
             return btn;
         }
@@ -2071,6 +2205,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 filter_type: e.detail.filterType,
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
+                specific_year: e.detail.specificYear,
             };
             if (!rentalChartManager.hasChart('rentalBarChart')) {
                 initRentalCharts(filters);

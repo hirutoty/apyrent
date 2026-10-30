@@ -111,21 +111,292 @@ class ChartDataController extends Controller
 
             // Get chart data
             $pieConfig     = $config['pie'] ?? [];
-            $pieQueryToUse = ($pieConfig['ignoreFilter'] ?? false) ? clone $query : clone $filteredQuery;
-            $pieData = $this->chartDataService->getPieChartData(
-                $pieQueryToUse,
-                $pieConfig
-            );
+            $barConfig     = $config['bar'] ?? [];
+            
+            // Hitung data pembayaran custom untuk rental (digunakan oleh pie & bar chart)
+            $totalLunas = 0;
+            $totalDp = 0;
+            $totalBelumBayar = 0;
+            
+            if ($page === 'rental' && (isset($pieConfig['custom']) || isset($barConfig['custom']))) {
+                $allRentals = \App\Models\Rental::all();
+                
+                // 1. Total Lunas = rental yang LUNAS penuh (jenis_pembayaran 'lunas' ATAU ada bukti_pelunasan)
+                $totalLunas = $allRentals->filter(function($r) {
+                    // Lunas jika: bayar langsung lunas ATAU DP yang sudah upload pelunasan
+                    return ($r->jenis_pembayaran === 'lunas' && $r->bukti_lunas) || 
+                           ($r->bukti_pelunasan);
+                })->sum('total_biaya');
+                
+                // 2. Total DP = nominal_dp dari rental yang BELUM pelunasan (hanya yang masih menunggak)
+                $totalDp = $allRentals->filter(function($r) {
+                    // Hanya hitung DP yang BELUM upload pelunasan
+                    return ($r->jenis_pembayaran === 'dp' || $r->bukti_dp) && 
+                           $r->nominal_dp > 0 && 
+                           !$r->bukti_pelunasan;
+                })->sum('nominal_dp');
+                
+                // 3. Belum Bayar = sisa tagihan dari rental DP yang BELUM pelunasan
+                $totalBelumBayar = $allRentals->filter(function($r) {
+                    return ($r->jenis_pembayaran === 'dp' || $r->bukti_dp) && !$r->bukti_pelunasan;
+                })->sum(function($r) {
+                    $sudahBayar = ($r->nominal_dp ?? 0);
+                    return max(0, $r->total_biaya - $sudahBayar);
+                });
+            }
+            
+            // Handle custom pie data untuk rental pembayaran
+            if ($page === 'rental' && isset($pieConfig['custom']) && $pieConfig['custom'] === true) {
+                $pieData = [
+                    'labels' => ['Lunas', 'DP', 'Belum Bayar'],
+                    'datasets' => [[
+                        'data' => [$totalLunas, $totalDp, $totalBelumBayar],
+                        'backgroundColor' => [
+                            'rgba(34, 197, 94, 0.8)',
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(249, 115, 22, 0.8)'
+                        ],
+                        'borderColor' => [
+                            'rgba(34, 197, 94, 1)',
+                            'rgba(59, 130, 246, 1)',
+                            'rgba(249, 115, 22, 1)'
+                        ],
+                        'borderWidth' => 2
+                    ]]
+                ];
+            } else {
+                $pieQueryToUse = ($pieConfig['ignoreFilter'] ?? false) ? clone $query : clone $filteredQuery;
+                $pieData = $this->chartDataService->getPieChartData(
+                    $pieQueryToUse,
+                    $pieConfig
+                );
+            }
 
-            $barData = $this->chartDataService->getBarChartData(
-                clone $filteredQuery,
-                array_merge($config['bar'] ?? [], [
-                    'filter_type'   => $filterType,
-                    'start_date'    => $startDate,
-                    'end_date'      => $endDate,
-                    'specific_year' => $specificYear,
-                ])
-            );
+            // Handle custom bar data untuk rental pembayaran
+            if ($page === 'rental' && isset($barConfig['custom']) && $barConfig['custom'] === true) {
+                // Tentukan mode tampilan berdasarkan filter
+                $displayMode = 'monthly'; // monthly, daily, single_day
+                $displayYear = 2026;
+                $displayMonth = 1;
+                $labels = [];
+                
+                if ($filterType === 'today') {
+                    // Hari ini: tampilkan hari ini saja
+                    $displayMode = 'single_day';
+                    $displayYear = now()->year;
+                    $displayMonth = now()->month;
+                    $labels = [now()->format('d F Y')]; // "29 Oktober 2026"
+                    
+                } elseif ($filterType === 'week') {
+                    // Minggu ini: tampilkan Senin - Minggu
+                    $displayMode = 'daily';
+                    $displayYear = now()->year;
+                    $displayMonth = now()->month;
+                    $weekStart = now()->startOfWeek(); // Senin
+                    $dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+                    for ($i = 0; $i < 7; $i++) {
+                        $date = $weekStart->copy()->addDays($i);
+                        $labels[] = $dayNames[$i] . ' ' . $date->format('d/m');
+                    }
+                    
+                } elseif ($filterType === 'month') {
+                    // Bulan ini: tampilkan tanggal 1-30/31
+                    $displayMode = 'daily';
+                    $displayYear = now()->year;
+                    $displayMonth = now()->month;
+                    $daysInMonth = now()->daysInMonth;
+                    for ($day = 1; $day <= $daysInMonth; $day++) {
+                        $labels[] = $day . ' ' . now()->format('M');
+                    }
+                    
+                } elseif ($filterType === 'year') {
+                    // Tahun ini: tampilkan 12 bulan
+                    $displayMode = 'monthly';
+                    $displayYear = now()->year;
+                    $monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                    foreach ($monthNames as $month) {
+                        $labels[] = $month . ' ' . $displayYear;
+                    }
+                    
+                } elseif ($filterType === 'specific_year' && $specificYear) {
+                    // Tahun tertentu: tampilkan 12 bulan
+                    $displayMode = 'monthly';
+                    $displayYear = $specificYear;
+                    $monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                    foreach ($monthNames as $month) {
+                        $labels[] = $month . ' ' . $displayYear;
+                    }
+                    
+                } elseif ($filterType === 'custom' && $startDate && $endDate) {
+                    // Custom range
+                    $start = \Carbon\Carbon::parse($startDate);
+                    $end = \Carbon\Carbon::parse($endDate);
+                    $displayYear = $start->year;
+                    
+                    if ($start->format('Y-m-d') === $end->format('Y-m-d')) {
+                        // Single day
+                        $displayMode = 'single_day';
+                        $labels[] = $start->format('d F Y');
+                    } else {
+                        $daysDiff = $start->diffInDays($end);
+                        if ($daysDiff <= 31) {
+                            // Daily view
+                            $displayMode = 'daily';
+                            $current = $start->copy();
+                            while ($current <= $end) {
+                                $labels[] = $current->format('d M');
+                                $current->addDay();
+                            }
+                        } else {
+                            // Monthly view
+                            $displayMode = 'monthly';
+                            $monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                            foreach ($monthNames as $month) {
+                                $labels[] = $month . ' ' . $displayYear;
+                            }
+                        }
+                    }
+                } else {
+                    // Default: 12 bulan tahun 2026
+                    $displayMode = 'monthly';
+                    $displayYear = 2026;
+                    $monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                    foreach ($monthNames as $month) {
+                        $labels[] = $month . ' ' . $displayYear;
+                    }
+                }
+                
+                $dataCount = count($labels);
+                
+                // Initialize data arrays
+                $lunasData = array_fill(0, $dataCount, 0);
+                $dpData = array_fill(0, $dataCount, 0);
+                $belumBayarData = array_fill(0, $dataCount, 0);
+                $totalData = array_fill(0, $dataCount, 0);
+                
+                // Filter rentals berdasarkan filter yang aktif
+                $rentalsQuery = \App\Models\Rental::query();
+                
+                if ($filterType === 'today') {
+                    $rentalsQuery->whereDate('tanggal_mulai', today());
+                } elseif ($filterType === 'week') {
+                    $rentalsQuery->whereBetween('tanggal_mulai', [now()->startOfWeek(), now()->endOfWeek()]);
+                } elseif ($filterType === 'month') {
+                    $rentalsQuery->whereYear('tanggal_mulai', now()->year)
+                                ->whereMonth('tanggal_mulai', now()->month);
+                } elseif ($filterType === 'year') {
+                    $rentalsQuery->whereYear('tanggal_mulai', now()->year);
+                } elseif ($filterType === 'specific_year' && $specificYear) {
+                    $rentalsQuery->whereYear('tanggal_mulai', $specificYear);
+                } elseif ($filterType === 'custom' && $startDate && $endDate) {
+                    $rentalsQuery->whereBetween('tanggal_mulai', [$startDate, $endDate]);
+                } else {
+                    $rentalsQuery->whereYear('tanggal_mulai', 2026);
+                }
+                
+                $filteredRentals = $rentalsQuery->get();
+                
+                // Group data
+                foreach ($filteredRentals as $rental) {
+                    $rentalDate = \Carbon\Carbon::parse($rental->tanggal_mulai);
+                    $index = -1;
+                    
+                    if ($displayMode === 'single_day') {
+                        $index = 0;
+                    } elseif ($displayMode === 'daily') {
+                        if ($filterType === 'week') {
+                            // Index berdasarkan hari dalam minggu (0-6)
+                            $weekStart = now()->startOfWeek();
+                            $daysDiff = $rentalDate->diffInDays($weekStart, false);
+                            if ($daysDiff >= 0 && $daysDiff < 7) {
+                                $index = $daysDiff;
+                            }
+                        } elseif ($filterType === 'month') {
+                            // Index berdasarkan tanggal (1-31)
+                            if ($rentalDate->year == now()->year && $rentalDate->month == now()->month) {
+                                $index = $rentalDate->day - 1;
+                            }
+                        } elseif ($filterType === 'custom') {
+                            // Index berdasarkan selisih hari dari start date
+                            $start = \Carbon\Carbon::parse($startDate);
+                            $daysDiff = $start->diffInDays($rentalDate, false);
+                            if ($daysDiff >= 0 && $daysDiff < $dataCount) {
+                                $index = $daysDiff;
+                            }
+                        }
+                    } elseif ($displayMode === 'monthly') {
+                        // Index berdasarkan bulan (0-11)
+                        if ($rentalDate->year == $displayYear) {
+                            $index = $rentalDate->month - 1;
+                        }
+                    }
+                    
+                    if ($index >= 0 && $index < $dataCount) {
+                        // Lunas: bayar langsung lunas ATAU DP yang sudah upload pelunasan
+                        if (($rental->jenis_pembayaran === 'lunas' && $rental->bukti_lunas) || $rental->bukti_pelunasan) {
+                            $lunasData[$index] += $rental->total_biaya;
+                        }
+                        // DP: hanya yang BELUM upload pelunasan
+                        elseif (($rental->jenis_pembayaran === 'dp' || $rental->bukti_dp) && $rental->nominal_dp > 0 && !$rental->bukti_pelunasan) {
+                            $dpData[$index] += $rental->nominal_dp;
+                            
+                            // Belum Bayar: sisa tagihan DP
+                            $sudahBayar = ($rental->nominal_dp ?? 0);
+                            $sisaBayar = max(0, $rental->total_biaya - $sudahBayar);
+                            $belumBayarData[$index] += $sisaBayar;
+                        }
+                    }
+                }
+                
+                // Calculate total
+                for ($i = 0; $i < $dataCount; $i++) {
+                    $totalData[$i] = $lunasData[$i] + $dpData[$i] + $belumBayarData[$i];
+                }
+                
+                $barData = [
+                    'labels' => $labels,
+                    'datasets' => [
+                        [
+                            'label' => 'Total',
+                            'data' => $totalData,
+                            'backgroundColor' => 'rgba(99, 102, 241, 0.8)',
+                            'borderColor' => 'rgba(99, 102, 241, 1)',
+                            'borderWidth' => 2
+                        ],
+                        [
+                            'label' => 'Lunas',
+                            'data' => $lunasData,
+                            'backgroundColor' => 'rgba(34, 197, 94, 0.8)',
+                            'borderColor' => 'rgba(34, 197, 94, 1)',
+                            'borderWidth' => 2
+                        ],
+                        [
+                            'label' => 'DP',
+                            'data' => $dpData,
+                            'backgroundColor' => 'rgba(59, 130, 246, 0.8)',
+                            'borderColor' => 'rgba(59, 130, 246, 1)',
+                            'borderWidth' => 2
+                        ],
+                        [
+                            'label' => 'Belum Bayar',
+                            'data' => $belumBayarData,
+                            'backgroundColor' => 'rgba(249, 115, 22, 0.8)',
+                            'borderColor' => 'rgba(249, 115, 22, 1)',
+                            'borderWidth' => 2
+                        ]
+                    ]
+                ];
+            } else {
+                $barData = $this->chartDataService->getBarChartData(
+                    clone $filteredQuery,
+                    array_merge($barConfig, [
+                        'filter_type'   => $filterType,
+                        'start_date'    => $startDate,
+                        'end_date'      => $endDate,
+                        'specific_year' => $specificYear,
+                    ])
+                );
+            }
 
             $lineData = $this->chartDataService->getLineChartData(
                 clone $filteredQuery,
@@ -310,7 +581,7 @@ class ChartDataController extends Controller
             'pembayaran'       => \App\Models\Pembayaran::query(),
             'purchase-order'  => \App\Models\PurchaseOrder::query(),
             'kendaraan' => \App\Models\Kendaraan::query(),
-            'kendaraan-show' => \App\Models\ServiceHistory::query(),
+            'kendaraan-show' => \App\Models\Kendaraan::query(),
             'asuransi-kendaraan' => \App\Models\AsuransiKendaraan::query()
                 ->whereNotNull('persetujuan')
                 ->where('persetujuan', '!=', 'Pending')
@@ -1516,27 +1787,39 @@ class ChartDataController extends Controller
         return [
             'dateColumn' => 'tanggal_mulai',
             'pie' => [
-                'title' => 'Payment Status',
-                'groupBy' => 'status_pembayaran',
-                'valueColumn' => 'id',
-                'aggregation' => 'count',
-                'labels' => [],
-                'colors' => ['#10b981', '#f59e0b', '#ef4444']
+                'title' => 'Distribusi Pembayaran',
+                'custom' => true, // Gunakan custom data dari controller
+                'data' => [
+                    'labels' => ['Lunas', 'DP', 'Belum Bayar'],
+                    'datasets' => [[
+                        'data' => [], // Akan diisi dari controller
+                        'backgroundColor' => [
+                            'rgba(34, 197, 94, 0.8)',   // Hijau untuk Lunas
+                            'rgba(59, 130, 246, 0.8)',   // Biru untuk DP
+                            'rgba(249, 115, 22, 0.8)'    // Orange untuk Belum Bayar
+                        ],
+                        'borderColor' => [
+                            'rgba(34, 197, 94, 1)',
+                            'rgba(59, 130, 246, 1)',
+                            'rgba(249, 115, 22, 1)'
+                        ],
+                        'borderWidth' => 2
+                    ]]
+                ]
             ],
             'bar' => [
-                'title'        => 'Pendapatan Rental per Periode',
+                'title'        => 'Perbandingan Nilai Pembayaran per Bulan',
+                'custom'       => true, // Gunakan custom data
                 'groupBy'      => 'month',
-                'autoDaily'    => true,
-                'valueColumns' => [
-                    'total_biaya',
-                    ['where' => ['status_pembayaran' => 'lunas'],                                    'column' => 'total_biaya', 'label' => 'Lunas'],
-                    ['where' => ['status_pembayaran' => ['belum_bayar', 'dp', 'partial']], 'column' => 'total_biaya', 'label' => 'Belum Lunas'],
-                ],
+                'valueColumns' => ['Total', 'Lunas', 'DP', 'Belum Bayar'],
                 'aggregation'  => 'sum',
-                'dateColumn'   => 'tanggal_mulai',
-                'limit'        => 6,
-                'labels'       => ['Total', 'Lunas', 'Belum Lunas'],
-                'colors'       => ['#3b82f6', '#10b981', '#ef4444'],
+                'labels'       => ['Total', 'Lunas', 'DP', 'Belum Bayar'],
+                'colors'       => [
+                    'rgba(99, 102, 241, 0.8)',   // Ungu untuk Total
+                    'rgba(34, 197, 94, 0.8)',    // Hijau untuk Lunas
+                    'rgba(59, 130, 246, 0.8)',   // Biru untuk DP
+                    'rgba(249, 115, 22, 0.8)'    // Orange untuk Belum Bayar
+                ],
             ],
             'line' => [
                 'title'       => 'Trend Pendapatan Rental',
@@ -2472,85 +2755,85 @@ class ChartDataController extends Controller
     protected function getKendaraanShowConfig(): array
     {
         return [
-            'dateColumn' => 'tanggal_service',
+            'dateColumn' => 'created_at',
             'pie' => [
-                'title'       => 'Biaya per Status Service',
-                'groupBy'     => 'status',
-                'valueColumn' => 'total_biaya',
-                'aggregation' => 'sum',
+                'title'       => 'Status Unit Kendaraan',
+                'groupBy'     => 'status_kendaraan',
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
                 'labels'      => [
-                    'proses'  => 'Proses',
-                    'selesai' => 'Selesai',
-                    'limit'   => 'Limit',
+                    'tersedia'   => 'Tersedia',
+                    'disewa'     => 'Disewa',
+                    'service'    => 'Service',
+                    'bermasalah' => 'Bermasalah',
+                    'hilang'     => 'Hilang',
                 ],
-                'colors' => ['#f59e0b', '#10b981', '#ef4444'],
+                'colors' => ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'],
             ],
             'bar' => [
-                'title'        => 'Biaya Service Aktual per Bulan',
+                'title'        => 'Penambahan Unit per Bulan',
                 'groupBy'      => 'month',
                 'autoDaily'    => true,
-                'valueColumns' => [
-                    'total_biaya',
-                    'maks_bulanan',
-                    ['computed' => ['op' => 'subtract', 'a' => 'maks_bulanan', 'b' => 'total_biaya']],
-                ],
-                'aggregation'  => 'sum',
-                'dateColumn'   => 'tanggal_service',
-                'limit'        => 6,
-                'labels'       => ['Biaya Aktual', 'Limit', 'Sisa'],
-                'colors'       => ['#ef4444', '#f59e0b', '#10b981'],
-                'format'       => 'currency',
+                'valueColumn'  => 'id',
+                'aggregation'  => 'count',
+                'dateColumn'   => 'created_at',
+                'limit'        => 12,
+                'label'        => 'Jumlah Unit Ditambahkan',
+                'color'        => '#3b82f6',
+                'format'       => 'number',
             ],
             'line' => [
-                'title'       => 'Trend Biaya Service',
+                'title'       => 'Trend Penambahan Unit',
                 'groupBy'     => 'month',
-                'autoDaily'   => true,
-                'valueColumn' => 'total_biaya',
-                'aggregation' => 'sum',
-                'dateColumn'  => 'tanggal_service',
+                'autoDaily'   => false,
+                'valueColumn' => 'id',
+                'aggregation' => 'count',
+                'dateColumn'  => 'created_at',
                 'limit'       => 12,
-                'label'       => 'Biaya Aktual',
-                'color'       => '#ef4444',
-                'format'      => 'currency',
+                'label'       => 'Total Unit Kumulatif',
+                'color'       => '#4f6ef7',
+                'format'      => 'number',
+                'cumulative'  => true,
             ],
             'stats' => [
                 [
-                    'label'  => 'Total Service',
+                    'label'  => 'Total Kendaraan',
                     'type'   => 'count',
                     'column' => 'id',
                     'format' => 'number',
                     'color'  => '#4f6ef7',
                     'iconBg' => '#eef1ff',
-                    'icon'   => 'fa fa-wrench',
+                    'icon'   => 'fa fa-truck',
                 ],
                 [
-                    'label'  => 'Total Biaya',
-                    'type'   => 'sum',
-                    'column' => 'total_biaya',
-                    'format' => 'currency',
-                    'color'  => '#ef4444',
-                    'iconBg' => '#fee2e2',
-                    'icon'   => 'fa fa-money-bill-wave',
-                ],
-                [
-                    'label'  => 'Selesai',
+                    'label'  => 'Tersedia',
                     'type'   => 'count_where',
                     'column' => 'id',
-                    'where'  => ['status' => 'selesai'],
+                    'where'  => ['status_kendaraan' => 'tersedia'],
                     'format' => 'number',
                     'color'  => '#10b981',
                     'iconBg' => '#d1fae5',
                     'icon'   => 'fa fa-check-circle',
                 ],
                 [
-                    'label'  => 'Proses',
+                    'label'  => 'Disewa',
                     'type'   => 'count_where',
                     'column' => 'id',
-                    'where'  => ['status' => 'proses'],
+                    'where'  => ['status_kendaraan' => 'disewa'],
+                    'format' => 'number',
+                    'color'  => '#3b82f6',
+                    'iconBg' => '#dbeafe',
+                    'icon'   => 'fa fa-key',
+                ],
+                [
+                    'label'  => 'Service',
+                    'type'   => 'count_where',
+                    'column' => 'id',
+                    'where'  => ['status_kendaraan' => 'service'],
                     'format' => 'number',
                     'color'  => '#f59e0b',
                     'iconBg' => '#fef3c7',
-                    'icon'   => 'fa fa-rotate',
+                    'icon'   => 'fa fa-wrench',
                 ],
             ],
         ];

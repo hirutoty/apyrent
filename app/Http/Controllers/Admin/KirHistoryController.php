@@ -30,9 +30,12 @@ class KirHistoryController extends Controller
 
     public function kendaraan($id)
     {
-        $kendaraan = \App\Models\Kendaraan::with(['jenis'])->findOrFail($id);
+        // Gunakan withTrashed untuk menampilkan kendaraan yang sudah dihapus/hilang
+        $kendaraan = \App\Models\Kendaraan::withTrashed()->with(['jenis'])->findOrFail($id);
 
-        $history = KirHistory::with(['kendaraan', 'kir', 'attachments'])
+        $history = KirHistory::with(['kendaraan' => function($q) {
+                $q->withTrashed();
+            }, 'kir', 'attachments'])
             ->where('kendaraan_id', $id)
             ->latest('diperpanjang_pada')
             ->paginate(20);
@@ -94,7 +97,10 @@ class KirHistoryController extends Controller
 
     private function filteredQuery($bulan, $tahun, $search = null)
     {
-        $query = KirHistory::with(['kendaraan', 'attachments', 'kir']);
+        // Gunakan whereHas dengan withTrashed untuk menampilkan history dari kendaraan yang sudah dihapus/hilang
+        $query = KirHistory::with(['kendaraan' => function($q) {
+                $q->withTrashed();
+            }, 'attachments', 'kir']);
 
         if ($bulan !== 'semua') {
             $query->whereMonth('masa_berlaku', $bulan);
@@ -106,7 +112,8 @@ class KirHistoryController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('no_uji', 'like', "%{$search}%")
                   ->orWhereHas('kendaraan', fn($k) =>
-                      $k->where('nopol', 'like', "%{$search}%")
+                      $k->withTrashed()
+                        ->where('nopol', 'like', "%{$search}%")
                         ->orWhere('merk', 'like', "%{$search}%")
                   );
             });

@@ -50,6 +50,7 @@ use App\Http\Controllers\Admin\VirtualController;
 use App\Http\Controllers\Admin\BukubesarController;
 use App\Http\Controllers\Admin\GpsKendaraanHistoryController;
 use App\Http\Controllers\Admin\PajakController;
+use App\Http\Controllers\Admin\ChartDataController;
 
 // ── Serve Temp Files Route (with authentication) ────────────
 Route::get('/storage/{path}', function ($path) {
@@ -550,7 +551,7 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   })->name('test-chart');
 
   // Chart Data API
-  Route::get('/chart-data/{page}', [App\Http\Controllers\Admin\ChartDataController::class, 'getData'])
+  Route::get('/api/chart-data/{page}', [App\Http\Controllers\Admin\ChartDataController::class, 'getData'])
     ->name('chart.data');
 
   // API endpoint untuk ceklist kondisi - ambil data kendaraan
@@ -918,6 +919,10 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
     ->name('data-leasing.data-kontrak-detail');
   Route::resource('data-leasing', DataLeasingController::class)
     ->except(['create', 'edit', 'show']);
+
+  // ── CHART DATA API ──────────────────────────────────────────────────
+  Route::get('/admin/chart-data/{page}', [ChartDataController::class, 'getData'])
+    ->name('chart-data');
 
   // ── DATA KONTRAK ─────────────────────────────────────────────────────
   Route::get('/data-kontrak/generate-no', [DataKontrakController::class, 'generateNoKontrak'])

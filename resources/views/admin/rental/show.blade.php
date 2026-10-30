@@ -761,6 +761,62 @@
 
                 </div>
 
+                {{-- DOKUMEN PENDUKUNG (Invoice & Kelayakan) --}}
+                <div class="section-card">
+                    <div class="section-header">
+                        <div class="flex items-center gap-3">
+                            <div class="section-icon bg-indigo-100 text-indigo-600">
+                                <i class="fa fa-folder-open"></i>
+                            </div>
+                            <div>
+                                <h2 class="font-bold text-gray-800 text-sm">Dokumen Pendukung</h2>
+                                <p class="text-xs text-gray-400">Invoice & Surat Kelayakan</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-5 py-4 space-y-4">
+                        {{-- Invoice --}}
+                        <div>
+                            <p class="text-xs font-bold text-indigo-600 mb-2 flex items-center gap-1">
+                                <i class="fa fa-file-invoice"></i> Invoice
+                            </p>
+                            @if ($rental->invoice)
+                                <button type="button"
+                                    onclick="openSlideshow([{path:'{{ asset($rental->invoice) }}', name:'{{ basename($rental->invoice) }}'}], 0)"
+                                    class="proof-link inline-flex items-center gap-1.5">
+                                    <i class="bi bi-image"></i> {{ basename($rental->invoice) }}
+                                </button>
+                                <p class="text-xs text-gray-400 mt-1">Klik untuk perbesar</p>
+                            @else
+                                <div class="flex flex-col items-center gap-2 py-4 bg-gray-50 rounded-xl">
+                                    <i class="fa fa-image text-gray-300 text-xl"></i>
+                                    <p class="text-xs text-gray-400">Belum upload invoice</p>
+                                </div>
+                            @endif
+                        </div>
+
+                        {{-- Surat Kelayakan --}}
+                        <div>
+                            <p class="text-xs font-bold text-teal-600 mb-2 flex items-center gap-1">
+                                <i class="fa fa-file-shield"></i> Surat Kelayakan
+                            </p>
+                            @if ($rental->kelayakan)
+                                <button type="button"
+                                    onclick="openSlideshow([{path:'{{ asset($rental->kelayakan) }}', name:'{{ basename($rental->kelayakan) }}'}], 0)"
+                                    class="proof-link inline-flex items-center gap-1.5">
+                                    <i class="bi bi-image"></i> {{ basename($rental->kelayakan) }}
+                                </button>
+                                <p class="text-xs text-gray-400 mt-1">Klik untuk perbesar</p>
+                            @else
+                                <div class="flex flex-col items-center gap-2 py-4 bg-gray-50 rounded-xl">
+                                    <i class="fa fa-image text-gray-300 text-xl"></i>
+                                    <p class="text-xs text-gray-400">Belum upload surat kelayakan</p>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
                 {{-- UPDATE STATUS (dipindah ke bawah Bukti Pembayaran, kolom kanan) --}}
                 <div class="section-card">
                     <div class="section-header">

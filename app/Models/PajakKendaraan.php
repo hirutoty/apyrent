@@ -43,7 +43,7 @@ class PajakKendaraan extends Model
      */
     public function kendaraan()
     {
-        return $this->belongsTo(Kendaraan::class);
+        return $this->belongsTo(Kendaraan::class)->withTrashed();
     }
 
     public function histories()

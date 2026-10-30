@@ -13,7 +13,7 @@
     </div>
 
     {{-- CHART FILTER --}}
-    <x-chart-filter id="historyChartFilter" defaultFilter="month" :showCustomRange="true" />
+    <x-chart-filter id="historyChartFilter" defaultFilter="specific_year" :showCustomRange="true" />
 
     {{-- CHART CONTAINER --}}
     <x-chart-container

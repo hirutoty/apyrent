@@ -140,7 +140,14 @@
                                         <i class="fa fa-car text-blue-400 text-xs"></i>
                                     </div>
                                     <div class="flex flex-col leading-tight">
-                                        <span class="text-sm font-semibold text-gray-800">{{ $item->kendaraan->nopol ?? '-' }}</span>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-sm font-semibold text-gray-800">{{ $item->kendaraan->nopol ?? '-' }}</span>
+                                            @if($item->kendaraan && $item->kendaraan->trashed())
+                                                <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700 uppercase tracking-wide">
+                                                    <i class="fa fa-trash text-[8px]"></i> Dihapus
+                                                </span>
+                                            @endif
+                                        </div>
                                         <span class="text-xs text-gray-500">{{ $item->kendaraan->merk ?? '-' }}</span>
                                     </div>
                                 </div>
@@ -291,7 +298,7 @@
                                     {{-- Perpanjang --}}
                                     @if($isKadaluarsa || $isReminder)
                                     <button type="button"
-                                        onclick="openModalPerpanjang({{ $item->id }}, '{{ $item->kendaraan->nopol ?? '-' }}', '{{ $item->kendaraan->merk ?? '-' }}', '{{ $item->no_uji }}', '{{ $item->biaya }}', '{{ $item->masa_berlaku ? \Carbon\Carbon::parse($item->masa_berlaku)->format('Y-m-d') : '' }}', '{{ addslashes($item->nama_bank ?? '') }}', '{{ addslashes($item->no_rekening ?? '') }}')"
+                                        onclick="openModalPerpanjang({{ $item->id }}, '{{ $item->kendaraan->nopol ?? '-' }}', '{{ $item->kendaraan->merk ?? '-' }}', '{{ $item->no_uji }}', '{{ $item->biaya }}', '{{ $item->masa_berlaku ? \Carbon\Carbon::parse($item->masa_berlaku)->format('Y-m-d') : '' }}', '{{ addslashes($item->nama_bank ?? '') }}', '{{ addslashes($item->no_rekening ?? '') }}', '{{ addslashes($item->nama_rekening ?? '') }}')"
                                         class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors">
                                         <i class="fa fa-rotate-right text-xs"></i>
                                         Perpanjang
@@ -614,19 +621,25 @@
                     <input type="number" min="0" name="biaya" id="perpanjang_biaya" required
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Ketentuan Bayar <span class="text-red-500">*</span></label>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar <span class="text-red-500">*</span></label>
                     <input type="date" name="tanggal_bayar" id="perpanjang_tanggal_bayar" required
-                        value="{{ now()->format('Y-m-d') }}"
+                        onchange="updatePerpanjangPreview()"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Masa Berlaku Baru</label>
-                    <div class="w-full border rounded-lg px-3 py-2 bg-gray-100 text-sm text-gray-600 cursor-not-allowed">
-                        <span id="perpanjang_masa_berlaku_text">Otomatis masa berlaku lama + 6 bulan</span>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-1">Dihitung otomatis saat disetujui</p>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Ketentuan Bayar <span class="text-red-500">*</span></label>
+                    <input type="text" id="perpanjang_tanggal_ketentuan_display" readonly
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 cursor-not-allowed">
+                    <p class="text-xs text-gray-400 mt-1">Tanggal Bayar - 1 bulan (otomatis)</p>
                 </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Masa Berlaku Baru</label>
+                    <input type="text" id="perpanjang_masa_berlaku_display" readonly
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 cursor-not-allowed">
+                    <p class="text-xs text-gray-400 mt-1">Tanggal Bayar + 6 bulan (otomatis)</p>
+                </div>
+                
                 <div class="sm:col-span-2">
                     <div class="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
                         <i class="fa fa-circle-info mt-0.5 flex-shrink-0"></i>
@@ -761,25 +774,83 @@ modalEdit.addEventListener('click', e => { if (e.target === modalEdit) closeModa
 
 // ── MODAL PERPANJANG ──────────────────────────────────────
 const modalPerpanjang = document.getElementById('modalPerpanjang');
-function openModalPerpanjang(id, nopol, merk, noUji, biaya, masaBerlaku, namaBank, noRekening) {
+let currentMasaBerlakuLama = null; // Simpan masa berlaku lama untuk kalkulasi
+
+function openModalPerpanjang(id, nopol, merk, noUji, biaya, masaBerlaku, namaBank, noRekening, namaRekening) {
+    console.log('openModalPerpanjang called with:', {
+        id, nopol, merk, noUji, biaya, masaBerlaku, namaBank, noRekening, namaRekening
+    });
+    
     document.getElementById('formPerpanjang').action = `/admin/kir/${id}/perpanjang`;
     document.getElementById('perpanjang_kendaraan_text').innerText = `${nopol} — ${merk}`;
     document.getElementById('perpanjang_no_uji').value   = noUji;
     document.getElementById('perpanjang_biaya').value    = biaya;
     // Pre-fill info bank dari data lama
-    document.getElementById('perpanjang_nama_bank').value   = namaBank   || '';
-    document.getElementById('perpanjang_no_rekening').value = noRekening || '';
-    // Tampilkan preview masa berlaku baru
-    if (masaBerlaku) {
-        const d = new Date(masaBerlaku);
-        d.setMonth(d.getMonth() + 6);
-        const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dy = String(d.getDate()).padStart(2,'0');
-        document.getElementById('perpanjang_masa_berlaku_text').innerText = `${dy}/${m}/${y} (estimasi setelah approval)`;
-    }
+    document.getElementById('perpanjang_nama_bank').value     = namaBank     || '';
+    document.getElementById('perpanjang_no_rekening').value   = noRekening   || '';
+    document.getElementById('perpanjang_nama_pemilik').value  = namaRekening || '';
+    
+    console.log('perpanjang_nama_pemilik set to:', namaRekening);
+    
+    // Simpan masa berlaku lama
+    currentMasaBerlakuLama = masaBerlaku;
+    
+    // Set tanggal_bayar default = masa berlaku dari tabel (bukan today)
+    document.getElementById('perpanjang_tanggal_bayar').value = masaBerlaku || '';
+    
+    // Initialize preview
+    updatePerpanjangPreview();
+    
     modalPerpanjang.classList.remove('hidden'); modalPerpanjang.classList.add('flex');
 }
-function closeModalPerpanjang() { modalPerpanjang.classList.add('hidden'); modalPerpanjang.classList.remove('flex'); }
+
+function closeModalPerpanjang() { 
+    modalPerpanjang.classList.add('hidden'); 
+    modalPerpanjang.classList.remove('flex'); 
+    currentMasaBerlakuLama = null; // Reset
+}
+
 modalPerpanjang.addEventListener('click', e => { if (e.target === modalPerpanjang) closeModalPerpanjang(); });
+
+// Function untuk update preview Tanggal Ketentuan Bayar dan Masa Berlaku
+function updatePerpanjangPreview() {
+    const tglBayarInput = document.getElementById('perpanjang_tanggal_bayar');
+    const tglKetentuanInput = document.getElementById('perpanjang_tanggal_ketentuan_display');
+    const masaBerlakuInput = document.getElementById('perpanjang_masa_berlaku_display');
+    
+    if (!tglBayarInput || !tglKetentuanInput || !masaBerlakuInput) {
+        return;
+    }
+    
+    const tglBayar = tglBayarInput.value;
+    
+    if (!tglBayar) {
+        tglKetentuanInput.value = '';
+        masaBerlakuInput.value = '';
+        return;
+    }
+    
+    // 1. Calculate Tanggal Ketentuan Bayar = Tanggal Bayar - 1 bulan
+    const dateBayar = new Date(tglBayar);
+    const dateKetentuan = new Date(dateBayar);
+    dateKetentuan.setMonth(dateKetentuan.getMonth() - 1);
+    
+    // Format DD/MM/YYYY for text field display
+    const tglKetentuanFormatted = String(dateKetentuan.getDate()).padStart(2, '0') + '/' + 
+                                   String(dateKetentuan.getMonth() + 1).padStart(2, '0') + '/' + 
+                                   dateKetentuan.getFullYear();
+    tglKetentuanInput.value = tglKetentuanFormatted;
+    
+    // 2. Calculate Masa Berlaku Baru = Tanggal Bayar + 6 bulan (BUKAN dari masa berlaku lama!)
+    const dateMasaBerlakuBaru = new Date(dateBayar);
+    dateMasaBerlakuBaru.setMonth(dateMasaBerlakuBaru.getMonth() + 6);
+    
+    // Format DD/MM/YYYY for text field display
+    const masaBerlakuFormatted = String(dateMasaBerlakuBaru.getDate()).padStart(2, '0') + '/' + 
+                                  String(dateMasaBerlakuBaru.getMonth() + 1).padStart(2, '0') + '/' + 
+                                  dateMasaBerlakuBaru.getFullYear();
+    masaBerlakuInput.value = masaBerlakuFormatted + ' (otomatis)';
+}
 
 // Anti double-submit perpanjang
 (function() {

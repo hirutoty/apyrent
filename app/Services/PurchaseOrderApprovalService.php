@@ -219,11 +219,20 @@ class PurchaseOrderApprovalService
             $po->update(['pembayaran_id' => $pembayaran->id]);
         }
 
+        // ── CREATE ServiceHistory draft BEFORE updateLinkedRecord untuk service_part ──
+        // Sequence penting: ServiceHistory harus sudah ada sebelum updateLinkedRecord
+        // dipanggil, karena updateLinkedRecord akan mencari ServiceHistory dengan
+        // pembayaran_id dan mengupdate parts-nya.
+        if ($sourceType === 'service_part') {
+            $poController = app(\App\Http\Controllers\Admin\PurchaseOrderController::class);
+            $poController->createServiceHistoryDraft($pembayaran, $sourceDataForPembayaran);
+        }
+
         // Update linked records (GPS / pajak / asuransi_kendaraan / kir)
         // For GPS via approveWithItems, pass approvedSourceData so only approved items are updated
         $this->updateLinkedRecord($po, $pembayaran, $approvedSourceData);
 
-        // service_part: no external records to update (parts are embedded in source_data)
+        // service_incident: ServiceHistory tidak dibuat di sini (incident langsung buat parts)
 
         return $pembayaran;
     }
@@ -1086,16 +1095,24 @@ class PurchaseOrderApprovalService
         }
 
         // ── SERVICE PART ───────────────────────────────────────────────────────
-        // Update persetujuan ServicePart dari Pending → Diajukan ke Pembayaran
+        // Parts sudah dibuat di createServiceHistoryDraft dengan persetujuan = 'Diajukan ke Pembayaran'
+        // Tidak perlu update lagi, tapi kita log untuk debugging
         if ($sourceType === 'service_part') {
-            // Cari ServiceHistory yang sudah dibuat saat createServiceHistoryDraft (pembayaran_id = $pembayaran->id)
             $serviceHistory = \App\Models\ServiceHistory::where('pembayaran_id', $pembayaran->id)->first();
             if ($serviceHistory) {
-                $serviceHistory->parts()
-                    ->where('persetujuan', 'Pending')
-                    ->update([
-                        'persetujuan' => 'Diajukan ke Pembayaran',
-                    ]);
+                $partsCount = $serviceHistory->parts()->count();
+                \Log::info('ServicePart updateLinkedRecord', [
+                    'pembayaran_id' => $pembayaran->id,
+                    'pembayaran_no_pr' => $pembayaran->no_pr,
+                    'service_history_id' => $serviceHistory->id,
+                    'parts_count' => $partsCount,
+                    'parts_data' => $serviceHistory->parts()->get(['id', 'nama_part', 'persetujuan', 'status'])->toArray(),
+                ]);
+            } else {
+                \Log::warning('ServiceHistory NOT FOUND for pembayaran', [
+                    'pembayaran_id' => $pembayaran->id,
+                    'pembayaran_no_pr' => $pembayaran->no_pr,
+                ]);
             }
             return;
         }

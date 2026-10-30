@@ -12,7 +12,10 @@ class HistoryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Kendaraan::withCount('rentals')
+        // Gunakan withTrashed() untuk menampilkan kendaraan yang sudah dihapus/hilang
+        // tapi tetap punya history rental
+        $query = Kendaraan::withTrashed()
+            ->withCount('rentals')
             ->withSum('rentals', 'total_biaya')
             ->withSum('serviceHistories', 'total_biaya')
             ->orderBy('rentals_count', 'desc');

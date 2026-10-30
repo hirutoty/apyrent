@@ -208,12 +208,17 @@
 const chartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
+    // Default ke tahun sekarang
+    const currentYear = new Date().getFullYear();
+    initAsuransiHistoryCharts({ filter_type: 'specific_year', specific_year: currentYear });
+
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'asuransiHistoryChartFilter') {
             const filters = {
                 filter_type: e.detail.filterType,
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
+                specific_year: e.detail.specificYear,
             };
             if (!chartManager.hasChart('asuransiHistoryBarChart')) {
                 initAsuransiHistoryCharts(filters);

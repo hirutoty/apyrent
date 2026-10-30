@@ -132,7 +132,7 @@
 
         $dp          = $rental->nominal_dp ?? 0;
         $durasi      = $rental->durasi_tahun ?? $rental->durasi_bulan ?? $rental->durasi_hari ?? 1;
-        $biayaDriver = (float) ($rental->biaya_driver ?? 0) * $durasi;
+        $biayaDriver = (float) ($rental->biaya_driver ?? 0); // Sudah total dari database
 
         // subTotal = kendaraan + driver + biaya tambahan
         $biayaDasar    = (float) ($rental->biaya_dasar ?? 0);
@@ -150,7 +150,7 @@
 
         if ($rental->durasi_bulan) {
             $satuan = 'Bulan';
-            $hargaSatuan = ($rental->kendaraan->harga_sewa_per_hari ?? 0) * 30;
+            $hargaSatuan = $rental->kendaraan->harga_sewa_per_jam ?? 0; // Jam = Bulan (per kesepakatan)
         } elseif ($rental->durasi_hari) {
             $satuan = 'Hari';
             $hargaSatuan = $rental->kendaraan->harga_sewa_per_hari ?? 0;
@@ -159,7 +159,8 @@
             $hargaSatuan = $rental->kendaraan->harga_sewa_per_jam ?? 0;
         } elseif ($rental->durasi_tahun) {
             $satuan = 'Tahun';
-            $hargaSatuan = ($rental->kendaraan->harga_sewa_per_hari ?? 0) * 30 * 12;
+            $hargaBulan = $rental->kendaraan->harga_sewa_per_jam ?? 0;
+            $hargaSatuan = $hargaBulan * 12; // Tahun = Bulan × 12
         }
 
         // Sub total kendaraan saja (tanpa driver, tanpa PPN)

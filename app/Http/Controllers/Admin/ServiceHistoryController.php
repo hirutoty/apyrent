@@ -2174,6 +2174,38 @@ class ServiceHistoryController extends Controller
                 $now    = now();
                 $posisi = trim($part->posisi ?? '');
 
+                \Log::info('updatePartStatus: Marking Terpasang', [
+                    'part_id'      => $part->id,
+                    'nama_part'    => $part->nama_part,
+                    'kendaraan_id' => $part->kendaraan_id,
+                    'category_id'  => $part->category_id,
+                    'posisi'       => $posisi,
+                ]);
+
+                $oldParts = ServicePart::where('kendaraan_id', $part->kendaraan_id)
+                    ->where('category_id', $part->category_id)
+                    ->where(function ($q) use ($posisi) {
+                        if ($posisi !== '') {
+                            $q->whereRaw('LOWER(TRIM(posisi)) = ?', [strtolower($posisi)]);
+                        } else {
+                            $q->where(fn($q2) => $q2->whereNull('posisi')->orWhereRaw("TRIM(posisi) = ''"));
+                        }
+                    })
+                    ->whereIn('status', ['Terpasang', 'Limit', 'aktif'])
+                    ->where('id', '!=', $part->id) // jangan archive diri sendiri
+                    ->get();
+
+                \Log::info('updatePartStatus: Found old parts to archive', [
+                    'count' => $oldParts->count(),
+                    'parts' => $oldParts->map(fn($p) => [
+                        'id'         => $p->id,
+                        'nama_part'  => $p->nama_part,
+                        'status'     => $p->status,
+                        'posisi'     => $p->posisi,
+                        'category_id'=> $p->category_id,
+                    ])->toArray(),
+                ]);
+
                 ServicePart::where('kendaraan_id', $part->kendaraan_id)
                     ->where('category_id', $part->category_id)
                     ->where(function ($q) use ($posisi) {
@@ -2634,45 +2666,109 @@ class ServiceHistoryController extends Controller
             return redirect()->back()->with('error', 'Tidak ada part yang perlu ditandai Terpasang.');
         }
 
-        foreach ($partsTidakAktif as $part) {
-            $part->update([
-                'status'  => 'Terpasang',
-                'kondisi' => $this->deriveKondisiFromStatus('Terpasang'), // otomatis: Aktif
-            ]);
-        }
+        \Illuminate\Support\Facades\DB::transaction(function () use ($sh, $partsTidakAktif) {
+            $now = now();
 
-        // Recalculate status service history
-        $sh->refresh();
-        $parts = $sh->parts;
-        $adaAktif      = $parts->contains(fn($p) => $p->status === 'aktif');
-        $adaTidakAktif = $parts->contains(fn($p) => $p->status === 'tidak_aktif');
-        $adaLimit      = $parts->contains(fn($p) => $p->status === 'Limit');
+            foreach ($partsTidakAktif as $newPart) {
+                // ── Archive part lama sebelum aktivasi part baru ──────────────────
+                $posisi = trim($newPart->posisi ?? '');
 
-        if ($adaLimit && !$adaAktif && !$adaTidakAktif) {
-            $newStatus = 'limit';
-        } elseif ($adaAktif || $adaTidakAktif) {
-            $newStatus = 'aktif';
-        } else {
-            $newStatus = 'terpasang';
-        }
-        $sh->update(['status' => $newStatus]);
-
-        // ⚙️ Update kilometer kendaraan jika kilometer service lebih besar
-        $kendaraan = $sh->kendaraan;
-        if ($kendaraan && $sh->kilometer) {
-            $kmService = (int) $sh->kilometer;
-            $kmSekarang = (int) ($kendaraan->kilometer_sekarang ?? 0);
-            
-            if ($kmService > $kmSekarang) {
-                $kendaraan->update([
-                    'kilometer_sekarang' => $kmService,
-                    'km_terakhir_service' => $kmService,
-                    'tanggal_terakhir_service' => $sh->tanggal_service ?? now()->toDateString(),
+                \Log::info('terpasang: Archiving old parts', [
+                    'new_part_id'  => $newPart->id,
+                    'nama_part'    => $newPart->nama_part,
+                    'kendaraan_id' => $sh->kendaraan_id,
+                    'category_id'  => $newPart->category_id,
+                    'posisi'       => $posisi,
                 ]);
-            }
-        }
 
-        return redirect()->back()->with('success', 'Part berhasil ditandai sebagai Terpasang.');
+                $oldParts = \App\Models\ServicePart::where('kendaraan_id', $sh->kendaraan_id)
+                    ->where('category_id', $newPart->category_id)
+                    ->where(function ($q) use ($posisi) {
+                        if ($posisi !== '') {
+                            $q->whereRaw('LOWER(TRIM(posisi)) = ?', [strtolower($posisi)]);
+                        } else {
+                            $q->where(fn($q2) => $q2->whereNull('posisi')->orWhereRaw("TRIM(posisi) = ''"));
+                        }
+                    })
+                    ->whereIn('status', ['Terpasang', 'Limit', 'aktif'])
+                    ->where('id', '!=', $newPart->id) // jangan archive diri sendiri
+                    ->get();
+
+                \Log::info('terpasang: Found old parts', [
+                    'count' => $oldParts->count(),
+                    'parts' => $oldParts->map(fn($p) => [
+                        'id'         => $p->id,
+                        'nama_part'  => $p->nama_part,
+                        'status'     => $p->status,
+                        'posisi'     => $p->posisi,
+                    ])->toArray(),
+                ]);
+
+                \App\Models\ServicePart::where('kendaraan_id', $sh->kendaraan_id)
+                    ->where('category_id', $newPart->category_id)
+                    ->where(function ($q) use ($posisi) {
+                        if ($posisi !== '') {
+                            $q->whereRaw('LOWER(TRIM(posisi)) = ?', [strtolower($posisi)]);
+                        } else {
+                            $q->where(fn($q2) => $q2->whereNull('posisi')->orWhereRaw("TRIM(posisi) = ''"));
+                        }
+                    })
+                    ->whereIn('status', ['Terpasang', 'Limit', 'aktif'])
+                    ->where('id', '!=', $newPart->id)
+                    ->update([
+                        'status'              => 'Diganti',
+                        'replaced_at'         => $now,
+                        'replaced_by_part_id' => $newPart->id,
+                    ]);
+
+                // ── Update part baru jadi Terpasang ───────────────────────────────
+                $newPart->update([
+                    'status'  => 'Terpasang',
+                    'kondisi' => $this->deriveKondisiFromStatus('Terpasang'), // otomatis: Aktif
+                ]);
+
+                // Auto-close reminder aktif untuk part ini
+                $this->autoCloseReminderPart($sh->kendaraan_id, $newPart);
+            }
+
+            // Recalculate status service history
+            $sh->refresh();
+            $parts = $sh->parts;
+            $adaAktif      = $parts->contains(fn($p) => $p->status === 'aktif');
+            $adaTidakAktif = $parts->contains(fn($p) => $p->status === 'tidak_aktif');
+            $adaLimit      = $parts->contains(fn($p) => $p->status === 'Limit');
+
+            if ($adaLimit && !$adaAktif && !$adaTidakAktif) {
+                $newStatus = 'limit';
+            } elseif ($adaAktif || $adaTidakAktif) {
+                $newStatus = 'aktif';
+            } else {
+                $newStatus = 'terpasang';
+            }
+            $sh->update(['status' => $newStatus]);
+
+            // ⚙️ Update kilometer kendaraan jika kilometer service lebih besar
+            $kendaraan = $sh->kendaraan;
+            if ($kendaraan && $sh->kilometer) {
+                $kmService = (int) $sh->kilometer;
+                $kmSekarang = (int) ($kendaraan->kilometer_sekarang ?? 0);
+                
+                if ($kmService > $kmSekarang) {
+                    $kendaraan->update([
+                        'kilometer_sekarang' => $kmService,
+                        'km_terakhir_service' => $kmService,
+                        'tanggal_terakhir_service' => $sh->tanggal_service ?? now()->toDateString(),
+                    ]);
+                }
+                
+                // Update status kendaraan jika semua part sudah terpasang
+                if ($newStatus === 'terpasang') {
+                    $kendaraan->update(['status_kendaraan' => 'tersedia']);
+                }
+            }
+        });
+
+        return redirect()->back()->with('success', 'Part berhasil ditandai sebagai Terpasang. Part lama diarsipkan sebagai Diganti.');
     }
 
     // =========================================================================
@@ -2709,19 +2805,50 @@ class ServiceHistoryController extends Controller
             $now = now();
 
             foreach ($partsToActivate as $newPart) {
-                // ── 1. Archive part lama (Opsi A: match by nama+posisi+category) ────
-                \App\Models\ServicePart::where('kendaraan_id', $sh->kendaraan_id)
-                    ->whereRaw('LOWER(TRIM(nama_part)) = ?', [strtolower(trim($newPart->nama_part ?? ''))])
+                // ── 1. Archive part lama (match by category + posisi, BUKAN nama_part) ────
+                $posisi = trim($newPart->posisi ?? '');
+
+                \Log::info('terpasangAktif: Archiving old parts', [
+                    'new_part_id'  => $newPart->id,
+                    'nama_part'    => $newPart->nama_part,
+                    'kendaraan_id' => $sh->kendaraan_id,
+                    'category_id'  => $newPart->category_id,
+                    'posisi'       => $posisi,
+                ]);
+
+                $oldParts = \App\Models\ServicePart::where('kendaraan_id', $sh->kendaraan_id)
                     ->where('category_id', $newPart->category_id)
-                    ->where(function ($q) use ($newPart) {
-                        $posisi = trim($newPart->posisi ?? '');
+                    ->where(function ($q) use ($posisi) {
                         if ($posisi !== '') {
                             $q->whereRaw('LOWER(TRIM(posisi)) = ?', [strtolower($posisi)]);
                         } else {
                             $q->where(fn($q2) => $q2->whereNull('posisi')->orWhereRaw("TRIM(posisi) = ''"));
                         }
                     })
-                    ->whereIn('status', ['Terpasang', 'Limit'])
+                    ->whereIn('status', ['Terpasang', 'Limit', 'aktif'])
+                    ->where('id', '!=', $newPart->id)
+                    ->get();
+
+                \Log::info('terpasangAktif: Found old parts', [
+                    'count' => $oldParts->count(),
+                    'parts' => $oldParts->map(fn($p) => [
+                        'id'         => $p->id,
+                        'nama_part'  => $p->nama_part,
+                        'status'     => $p->status,
+                        'posisi'     => $p->posisi,
+                    ])->toArray(),
+                ]);
+
+                \App\Models\ServicePart::where('kendaraan_id', $sh->kendaraan_id)
+                    ->where('category_id', $newPart->category_id)
+                    ->where(function ($q) use ($posisi) {
+                        if ($posisi !== '') {
+                            $q->whereRaw('LOWER(TRIM(posisi)) = ?', [strtolower($posisi)]);
+                        } else {
+                            $q->where(fn($q2) => $q2->whereNull('posisi')->orWhereRaw("TRIM(posisi) = ''"));
+                        }
+                    })
+                    ->whereIn('status', ['Terpasang', 'Limit', 'aktif'])
                     ->where('id', '!=', $newPart->id) // jangan archive diri sendiri
                     ->update([
                         'status'             => 'Diganti',

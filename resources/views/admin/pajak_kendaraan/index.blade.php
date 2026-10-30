@@ -252,9 +252,16 @@
                                         </div>
 
                                         <div class="flex flex-col leading-tight">
-                                            <span class="text-sm font-semibold text-gray-800">
-                                                {{ $item->kendaraan->nopol ?? '-' }}
-                                            </span>
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="text-sm font-semibold text-gray-800">
+                                                    {{ $item->kendaraan->nopol ?? '-' }}
+                                                </span>
+                                                @if($item->kendaraan && $item->kendaraan->trashed())
+                                                    <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700 uppercase tracking-wide">
+                                                        <i class="fa fa-trash text-[8px]"></i> Dihapus
+                                                    </span>
+                                                @endif
+                                            </div>
 
                                             <span class="text-xs text-gray-500">
                                                 {{ $item->kendaraan->merk ?? '-' }}
