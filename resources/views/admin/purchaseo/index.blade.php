@@ -3492,14 +3492,16 @@ function renderResubmitSimpleForm(data) {
             html += '<input type="hidden" id="rsf_nama_bank" value="' + (data.nama_bank || '') + '">';
             html += '<input type="hidden" id="rsf_no_rekening" value="' + (data.no_rekening || '') + '">';
             html += '<input type="hidden" id="rsf_nama_rekening" value="' + (data.nama_rekening || '') + '">';
+            
             html += '<div class="grid grid-cols-2 gap-3">';
             html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Tgl Mulai <span class="text-red-500">*</span></label>';
-            html += '<input type="date" id="rsf_tgl_mulai" value="' + (data.tgl_mulai || '') + '" onchange="updateRsfTglBerakhir()" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<input type="date" id="rsf_tgl_mulai" value="' + (data.tgl_mulai || '') + '" onchange="updateRsfTglBerakhir()" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 bg-white"></div>';
             html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Tgl Berakhir <span class="text-gray-400 font-normal">(auto +1 tahun)</span></label>';
             html += '<input type="date" id="rsf_tgl_berakhir" value="' + (data.tgl_berakhir || '') + '" readonly class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"></div>';
             html += '</div>';
+            
             html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Biaya (Rp) <span class="text-red-500">*</span></label>';
-            html += '<input type="number" id="rsf_biaya" value="' + (data.biaya || '') + '" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
+            html += '<input type="number" id="rsf_biaya" value="' + (data.biaya || '') + '" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 bg-white"></div>';
         } else {
             // CREATE MODE: tampilkan semua field
             html += '<div class="grid grid-cols-2 gap-3">';
@@ -3530,6 +3532,19 @@ function renderResubmitSimpleForm(data) {
             html += '<input type="hidden" id="rsf_no_uji" value="' + (data.no_uji || '') + '">';
             html += '<input type="hidden" id="rsf_nama_bank" value="' + (data.nama_bank || '') + '">';
             html += '<input type="hidden" id="rsf_no_rekening" value="' + (data.no_rekening || '') + '">';
+            
+            // Info box: Preview Estimasi (akan di-update otomatis saat ubah tanggal)
+            html += '<div id="rsf_kir_preview_box" class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4">';
+            html += '<p class="text-xs text-amber-700 font-semibold mb-2"><i class="fa fa-calendar-check"></i> Preview Hasil Perhitungan</p>';
+            html += '<div class="grid grid-cols-2 gap-3 text-xs">';
+            html += '<div><span class="text-gray-600">Tanggal Ketentuan Bayar:</span>';
+            html += '<p id="rsf_preview_tanggal_ketentuan" class="font-bold text-gray-800 mt-0.5">—</p>';
+            html += '<p class="text-[10px] text-gray-500 mt-0.5">Tanggal Bayar - 1 bulan</p></div>';
+            html += '<div><span class="text-gray-600">Masa Berlaku Baru:</span>';
+            html += '<p id="rsf_preview_masa_berlaku" class="font-bold text-gray-800 mt-0.5">—</p>';
+            html += '<p class="text-[10px] text-gray-500 mt-0.5">Tanggal Bayar + 6 bulan</p></div>';
+            html += '</div></div>';
+            
             html += '<div class="grid grid-cols-2 gap-3">';
             html += '<div><label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Bayar <span class="text-red-500">*</span></label>';
             html += '<input type="date" id="rsf_tanggal_bayar" value="' + (data.tanggal_bayar || '') + '" onchange="updateRsfMasaBerlaku()" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-100 bg-white"></div>';
@@ -4247,24 +4262,54 @@ function updateRsaTotalBiaya() {
 }
 
 // Function to auto-calculate KIR Masa Berlaku (+6 months from Tanggal Bayar)
+// + Update preview Tanggal Ketentuan Bayar dan Masa Berlaku
 function updateRsfMasaBerlaku() {
     const tanggalBayar = document.getElementById('rsf_tanggal_bayar');
     const masaBerlaku = document.getElementById('rsf_masa_berlaku');
     
-    if (!tanggalBayar || !masaBerlaku || !tanggalBayar.value) return;
+    if (!tanggalBayar || !masaBerlaku) return;
+    
+    if (!tanggalBayar.value) {
+        masaBerlaku.value = '';
+        // Clear preview
+        const previewTglKetentuan = document.getElementById('rsf_preview_tanggal_ketentuan');
+        const previewMasaBerlaku = document.getElementById('rsf_preview_masa_berlaku');
+        if (previewTglKetentuan) previewTglKetentuan.textContent = '—';
+        if (previewMasaBerlaku) previewMasaBerlaku.textContent = '—';
+        return;
+    }
     
     // Parse the input date
-    const date = new Date(tanggalBayar.value);
+    const dateMasaBerlaku = new Date(tanggalBayar.value);
     
-    // Add 6 months
-    date.setMonth(date.getMonth() + 6);
+    // Add 6 months for Masa Berlaku
+    dateMasaBerlaku.setMonth(dateMasaBerlaku.getMonth() + 6);
     
     // Format as YYYY-MM-DD for date input
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const mb_year = dateMasaBerlaku.getFullYear();
+    const mb_month = String(dateMasaBerlaku.getMonth() + 1).padStart(2, '0');
+    const mb_day = String(dateMasaBerlaku.getDate()).padStart(2, '0');
     
-    masaBerlaku.value = `${year}-${month}-${day}`;
+    masaBerlaku.value = `${mb_year}-${mb_month}-${mb_day}`;
+    
+    // Calculate Tanggal Ketentuan Bayar (Tanggal Bayar - 1 month)
+    const dateTglKetentuan = new Date(tanggalBayar.value);
+    dateTglKetentuan.setMonth(dateTglKetentuan.getMonth() - 1);
+    
+    // Update preview display (format DD/MM/YYYY)
+    const previewTglKetentuan = document.getElementById('rsf_preview_tanggal_ketentuan');
+    const previewMasaBerlaku = document.getElementById('rsf_preview_masa_berlaku');
+    
+    if (previewTglKetentuan) {
+        const tk_day = String(dateTglKetentuan.getDate()).padStart(2, '0');
+        const tk_month = String(dateTglKetentuan.getMonth() + 1).padStart(2, '0');
+        const tk_year = dateTglKetentuan.getFullYear();
+        previewTglKetentuan.textContent = `${tk_day}/${tk_month}/${tk_year}`;
+    }
+    
+    if (previewMasaBerlaku) {
+        previewMasaBerlaku.textContent = `${mb_day}/${mb_month}/${mb_year}`;
+    }
 }
 
 // ── AUTO-INITIALIZE: Calculate readonly fields on page load (for Laravel old() values) ──

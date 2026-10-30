@@ -42,16 +42,22 @@ class CatatCicilanLeasingCommand extends Command
                 ? Carbon::parse($leasing->periode_selesai)->startOfMonth()
                 : null;
 
+            // Cicilan pertama dimulai BULAN BERIKUTNYA dari periode_mulai
+            $cicilanPertama = $periodeMultai->copy()->addMonth();
+
             // Batas akhir pencatatan: bulan sekarang atau periode_selesai (mana yang lebih awal)
             $batasAkhir = $periodeSelesai
                 ? $bulanSekarang->copy()->min($periodeSelesai)
                 : $bulanSekarang->copy();
 
-            // Kalau belum mulai sama sekali, skip
-            if ($periodeMultai->greaterThan($bulanSekarang)) {
-                Log::info("Leasing #{$leasing->id} ({$leasing->no_kontrak}) belum mulai, skip.");
+            // Kalau cicilan pertama belum mulai, skip
+            if ($cicilanPertama->greaterThan($bulanSekarang)) {
+                Log::info("Leasing #{$leasing->id} ({$leasing->no_kontrak}) cicilan pertama belum mulai, skip.");
                 continue;
             }
+
+            // Jatuh tempo (tanggal dalam bulan)
+            $jatuhTempo = (int) ($leasing->jatuh_tempo ?? 1);
 
             // Ambil semua bulan_cicilan yang sudah tercatat untuk leasing ini
             $sudahTercatat = LeasingPayment::where('data_leasing_id', $leasing->id)
@@ -59,11 +65,22 @@ class CatatCicilanLeasingCommand extends Command
                 ->map(fn($d) => Carbon::parse($d)->format('Y-m-01'))
                 ->toArray();
 
-            // Generate semua bulan dari periode_mulai sampai batas_akhir
-            $bulanIterasi = $periodeMultai->copy();
+            // Generate semua bulan dari CICILAN PERTAMA (periode_mulai + 1 bulan) sampai batas_akhir
+            $bulanIterasi = $cicilanPertama->copy();
 
             while ($bulanIterasi->lessThanOrEqualTo($batasAkhir)) {
                 $bulanKey = $bulanIterasi->format('Y-m-01');
+
+                // Cek apakah tanggal jatuh tempo bulan ini sudah lewat
+                $tanggalJatuhTempo = Carbon::parse($bulanKey)->day($jatuhTempo);
+                $hariIni = Carbon::now();
+
+                // Jika tanggal jatuh tempo belum lewat, skip bulan ini
+                if ($hariIni->lessThan($tanggalJatuhTempo)) {
+                    Log::info("Leasing #{$leasing->id} bulan {$bulanKey}: jatuh tempo {$tanggalJatuhTempo->format('d M Y')} belum lewat, skip.");
+                    $bulanIterasi->addMonth();
+                    continue;
+                }
 
                 // Sudah tercatat? Skip
                 if (in_array($bulanKey, $sudahTercatat)) {
@@ -72,7 +89,7 @@ class CatatCicilanLeasingCommand extends Command
                     continue;
                 }
 
-                // Belum tercatat — catat sekarang
+                // Belum tercatat DAN sudah jatuh tempo — catat sekarang
                 try {
                     DB::transaction(function () use ($leasing, $bulanKey, &$totalCatat) {
                         $nominal    = (int) $leasing->angsuran_per_bulan;
@@ -88,11 +105,11 @@ class CatatCicilanLeasingCommand extends Command
                         $keuangan = Keuangan::create([
                             'tanggal'     => Carbon::parse($bulanKey),
                             'reference'   => $kodeJurnal,
-                            'user_id'     => null, // auto oleh sistem
+                            'user_id'     => null, // Sistem otomatis
                             'divisi'      => 'Keuangan',
                             'kategori'    => 'Pengeluaran',
                             'metode'      => 'Auto Debit',
-                            'keterangan'  => 'Cicilan leasing ' . ($leasing->no_kontrak ?? '-') . ' - ' . ($leasing->mobil ?? '-') . ' bulan ' . $bulanLabel,
+                            'keterangan'  => 'Cicilan leasing ' . ($leasing->no_kontrak ?? '-') . ' - ' . ($leasing->mobil ?? '-') . ' (' . ($leasing->nopol ?? '-') . ') - User: ' . ($leasing->user_leasing ?? '-') . ' - Bulan ' . $bulanLabel,
                             'pemasukan'   => 0,
                             'pengeluaran' => $nominal,
                             'saldo'       => $lastSaldo - $nominal,

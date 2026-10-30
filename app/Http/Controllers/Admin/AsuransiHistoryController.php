@@ -31,9 +31,12 @@ class AsuransiHistoryController extends Controller
 
     public function kendaraan($id)
     {
-        $kendaraan = \App\Models\Kendaraan::with(['jenis'])->findOrFail($id);
+        // Gunakan withTrashed untuk menampilkan kendaraan yang sudah dihapus/hilang
+        $kendaraan = \App\Models\Kendaraan::withTrashed()->with(['jenis'])->findOrFail($id);
 
-        $history = AsuransiHistory::with(['kendaraan', 'asuransi', 'jenisAsuransi', 'attachments'])
+        $history = AsuransiHistory::with(['kendaraan' => function($q) {
+                $q->withTrashed();
+            }, 'asuransi', 'jenisAsuransi', 'attachments'])
             ->where('kendaraan_id', $id)
             ->latest('diperpanjang_pada')
             ->paginate(20);
@@ -95,7 +98,10 @@ class AsuransiHistoryController extends Controller
 
     private function filteredQuery($bulan, $tahun, $search = null)
     {
-        $query = AsuransiHistory::with(['kendaraan', 'asuransi', 'jenisAsuransi', 'attachments']);
+        // Gunakan whereHas dengan withTrashed untuk menampilkan history dari kendaraan yang sudah dihapus/hilang
+        $query = AsuransiHistory::with(['kendaraan' => function($q) {
+                $q->withTrashed();
+            }, 'asuransi', 'jenisAsuransi', 'attachments']);
 
         if ($bulan !== 'semua') {
             $query->whereMonth('tgl_mulai', $bulan);
@@ -108,7 +114,8 @@ class AsuransiHistoryController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->whereHas('kendaraan', fn($k) =>
-                        $k->where('nopol', 'like', "%{$search}%")
+                        $k->withTrashed()
+                          ->where('nopol', 'like', "%{$search}%")
                           ->orWhere('merk', 'like', "%{$search}%")
                   )
                   ->orWhereHas('asuransi', fn($a) =>

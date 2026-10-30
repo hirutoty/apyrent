@@ -206,7 +206,7 @@
 const chartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initPajakHistoryCharts({ filter_type: 'month' });
+    initPajakHistoryCharts(); // Load dengan default tahun sekarang
 
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'pajakHistoryChartFilter') {
@@ -214,6 +214,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 filter_type: e.detail.filterType,
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
+                specific_year: e.detail.specificYear, // Pass specific_year dari filter
             });
         }
     });
@@ -221,11 +222,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
 async function initPajakHistoryCharts(filters) {
     try {
+        // Default ke tahun sekarang (2026) jika tidak ada filter
+        const currentYear = new Date().getFullYear();
+        const defaultFilters = {
+            filter_type: 'specific_year',
+            specific_year: currentYear,
+            ...filters  // Override dengan filters yang diberikan
+        };
+        
         await chartManager.initChartsFromAPI('pajak-history', {
             pie:  'pajakHistoryPieChart',
             bar:  'pajakHistoryBarChart',
             line: 'pajakHistoryLineChart',
-        }, filters, { accentLine: true });
+        }, defaultFilters, { accentLine: true });
     } catch (e) { console.error('Error loading pajak history charts:', e); }
 }
 

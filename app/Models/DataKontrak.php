@@ -67,6 +67,8 @@ class DataKontrak extends Model
     /* ─────────────────────────────────────────────
        ACCESSOR — Jumlah Cicilan Total
        = diff bulan antara periode_mulai & periode_selesai
+       + 1 untuk include bulan awal (inklusif)
+       Contoh: Okt-Des = 2 diff + 1 = 3 bulan ✅
     ───────────────────────────────────────────── */
     public function getJumlahCicilanAttribute(): int
     {
@@ -77,7 +79,7 @@ class DataKontrak extends Model
         $mulai   = Carbon::parse($this->periode_mulai)->startOfMonth();
         $selesai = Carbon::parse($this->periode_selesai)->startOfMonth();
 
-        return max(0, $mulai->diffInMonths($selesai));
+        return max(0, $mulai->diffInMonths($selesai) + 1);
     }
 
     /* ─────────────────────────────────────────────

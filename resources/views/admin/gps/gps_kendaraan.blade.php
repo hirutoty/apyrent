@@ -220,8 +220,17 @@
 
                                 {{-- Kendaraan --}}
                                 <td class="px-5 py-4">
-                                    <div class="font-medium text-slate-800">{{ $d->kendaraan->merk ?? '-' }}</div>
-                                    <div class="text-xs text-slate-500 mt-1">{{ $d->kendaraan->nopol ?? '-' }}</div>
+                                    <div class="flex items-center gap-1.5">
+                                        <div>
+                                            <div class="font-medium text-slate-800">{{ $d->kendaraan->merk ?? '-' }}</div>
+                                            <div class="text-xs text-slate-500 mt-1">{{ $d->kendaraan->nopol ?? '-' }}</div>
+                                        </div>
+                                        @if($d->kendaraan && $d->kendaraan->trashed())
+                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700 uppercase tracking-wide">
+                                                <i class="fa fa-trash text-[8px]"></i> Dihapus
+                                            </span>
+                                        @endif
+                                    </div>
                                 </td>
 
                                 {{-- GPS --}}

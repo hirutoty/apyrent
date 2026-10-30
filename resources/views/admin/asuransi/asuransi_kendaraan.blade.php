@@ -254,10 +254,19 @@
 
                                 {{-- Kendaraan --}}
                                 <td class="px-4 py-3.5">
-                                    <span class="font-semibold text-gray-800">{{ $d->kendaraan->nopol ?? '-' }}</span>
-                                    @if ($d->kendaraan->merk ?? false)
-                                        <p class="text-xs text-gray-400 mt-0.5">{{ $d->kendaraan->merk }}</p>
-                                    @endif
+                                    <div class="flex items-center gap-1.5">
+                                        <div>
+                                            <span class="font-semibold text-gray-800">{{ $d->kendaraan->nopol ?? '-' }}</span>
+                                            @if ($d->kendaraan->merk ?? false)
+                                                <p class="text-xs text-gray-400 mt-0.5">{{ $d->kendaraan->merk }}</p>
+                                            @endif
+                                        </div>
+                                        @if($d->kendaraan && $d->kendaraan->trashed())
+                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700 uppercase tracking-wide">
+                                                <i class="fa fa-trash text-[8px]"></i> Dihapus
+                                            </span>
+                                        @endif
+                                    </div>
                                 </td>
 
                                 {{-- Asuransi --}}

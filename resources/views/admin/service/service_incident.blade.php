@@ -25,7 +25,7 @@
     @include('admin.service._nav_tabs', ['activeTab' => 'incident'])
 
     {{-- CHART FILTER --}}
-    <x-chart-filter id="serviceIncidentChartFilter" defaultFilter="month" :showCustomRange="true"
+    <x-chart-filter id="serviceIncidentChartFilter" defaultFilter="year" :showCustomRange="true"
         :showCategoryFilter="false" :categories="collect()" />
 
     {{-- CHART CONTAINER --}}
@@ -140,8 +140,17 @@
                                 </span>
                             </td>
                             <td class="px-4 py-4">
-                                <div class="font-semibold text-gray-800 text-sm">{{ $d->kendaraan?->merk ?? '-' }}</div>
-                                <div class="text-xs text-gray-500 font-mono">{{ $d->kendaraan?->nopol ?? '-' }}</div>
+                                <div class="flex items-center gap-1.5">
+                                    <div>
+                                        <div class="font-semibold text-gray-800 text-sm">{{ $d->kendaraan?->merk ?? '-' }}</div>
+                                        <div class="text-xs text-gray-500 font-mono">{{ $d->kendaraan?->nopol ?? '-' }}</div>
+                                    </div>
+                                    @if($d->kendaraan && $d->kendaraan->trashed())
+                                        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700 uppercase tracking-wide">
+                                            <i class="fa fa-trash text-[8px]"></i> Dihapus
+                                        </span>
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
                                 {{ \Carbon\Carbon::parse($d->tanggal_service)->format('d M Y') }}

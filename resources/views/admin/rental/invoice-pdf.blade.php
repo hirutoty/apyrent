@@ -11,8 +11,13 @@
       margin: 0;
       padding: 0;
     }
+    
+    @page { 
+      margin: 18mm 16mm 12mm 16mm; 
+    }
+    
     .paper {
-      padding: 18mm 16mm 12mm 16mm;
+      /* Padding dihapus karena sudah ada di @page margin */
     }
     /* INFO TABLE */
     .info-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -21,7 +26,14 @@
     .info-table td.sep { width: 10px; }
 
     /* MAIN INVOICE TABLE */
-    .inv-table { width: 100%; border-collapse: collapse; margin-top: 14px; margin-bottom: 30px; font-size: 10.5pt; }
+    .inv-table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin-top: 14px; 
+      margin-bottom: 30px; 
+      font-size: 10.5pt;
+      border: 1px solid #000;
+    }
     .inv-table th {
       border: 1px solid #000;
       padding: 5px 6px;
@@ -30,41 +42,48 @@
       font-weight: bold;
     }
     .inv-table td {
-      border: 1px solid #000;
+      border: 1px solid #000 !important;
       padding: 5px 6px;
       vertical-align: middle;
     }
     .inv-table td.c { text-align: center; }
     .inv-table td.r { text-align: right; }
     .inv-table td.l { text-align: left; }
-    .inv-table tfoot td { font-weight: bold; }
-    /* Baris data: kolom Remaks, QTY, Car Rent/Month tanpa border bawah */
-    .inv-table tbody tr td.no-border-bottom { border-bottom: none; }
+    .inv-table tfoot td { 
+      border: 1px solid #000 !important;
+    }
+    .inv-table tbody tr td {
+      border: 1px solid #000 !important;
+    }
     /* Min-height baris data supaya lebih panjang ke bawah */
     .inv-table tbody tr { min-height: 80px; }
     .inv-table tbody tr td { height: 80px; vertical-align: top; padding-top: 8px; }
 
     /* BANK INFO */
-    .bank-info { margin margin-top: 20px; font-size: 10.5pt; line-height: 1.6; }
+    .bank-info { margin-top: 20px; font-size: 10.5pt; line-height: 1.6; }
 
     /* PAYMENT NOTE */
-    .pay-note { margin-top: 8px; font-size: 9.5pt; line-height: 1.5; }
+    .pay-note { margin-top: 8px; margin-bottom: 12px; font-size: 9.5pt; line-height: 1.5; }
 
     /* SIGNATURE TABLE */
-    .sign-table { width: 100%; border-collapse: collapse; margin-top: 22px; }
+    .sign-wrapper { page-break-inside: avoid; margin-top: 12px; }
+    .sign-table { width: 100%; border-collapse: collapse; }
     .sign-table td { width: 50%; text-align: center; vertical-align: top; padding: 0 10px; border: none; }
     .sign-table td.left { text-align: left; }
-    .sign-spacer { height: 70px; text-align: center; }
+    .sign-spacer { height: 50px; text-align: center; }
     .sign-spacer.left { text-align: left; }
     .sign-spacer img { max-height: 66px; max-width: 150px; }
     .sign-line { border-top: 1px solid #000; padding-top: 3px; font-weight: bold; font-size: 11pt; margin-top: 4px; }
     .sign-pos { font-size: 10.5pt; margin-top: 2px; }
 
-    /* FOOTER */
-    .footer-co { margin-top: 100px; text-align: center; font-weight: bold; font-size: 11pt; }
+    /* FOOTER (group terpisah dari signature) */
+    .footer-wrapper { page-break-inside: avoid; margin-top: 30px; }
+    .footer-co { text-align: center; font-weight: bold; font-size: 11pt; }
     .footnote { margin-top: 4px; text-align: center; font-size: 9pt; line-height: 1.6; }
 
-    @page { margin: 0mm; }
+    @page { 
+      margin: 18mm 16mm 12mm 16mm; 
+    }
   </style>
 </head>
 <body>
@@ -120,25 +139,35 @@
     $items = [];
 
     // 1. Sewa kendaraan
-    $hargaPerHari = (float) ($rental->kendaraan->harga_sewa_per_hari ?? 0);
+    // Ambil harga sesuai satuan durasi
+    $hargaSatuan = 0;
+    if ($rental->durasi_bulan) {
+        $hargaSatuan = (float) ($rental->kendaraan->harga_sewa_per_jam ?? 0); // Jam = Bulan (per kesepakatan)
+    } elseif ($rental->durasi_hari) {
+        $hargaSatuan = (float) ($rental->kendaraan->harga_sewa_per_hari ?? 0);
+    } elseif ($rental->durasi_tahun) {
+        $hargaBulan = (float) ($rental->kendaraan->harga_sewa_per_jam ?? 0);
+        $hargaSatuan = $hargaBulan * 12; // Tahun = Bulan × 12
+    }
+    
     $biayaDasar   = (float) ($rental->biaya_dasar ?? 0);
     $subTotal    += $biayaDasar;
     $items[] = [
         'remaks'   => 'Sewa Kendaraan: ' . $kendaraanList
                       . ($durasi ? "\nDurasi: {$durasi} {$satuanLabel}" : ''),
         'qty'      => 1,
-        'price'    => $hargaPerHari,
+        'price'    => $hargaSatuan,
         'subtotal' => $biayaDasar,
     ];
 
     // 2. Driver (jika ada)
     if ($rental->nama_driver || ($rental->biaya_driver ?? 0) > 0) {
-        $biayaDriver = (float) ($rental->biaya_driver ?? 0) * ($durasi ?? 1);
+        $biayaDriver = (float) ($rental->biaya_driver ?? 0); // Sudah total dari database
         $subTotal   += $biayaDriver;
         $items[] = [
             'remaks'   => 'Biaya Driver' . ($rental->nama_driver ? ': ' . $rental->nama_driver : ''),
-            'qty'      => $durasi ?? 1,
-            'price'    => (float) ($rental->biaya_driver ?? 0),
+            'qty'      => 1, // QTY driver selalu 1
+            'price'    => $biayaDriver, // Total biaya driver
             'subtotal' => $biayaDriver,
         ];
     }
@@ -158,14 +187,17 @@
     $ppnPct   = floatval($setting?->ppn_default ?? 0);
     $ppnNom   = round($subTotal * $ppnPct / 100);
     $afterPpn = $subTotal + $ppnNom;
-    $grand    = $afterPpn;
+    
+    // Cek apakah ada DP yang sudah dibayar
+    $nominalDp = (float) ($rental->nominal_dp ?? 0);
+    $grand    = $afterPpn - $nominalDp; // Total invoice dikurangi DP
 
     $ppnLabel = $ppnPct > 0
         ? 'PPN ' . rtrim(rtrim(number_format($ppnPct, 2, ',', ''), '0'), ',') . '%'
         : 'PPN';
   @endphp
 
-  <table class="inv-table">
+  <table class="inv-table" border="1" cellpadding="5" cellspacing="0">
     <thead>
       <tr>
         <th style="width:18%;">Periode</th>
@@ -179,48 +211,64 @@
       @foreach($items as $i => $item)
         <tr>
           @if($i === 0)
-            <td class="c" rowspan="{{ count($items) }}" style="font-size:9.5pt;">
+            <td class="c" rowspan="{{ count($items) }}" style="font-size:9.5pt; border:1px solid #000;">
               {{ $periodeMulai }}
               @if($periodeAkhir !== $periodeMulai)
                 –<br>{{ $periodeAkhir }}
               @endif
             </td>
           @endif
-          <td class="l no-border-bottom">{!! nl2br(e($item['remaks'])) !!}</td>
-          <td class="c no-border-bottom">{{ $item['qty'] }}</td>
-          <td class="r no-border-bottom">Rp &nbsp;{{ number_format($item['price'], 0, ',', '.') }}</td>
-          <td class="r">Rp &nbsp;{{ number_format($item['subtotal'], 0, ',', '.') }}</td>
+          <td class="l" style="border:1px solid #000;">{!! nl2br(e($item['remaks'])) !!}</td>
+          <td class="c" style="border:1px solid #000;">{{ $item['qty'] }}</td>
+          <td class="r" style="border:1px solid #000;">Rp &nbsp;{{ number_format($item['price'], 0, ',', '.') }}</td>
+          <td class="r" style="border:1px solid #000;">Rp &nbsp;{{ number_format($item['subtotal'], 0, ',', '.') }}</td>
         </tr>
       @endforeach
     </tbody>
 
     {{-- ============ INVOICE TABLE FOOTER ============ --}}
     <tfoot>
+      {{-- Baris Total --}}
       <tr>
-        <td rowspan="4"></td>
-        <td colspan="2" class="l">Total</td>
-        <td class="r">{{ number_format($subTotal, 0, ',', '.') }}</td>
-        <td class="r">{{ number_format($subTotal, 0, ',', '.') }}</td>
+        <td rowspan="{{ $nominalDp > 0 ? 5 : 4 }}" style="border-top:1px solid #000; border-left:1px solid #000; border-bottom:1px solid #000; border-right:none;"></td>
+        <td colspan="2" class="l" style="border:1px solid #000;">Total</td>
+        <td class="r" style="border:1px solid #000;">{{ number_format($subTotal, 0, ',', '.') }}</td>
+        <td class="r" style="border:1px solid #000;">{{ number_format($subTotal, 0, ',', '.') }}</td>
       </tr>
+      {{-- Baris PPN --}}
       <tr>
-        <td colspan="2" class="l">{{ $ppnLabel }}</td>
-        <td></td>
-        <td class="r">{{ $ppnNom > 0 ? number_format($ppnNom, 0, ',', '.') : '-' }}</td>
+        <td colspan="2" class="l" style="border:1px solid #000;">{{ $ppnLabel }}</td>
+        <td class="r" style="border:1px solid #000;"></td>
+        <td class="r" style="border:1px solid #000;">{{ $ppnNom > 0 ? number_format($ppnNom, 0, ',', '.') : '-' }}</td>
       </tr>
+      {{-- Baris DP (jika ada) --}}
+      @if($nominalDp > 0)
       <tr>
-        <td colspan="3" class="l">Sub Total</td>
-        <td class="r">{{ number_format($afterPpn, 0, ',', '.') }}</td>
+        <td colspan="2" class="l" style="border:1px solid #000;">DP</td>
+        <td class="r" style="border:1px solid #000;"></td>
+        <td class="r" style="border:1px solid #000;">{{ number_format($nominalDp, 0, ',', '.') }}</td>
       </tr>
+      @endif
+      {{-- Baris Sub Total --}}
       <tr>
-        <td colspan="3" class="l">Pot PPh</td>
-        <td class="r">-</td>
+        <td colspan="2" class="l" style="border:1px solid #000;">Sub Total</td>
+        <td class="r" style="border:1px solid #000;"></td>
+        <td class="r" style="border:1px solid #000;">{{ number_format($grand, 0, ',', '.') }}</td>
       </tr>
+      {{-- Baris Pot PPh --}}
       <tr>
-        <td colspan="4" class="c">Total Invoice</td>
-        <td class="r">{{ number_format($grand, 0, ',', '.') }}</td>
+        <td colspan="2" class="l" style="border:1px solid #000;">Pot PPh</td>
+        <td class="r" style="border:1px solid #000;"></td>
+        <td class="r" style="border:1px solid #000;">-</td>
       </tr>
+      {{-- Baris Total Invoice --}}
       <tr>
-        <td colspan="5" class="c" style="font-style:italic;">
+        <td colspan="4" class="c" style="border-top:1px solid #000; border-bottom:1px solid #000; border-left:none; border-right:1px solid #000; font-weight:bold;">Total Invoice</td>
+        <td class="r" style="border:1px solid #000; font-weight:bold;">{{ number_format($grand, 0, ',', '.') }}</td>
+      </tr>
+      {{-- Baris Terbilang --}}
+      <tr>
+        <td colspan="5" class="c" style="font-style:italic; border:1px solid #000; font-weight:bold;">
           # {{ $terbilang }} #
         </td>
       </tr>
@@ -243,35 +291,39 @@
   </div>
 
   {{-- ============ SIGNATURE ============ --}}
-  <table class="sign-table">
-    <tr>
-      <td class="left">
-        <div style="font-size:11pt;">Jakarta, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}</div>
-        <div style="font-size:11pt; margin-bottom:6px;">{{ $setting?->nama_perusahaan ?? '' }}</div>
-        <div style="font-style:italic; font-size:11pt;">Prepared By,</div>
-        <div class="sign-spacer left">
-          <img style="position: absolute; opacity: 40%;" src="{{ $logoSrc }}" alt="Logo">
-        </div>
-        <div class="" style="text-align:left;">Administrasi</div>
-        <div class="sign-pos" style="text-align:left;">{{ $setting?->nama_perusahaan ?? '' }}</div>
-      </td>
-      <td style="text-align:right;">
-        <div style="font-size:11pt;">&nbsp;</div>
-        <div style="font-size:11pt; margin-bottom:6px;">&nbsp;</div>
-        <div style="font-style:italic; font-size:11pt;">Approved By,</div>
-        <div class="sign-spacer" style="text-align:right;"></div>
-        <div class="" style="text-align:right;">{{ $rental->member->nama_pelanggan ?? '' }}</div>
-        <div class="sign-pos" style="text-align:right;">Customer</div>
-      </td>
-    </tr>
-  </table>
+  <div class="sign-wrapper">
+    <table class="sign-table">
+      <tr>
+        <td class="left">
+          <div style="font-size:11pt;">Jakarta, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}</div>
+          <div style="font-size:11pt; margin-bottom:6px;">{{ $setting?->nama_perusahaan ?? '' }}</div>
+          <div style="font-style:italic; font-size:11pt;">Prepared By,</div>
+          <div class="sign-spacer left">
+            <img style="position: absolute; opacity: 40%;" src="{{ $logoSrc }}" alt="Logo">
+          </div>
+          <div class="" style="text-align:left;">Administrasi</div>
+          <div class="sign-pos" style="text-align:left;">{{ $setting?->nama_perusahaan ?? '' }}</div>
+        </td>
+        <td style="text-align:right;">
+          <div style="font-size:11pt;">&nbsp;</div>
+          <div style="font-size:11pt; margin-bottom:6px;">&nbsp;</div>
+          <div style="font-style:italic; font-size:11pt;">Approved By,</div>
+          <div class="sign-spacer" style="text-align:right;"></div>
+          <div class="" style="text-align:right;">{{ $rental->member->nama_pelanggan ?? '' }}</div>
+          <div class="sign-pos" style="text-align:right;">Customer</div>
+        </td>
+      </tr>
+    </table>
+  </div>
 
   {{-- ============ FOOTER ============ --}}
-  <div class="footer-co">{{ $setting?->nama_perusahaan ?? 'PT. ANUGERAH PANCA YOGA' }}</div>
-  <div class="footnote">
-    <div>Head Office : Kompl. Transkop No.16, Jl. Prof. Supomo SH. Pancoran, Jakarta 12870 Ph. (+62-21) 835 4565</div>
-    <div>Branch : Jl. Dr. Saharjo No.131, Jakarta 12860 Ph (+62-21) 8379 2927, 8378 17151 Fax (+62-21) 8379 2927</div>
-    <div>{{ $setting?->website ?? 'www.apy-rentacar.com' }}</div>
+  <div class="footer-wrapper">
+    <div class="footer-co">{{ $setting?->nama_perusahaan ?? 'PT. ANUGERAH PANCA YOGA' }}</div>
+    <div class="footnote">
+      <div>Head Office : Kompl. Transkop No.16, Jl. Prof. Supomo SH. Pancoran, Jakarta 12870 Ph. (+62-21) 835 4565</div>
+      <div>Branch : Jl. Dr. Saharjo No.131, Jakarta 12860 Ph (+62-21) 8379 2927, 8378 17151 Fax (+62-21) 8379 2927</div>
+      <div>{{ $setting?->website ?? 'www.apy-rentacar.com' }}</div>
+    </div>
   </div>
 
 </div>

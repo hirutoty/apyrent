@@ -67,13 +67,16 @@ class KendaraanController extends Controller
         $jenis = Jenis::all();
         $members = Member::orderBy('nama')->get();
 
-        $reminderHari = match ($setting->satuan_reminder) {
-            'hari'   => $setting->batas_reminder,
-            'minggu' => $setting->batas_reminder * 7,
-            'bulan'  => $setting->batas_reminder * 30,
-            'tahun'  => $setting->batas_reminder * 365,
-            default  => $setting->batas_reminder,
-        };
+        $reminderHari = 0;
+        if ($setting && $setting->satuan_reminder) {
+            $reminderHari = match ($setting->satuan_reminder) {
+                'hari'   => $setting->batas_reminder,
+                'minggu' => $setting->batas_reminder * 7,
+                'bulan'  => $setting->batas_reminder * 30,
+                'tahun'  => $setting->batas_reminder * 365,
+                default  => $setting->batas_reminder ?? 0,
+            };
+        }
 
         foreach ($data as $d) {
 
@@ -225,6 +228,7 @@ class KendaraanController extends Controller
             'tahun_perakitan' => $request->tahun_perakitan,
             'isi_silinder' => $request->isi_silinder,
             'bahan_bakar' => $request->bahan_bakar,
+            'warna_tnkb' => $request->warna_tnkb,
 
             'no_rangka' => $request->no_rangka,
             'no_mesin' => $request->no_mesin,
@@ -312,6 +316,7 @@ class KendaraanController extends Controller
             'tahun_perakitan' => $request->tahun_perakitan,
             'isi_silinder' => $request->isi_silinder,
             'bahan_bakar' => $request->bahan_bakar,
+            'warna_tnkb' => $request->warna_tnkb,
 
             'no_rangka' => $request->no_rangka,
             'no_mesin' => $request->no_mesin,
@@ -323,7 +328,6 @@ class KendaraanController extends Controller
             'batas_biaya' => $request->batas_biaya,
             'masa_berlaku' => $request->masa_berlaku,
 
-            'kilometer_sekarang' => $request->kilometer_sekarang,
             'kilometer_sekarang' => $request->kilometer_sekarang,
 
             'status_service' => $request->status_service,

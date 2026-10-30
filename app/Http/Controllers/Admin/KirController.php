@@ -74,7 +74,8 @@ class KirController extends Controller
             $query->where(function ($q) use ($s) {
                 $q->where('no_uji', 'like', "%{$s}%")
                   ->orWhereHas('kendaraan', fn($k) =>
-                      $k->where('nopol', 'like', "%{$s}%")
+                      $k->withTrashed()
+                        ->where('nopol', 'like', "%{$s}%")
                         ->orWhere('merk', 'like', "%{$s}%")
                   );
             });

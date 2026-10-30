@@ -41,7 +41,7 @@ class ServiceHistory extends Model
      */
     public function kendaraan()
     {
-        return $this->belongsTo(Kendaraan::class);
+        return $this->belongsTo(Kendaraan::class)->withTrashed();
     }
 
     /**

@@ -211,7 +211,9 @@
 const chartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
-    initKirHistoryCharts({ filter_type: 'month' });
+    // Default ke tahun sekarang
+    const currentYear = new Date().getFullYear();
+    initKirHistoryCharts({ filter_type: 'specific_year', specific_year: currentYear });
 
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'kirHistoryChartFilter') {
@@ -219,6 +221,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 filter_type: e.detail.filterType,
                 start_date:  e.detail.startDate,
                 end_date:    e.detail.endDate,
+                specific_year: e.detail.specificYear,
             });
         }
     });

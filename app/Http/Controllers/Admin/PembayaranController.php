@@ -7,8 +7,12 @@ use App\Models\Bukubesar;
 use App\Models\Keuangan;
 use App\Models\JenisAsuransi;
 use App\Models\Pembayaran;
+use App\Models\PajakKendaraan;
+use App\Models\AsuransiKendaraan;
+use App\Models\Kir;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PembayaranController extends Controller
 {
@@ -3948,37 +3952,37 @@ class PembayaranController extends Controller
             
             if (in_array($srcType, ['kir', 'kir_perpanjang'])) {
                 $rules = [
-                    'no_kir'        => 'required|string|max:255',
-                    'status'        => 'required|in:belum_bayar,lunas',
-                    'tanggal_bayar' => 'required|date',
-                    'masa_berlaku'  => 'required|date',
-                    'biaya'         => 'required|numeric|min:0',
+                    // Field hidden (tidak required) - preserve existing value
+                    'no_uji'        => 'nullable|string|max:255', // field name changed to no_uji
                     'nama_bank'     => 'nullable|string|max:100',
                     'no_rekening'   => 'nullable|string|max:50',
-                    'nama_pemilik'  => 'nullable|string|max:150',
-                    'lampiran'      => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                    // Field editable
+                    'tanggal_bayar' => 'required|date',
+                    'masa_berlaku'  => 'nullable|date', // auto-calculated, not required
+                    'biaya'         => 'required|numeric|min:0',
                 ];
             } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
                 $rules = [
-                    'jenis_pajak'   => 'required|string|max:255',
-                    'nominal'       => 'required|numeric|min:0',
-                    'tanggal_bayar' => 'required|date',
-                    'jatuh_tempo'   => 'required|date',
+                    // Field hidden (tidak required) - preserve existing value
                     'nama_pemilik'  => 'nullable|string|max:150',
                     'nama_bank'     => 'nullable|string|max:100',
                     'no_rekening'   => 'nullable|string|max:50',
-                    'lampiran'      => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                    // Field editable
+                    'nominal'       => 'required|numeric|min:0',
+                    'tanggal_bayar' => 'required|date',
+                    'jatuh_tempo'   => 'nullable|date', // auto-calculated, not required
                 ];
             } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
                 $rules = [
-                    'jenis_asuransi' => 'nullable|string|max:255',
-                    'tgl_mulai'      => 'required|date',
-                    'tgl_berakhir'   => 'required|date',
-                    'premi'          => 'required|numeric|min:0',
+                    // Field hidden (tidak required) - preserve existing value
+                    'durasi_bulan'   => 'nullable|integer',
                     'nama_bank'      => 'nullable|string|max:100',
                     'no_rekening'    => 'nullable|string|max:50',
-                    'nama_pemilik'   => 'nullable|string|max:150',
-                    'lampiran'       => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                    'nama_rekening'  => 'nullable|string|max:150',
+                    // Field editable
+                    'tgl_mulai'      => 'required|date',
+                    'tgl_berakhir'   => 'nullable|date', // auto-calculated, not required
+                    'biaya'          => 'required|numeric|min:0', // changed from premi to biaya
                 ];
             }
 
@@ -3988,47 +3992,41 @@ class PembayaranController extends Controller
             try {
                 $sourceData = $pembayaran->source_data ?? [];
                 
-                // Handle file upload jika ada
-                $lampiranPath = $sourceData['lampiran'] ?? null;
-                if ($request->hasFile('lampiran')) {
-                    $file = $request->file('lampiran');
-                    $fileName = uniqid() . '.' . $file->getClientOriginalExtension();
-                    $lampiranPath = $file->storeAs('uploads/pembayaran', $fileName, 'public');
-                }
+                // NO FILE UPLOAD - lampiran dihapus dari form edit mode
 
                 // Update source_data dengan nilai baru
                 if (in_array($srcType, ['kir', 'kir_perpanjang'])) {
-                    $sourceData['no_kir']        = $request->no_kir;
-                    $sourceData['status']        = $request->status;
+                    // Preserve existing values for hidden fields
+                    $sourceData['no_uji']        = $sourceData['no_uji'] ?? $sourceData['no_kir'] ?? $request->no_uji;
+                    $sourceData['nama_bank']     = $sourceData['nama_bank'] ?? $request->nama_bank;
+                    $sourceData['no_rekening']   = $sourceData['no_rekening'] ?? $request->no_rekening;
+                    // Update editable fields
                     $sourceData['tanggal_bayar'] = $request->tanggal_bayar;
                     $sourceData['masa_berlaku']  = $request->masa_berlaku;
                     $sourceData['biaya']         = (int) $request->biaya;
-                    $sourceData['nama_bank']     = $request->nama_bank;
-                    $sourceData['no_rekening']   = $request->no_rekening;
-                    $sourceData['nama_pemilik']  = $request->nama_pemilik;
-                    $sourceData['lampiran']      = $lampiranPath;
                     $newBiaya = (int) $request->biaya;
                 } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
-                    $sourceData['jenis_pajak']   = $request->jenis_pajak;
+                    // Preserve existing values for hidden fields
+                    $sourceData['nama_bank']     = $sourceData['nama_bank'] ?? $request->nama_bank;
+                    $sourceData['no_rekening']   = $sourceData['no_rekening'] ?? $request->no_rekening;
+                    $sourceData['nama_pemilik']  = $sourceData['nama_pemilik'] ?? $request->nama_pemilik;
+                    // Update editable fields
                     $sourceData['tanggal_bayar'] = $request->tanggal_bayar;
                     $sourceData['jatuh_tempo']   = $request->jatuh_tempo;
                     $sourceData['nominal']       = (int) $request->nominal;
-                    $sourceData['nama_bank']     = $request->nama_bank;
-                    $sourceData['no_rekening']   = $request->no_rekening;
-                    $sourceData['nama_pemilik']  = $request->nama_pemilik;
-                    $sourceData['lampiran']      = $lampiranPath;
                     $newBiaya = (int) $request->nominal;
                 } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
-                    $sourceData['jenis_asuransi'] = $request->jenis_asuransi;
+                    // Preserve existing values for hidden fields
+                    $sourceData['durasi_bulan']   = $sourceData['durasi_bulan'] ?? $request->durasi_bulan;
+                    $sourceData['nama_bank']      = $sourceData['nama_bank'] ?? $request->nama_bank;
+                    $sourceData['no_rekening']    = $sourceData['no_rekening'] ?? $request->no_rekening;
+                    $sourceData['nama_rekening']  = $sourceData['nama_rekening'] ?? $sourceData['nama_pemilik'] ?? $request->nama_rekening;
+                    // Update editable fields
                     $sourceData['tgl_mulai']      = $request->tgl_mulai;
                     $sourceData['tgl_berakhir']   = $request->tgl_berakhir;
-                    $sourceData['premi']          = (int) $request->premi;
-                    $sourceData['biaya']          = (int) $request->premi; // sync biaya = premi agar view nominal konsisten
-                    $sourceData['nama_bank']      = $request->nama_bank;
-                    $sourceData['no_rekening']    = $request->no_rekening;
-                    $sourceData['nama_pemilik']   = $request->nama_pemilik;
-                    $sourceData['lampiran']       = $lampiranPath;
-                    $newBiaya = (int) $request->premi;
+                    $sourceData['biaya']          = (int) ($request->biaya ?? $request->premi ?? 0);
+                    $sourceData['premi']          = (int) ($request->biaya ?? $request->premi ?? 0); // sync premi = biaya for backward compat
+                    $newBiaya = (int) ($request->biaya ?? $request->premi ?? 0);
                 }
 
                 // Reset PR ke status Diajukan
@@ -4050,9 +4048,10 @@ class PembayaranController extends Controller
                             'biaya'         => $newBiaya,
                             'tanggal_bayar' => $request->tanggal_bayar ?? null,
                             'masa_berlaku'  => $request->masa_berlaku  ?? null,
-                            'nama_bank'     => $request->nama_bank     ?? null,
-                            'no_rekening'   => $request->no_rekening   ?? null,
-                            'nama_rekening' => $request->nama_pemilik  ?? null,
+                            // Preserve existing bank values (from hidden fields or original data)
+                            'nama_bank'     => $sourceData['nama_bank']     ?? null,
+                            'no_rekening'   => $sourceData['no_rekening']   ?? null,
+                            'nama_rekening' => $sourceData['nama_pemilik']  ?? null,
                         ]);
                     } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
                         \App\Models\PajakKendaraan::where('id', $existingId)->update([
@@ -4060,9 +4059,10 @@ class PembayaranController extends Controller
                             'nominal'       => $newBiaya,
                             'tanggal_bayar' => $request->tanggal_bayar ?? null,
                             'jatuh_tempo'   => $request->jatuh_tempo   ?? null,
-                            'nama_bank'     => $request->nama_bank     ?? null,
-                            'no_rekening'   => $request->no_rekening   ?? null,
-                            'nama_pemilik'  => $request->nama_pemilik  ?? null,
+                            // Preserve existing bank values (from hidden fields or original data)
+                            'nama_bank'     => $sourceData['nama_bank']     ?? null,
+                            'no_rekening'   => $sourceData['no_rekening']   ?? null,
+                            'nama_pemilik'  => $sourceData['nama_pemilik']  ?? null,
                         ]);
                     } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
                         \App\Models\AsuransiKendaraan::where('id', $existingId)->update([
@@ -4070,11 +4070,80 @@ class PembayaranController extends Controller
                             'biaya'         => $newBiaya,
                             'tgl_mulai'     => $request->tgl_mulai    ?? null,
                             'tgl_berakhir'  => $request->tgl_berakhir ?? null,
-                            'nama_bank'     => $request->nama_bank    ?? null,
-                            'no_rekening'   => $request->no_rekening  ?? null,
-                            'nama_rekening' => $request->nama_pemilik ?? null,
+                            // Preserve existing bank values (from hidden fields or original data)
+                            'nama_bank'     => $sourceData['nama_bank']     ?? null,
+                            'no_rekening'   => $sourceData['no_rekening']   ?? null,
+                            'nama_rekening' => $sourceData['nama_rekening'] ?? $sourceData['nama_pemilik'] ?? null,
                         ]);
                     }
+                }
+
+                // ── UPDATE PURCHASE ORDER (PO) agar data sync ─────────────────
+                // Cari PO yang terkait dengan Pembayaran ini (lookup by pembayaran_id)
+                $po = \App\Models\PurchaseOrder::where('pembayaran_id', $pembayaran->id)->first();
+                
+                \Log::info("Attempting to update PO for Pembayaran #{$pembayaran->id}", [
+                    'pembayaran_id' => $pembayaran->id,
+                    'po_found' => $po ? true : false,
+                    'source_type' => $srcType,
+                    'new_biaya' => $newBiaya,
+                ]);
+                
+                if ($po) {
+                    \Log::info("PO found via pembayaran_id lookup", [
+                        'po_id' => $po->id,
+                        'po_source_type' => $po->source_type,
+                        'expected_source_type' => $srcType,
+                        'match' => $po->source_type === $srcType,
+                    ]);
+                    
+                    if ($po->source_type === $srcType) {
+                        $poSourceData = $po->source_data ?? [];
+                        
+                        // Update PO source_data dengan nilai baru (sama seperti pembayaran)
+                        if (in_array($srcType, ['kir', 'kir_perpanjang'])) {
+                            $poSourceData['no_uji']        = $sourceData['no_uji'] ?? $poSourceData['no_uji'] ?? null;
+                            $poSourceData['tanggal_bayar'] = $request->tanggal_bayar;
+                            $poSourceData['masa_berlaku']  = $request->masa_berlaku;
+                            $poSourceData['biaya']         = $newBiaya;
+                            $poSourceData['nama_bank']     = $sourceData['nama_bank'] ?? $poSourceData['nama_bank'] ?? null;
+                            $poSourceData['no_rekening']   = $sourceData['no_rekening'] ?? $poSourceData['no_rekening'] ?? null;
+                        } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
+                            $poSourceData['tanggal_bayar'] = $request->tanggal_bayar;
+                            $poSourceData['jatuh_tempo']   = $request->jatuh_tempo;
+                            $poSourceData['nominal']       = $newBiaya;
+                            $poSourceData['nama_bank']     = $sourceData['nama_bank'] ?? $poSourceData['nama_bank'] ?? null;
+                            $poSourceData['no_rekening']   = $sourceData['no_rekening'] ?? $poSourceData['no_rekening'] ?? null;
+                            $poSourceData['nama_pemilik']  = $sourceData['nama_pemilik'] ?? $poSourceData['nama_pemilik'] ?? null;
+                        } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+                            $poSourceData['tgl_mulai']      = $request->tgl_mulai;
+                            $poSourceData['tgl_berakhir']   = $request->tgl_berakhir;
+                            $poSourceData['biaya']          = $newBiaya;
+                            $poSourceData['durasi_bulan']   = $sourceData['durasi_bulan'] ?? $poSourceData['durasi_bulan'] ?? null;
+                            $poSourceData['nama_bank']      = $sourceData['nama_bank'] ?? $poSourceData['nama_bank'] ?? null;
+                            $poSourceData['no_rekening']    = $sourceData['no_rekening'] ?? $poSourceData['no_rekening'] ?? null;
+                            $poSourceData['nama_rekening']  = $sourceData['nama_rekening'] ?? $poSourceData['nama_rekening'] ?? null;
+                        }
+                        
+                        // Update PO
+                        $po->update([
+                            'source_data' => $poSourceData,
+                            'nominal'     => $newBiaya,
+                            'total_harga' => $newBiaya, // Sync total_harga dengan nominal
+                        ]);
+                        
+                        \Log::info("PO #{$po->id} successfully updated from Pembayaran resubmit", [
+                            'nominal' => $newBiaya,
+                            'source_data_updated' => true,
+                        ]);
+                    } else {
+                        \Log::warning("PO source_type mismatch", [
+                            'po_source_type' => $po->source_type,
+                            'expected' => $srcType,
+                        ]);
+                    }
+                } else {
+                    \Log::warning("No PO found with pembayaran_id: {$pembayaran->id}. This Pembayaran may not have an associated PO.");
                 }
 
                 DB::commit();
@@ -4115,23 +4184,13 @@ class PembayaranController extends Controller
             'items.*.biaya' => 'required|integer|min:0',
         ];
 
+        // Bank fields dan supplier sekarang HIDDEN (tidak editable, preserve existing values)
+        // Hanya service_part yang masih bisa edit supplier
         if ($srcType === 'service_part') {
-            $rules['items.*.nama_bank']     = 'nullable|string|max:100';
-            $rules['items.*.no_rekening']   = 'nullable|string|max:50';
-            $rules['items.*.nama_rekening'] = 'nullable|string|max:150';
-            $rules['items.*.supplier_id']   = 'nullable|integer|exists:supplier,id';
-            $rules['items.*.keterangan']    = 'nullable|string|max:500';
-        } elseif ($srcType === 'service_incident') {
-            $rules['items.*.nama_bank']     = 'nullable|string|max:100';
-            $rules['items.*.no_rekening']   = 'nullable|string|max:50';
-            $rules['items.*.nama_rekening'] = 'nullable|string|max:150';
-        } elseif ($srcType === 'service_asuransi') {
-            $rules['items.*.keterangan'] = 'nullable|string|max:500';
-        } elseif (in_array($srcType, ['gps', 'gps_perpanjang'])) {
-            $rules['items.*.nama_bank']    = 'nullable|string|max:100';
-            $rules['items.*.no_rekening']  = 'nullable|string|max:50';
-            $rules['items.*.nama_pemilik'] = 'nullable|string|max:150';
+            $rules['items.*.supplier_id']   = 'nullable|integer|exists:supplier,id'; // Still editable
+            // Bank & keterangan hidden - no validation needed (preserve existing)
         }
+        // service_incident, service_asuransi, gps: bank & supplier hidden - no validation needed
 
         $request->validate($rules);
 
@@ -4620,6 +4679,125 @@ class PembayaranController extends Controller
                     }
                     if ($existing) $existing->update($updateData);
                 }
+            }
+
+        } elseif (in_array($srcType, ['pajak', 'pajak_perpanjang'])) {
+            // ── UPDATE PAJAK KENDARAAN ──────────────────────────────────────────
+            $pajakId = $sourceData['existing_record_id'] ?? null;
+            
+            // Fallback: cari via pembayaran_id
+            if (!$pajakId) {
+                $pajak = \App\Models\PajakKendaraan::where('pembayaran_id', $pembayaran->id)->first();
+                $pajakId = $pajak?->id;
+            }
+            
+            if ($pajakId) {
+                // Ambil data baru dari request (biasanya hanya 1 item untuk pajak)
+                $firstItem = $requestItems[0] ?? null;
+                
+                $updateData = [
+                    'nominal'        => (int) ($firstItem['biaya'] ?? $sourceData['nominal'] ?? 0),
+                    'persetujuan'    => 'Diajukan ke Pembayaran',
+                    'tanggal_bayar'  => $sourceData['tanggal_bayar'] ?? null,
+                    'jatuh_tempo'    => $sourceData['jatuh_tempo'] ?? null,
+                    'keterangan'     => $sourceData['keterangan'] ?? null,
+                ];
+                
+                // Update rekening jika ada di request
+                if ($firstItem) {
+                    $updateData['nama_bank']     = $firstItem['nama_bank']     ?? $sourceData['nama_bank']     ?? null;
+                    $updateData['no_rekening']   = $firstItem['no_rekening']   ?? $sourceData['no_rekening']   ?? null;
+                    $updateData['nama_pemilik']  = $firstItem['nama_pemilik']  ?? $sourceData['nama_pemilik']  ?? null;
+                }
+                
+                \App\Models\PajakKendaraan::where('id', $pajakId)->update($updateData);
+                
+                \Log::info("Pajak updated after resubmit", [
+                    'pajak_id' => $pajakId,
+                    'pembayaran_id' => $pembayaran->id,
+                    'nominal' => $updateData['nominal']
+                ]);
+            }
+
+        } elseif (in_array($srcType, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+            // ── UPDATE ASURANSI KENDARAAN ───────────────────────────────────────
+            $asuransiId = $sourceData['existing_record_id'] ?? null;
+            
+            // Fallback: cari via pembayaran_id
+            if (!$asuransiId) {
+                $asuransi = \App\Models\AsuransiKendaraan::where('pembayaran_id', $pembayaran->id)->first();
+                $asuransiId = $asuransi?->id;
+            }
+            
+            if ($asuransiId) {
+                // Ambil data baru dari request (biasanya hanya 1 item untuk asuransi)
+                $firstItem = $requestItems[0] ?? null;
+                
+                $updateData = [
+                    'biaya'          => (int) ($firstItem['biaya'] ?? $sourceData['premi'] ?? $sourceData['biaya'] ?? 0),
+                    'persetujuan'    => 'Diajukan ke Pembayaran',
+                    'tanggal_bayar'  => $sourceData['tanggal_bayar'] ?? null,
+                    'tgl_mulai'      => $sourceData['tgl_mulai'] ?? null,
+                    'tgl_berakhir'   => $sourceData['tgl_berakhir'] ?? null,
+                    'durasi_bulan'   => $sourceData['durasi_bulan'] ?? null,
+                ];
+                
+                // Update rekening jika ada di request
+                if ($firstItem) {
+                    $updateData['nama_bank']     = $firstItem['nama_bank']     ?? $sourceData['nama_bank']     ?? null;
+                    $updateData['no_rekening']   = $firstItem['no_rekening']   ?? $sourceData['no_rekening']   ?? null;
+                    $updateData['nama_rekening'] = $firstItem['nama_rekening'] ?? $sourceData['nama_rekening'] ?? null;
+                }
+                
+                \App\Models\AsuransiKendaraan::where('id', $asuransiId)->update($updateData);
+                
+                \Log::info("Asuransi updated after resubmit", [
+                    'asuransi_id' => $asuransiId,
+                    'pembayaran_id' => $pembayaran->id,
+                    'biaya' => $updateData['biaya']
+                ]);
+            }
+
+        } elseif (in_array($srcType, ['kir', 'kir_perpanjang', 'stnk'])) {
+            // ── UPDATE KIR / STNK ───────────────────────────────────────────────
+            $kirId = $sourceData['existing_record_id'] ?? null;
+            
+            // Fallback: cari via pembayaran_id
+            if (!$kirId) {
+                $kir = \App\Models\Kir::where('pembayaran_id', $pembayaran->id)->first();
+                $kirId = $kir?->id;
+            }
+            
+            if ($kirId) {
+                // Ambil data baru dari request (biasanya hanya 1 item untuk KIR)
+                $firstItem = $requestItems[0] ?? null;
+                
+                $updateData = [
+                    'biaya'          => (int) ($firstItem['biaya'] ?? $sourceData['biaya'] ?? 0),
+                    'persetujuan'    => 'Diajukan ke Pembayaran',
+                    'tanggal_bayar'  => $sourceData['tanggal_bayar'] ?? null,
+                    'masa_berlaku'   => $sourceData['masa_berlaku'] ?? null,
+                    'no_uji'         => $sourceData['no_uji'] ?? null,
+                    'status_uji'     => $sourceData['status_uji'] ?? null,
+                    'lokasi_uji'     => $sourceData['lokasi_uji'] ?? null,
+                    'penguji'        => $sourceData['penguji'] ?? null,
+                ];
+                
+                // Update rekening jika ada di request
+                if ($firstItem) {
+                    $updateData['nama_bank']     = $firstItem['nama_bank']     ?? $sourceData['nama_bank']     ?? null;
+                    $updateData['no_rekening']   = $firstItem['no_rekening']   ?? $sourceData['no_rekening']   ?? null;
+                    $updateData['nama_rekening'] = $firstItem['nama_rekening'] ?? $sourceData['nama_rekening'] ?? null;
+                }
+                
+                \App\Models\Kir::where('id', $kirId)->update($updateData);
+                
+                \Log::info("KIR/STNK updated after resubmit", [
+                    'kir_id' => $kirId,
+                    'pembayaran_id' => $pembayaran->id,
+                    'biaya' => $updateData['biaya'],
+                    'source_type' => $srcType
+                ]);
             }
         }
     }

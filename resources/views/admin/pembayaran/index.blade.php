@@ -2734,6 +2734,7 @@ window.__rrmSuppliers = @json($suppliers->map(fn($s) => ['id' => $s->id, 'nama' 
 <script>
 // ══════════════════════════════════════════════════════════════
 // ISOLATE PEMBAYARAN PAGE SCRIPTS TO PREVENT GLOBAL CONFLICTS
+// Version: 1.0.1 - Fixed resubmit form and cache issue
 // ══════════════════════════════════════════════════════════════
 (function() {
 'use strict';
@@ -3939,12 +3940,31 @@ function openResubmitRejectedModal(pembayaranId) {
             // Form fields
             headerHtml += `<div class="px-4 py-3 grid grid-cols-1 gap-3">`;
 
+            // ── INFO BOX: Mode Edit (tampilkan di item pertama) ──
+            if (i === 0) {
+                headerHtml += `
+                <div class="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 mb-2">
+                    <p class="text-xs text-blue-600 font-semibold mb-1"><i class="fa fa-info-circle"></i> Mode Edit — Ajukan Ulang</p>
+                    <p class="text-xs text-gray-600">Hanya <strong>Biaya</strong> yang dapat diubah${isServicePart ? ' dan <strong>Supplier</strong>' : ''}. Data lainnya tetap sesuai pengajuan sebelumnya.</p>
+                </div>`;
+            }
+
             // Hidden idx
             headerHtml += `<input type="hidden" name="items[${i}][idx]" value="${item.idx}">`;
 
+            // ── Hidden fields untuk bank (GPS & Service) ──────────────────────
+            if (hasBank) {
+                const atasNamaField = isGps ? 'nama_pemilik' : 'nama_rekening';
+                const atasNamaValue = isGps ? (item.nama_pemilik || '') : (item.nama_rekening || '');
+                headerHtml += `
+                <input type="hidden" name="items[${i}][nama_bank]" value="${_escAttr(item.nama_bank || '')}">
+                <input type="hidden" name="items[${i}][no_rekening]" value="${_escAttr(item.no_rekening || '')}">
+                <input type="hidden" name="items[${i}][${atasNamaField}]" value="${_escAttr(atasNamaValue)}">`;
+            }
+
             // Biaya — service_part juga tampilkan supplier di kolom kanan
             if (isServicePart) {
-                // Supplier dropdown di kolom kanan biaya
+                // Supplier dropdown di kolom kanan biaya (EDITABLE untuk service_part)
                 let supplierOptions = '<option value="">— Pilih Supplier —</option>';
                 (window.__rrmSuppliers || []).forEach(function(s) {
                     const sel = s.id == item.supplier_id ? 'selected' : '';
@@ -3953,7 +3973,7 @@ function openResubmitRejectedModal(pembayaranId) {
                 headerHtml += `
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp)</label>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp) <span class="text-red-500">*</span></label>
                         <input type="number" name="items[${i}][biaya]" value="${item.biaya}"
                             min="0" required
                             onchange="updateRRMTotal()" oninput="updateRRMTotal()"
@@ -3968,10 +3988,13 @@ function openResubmitRejectedModal(pembayaranId) {
                     </div>
                 </div>`;
             } else {
-                // service_incident / service_asuransi — biaya saja (full width)
+                // service_incident / service_asuransi / GPS — biaya saja (full width), SUPPLIER HIDDEN
+                if (isServicePart === false && (item.supplier_id || item.supplier_id === 0)) {
+                    headerHtml += `<input type="hidden" name="items[${i}][supplier_id]" value="${item.supplier_id}">`;
+                }
                 headerHtml += `
                 <div>
-                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp)</label>
+                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Biaya (Rp) <span class="text-red-500">*</span></label>
                     <input type="number" name="items[${i}][biaya]" value="${item.biaya}"
                         min="0" required
                         onchange="updateRRMTotal()" oninput="updateRRMTotal()"
@@ -3979,42 +4002,10 @@ function openResubmitRejectedModal(pembayaranId) {
                 </div>`;
             }
 
-            // Bank / Rekening — service_part, service_incident, dan gps
-            if (hasBank) {
-                // GPS pakai field nama_pemilik; service_part/incident pakai nama_rekening
-                const atasNamaField = isGps ? 'nama_pemilik' : 'nama_rekening';
-                const atasNamaValue = isGps ? (item.nama_pemilik || '') : (item.nama_rekening || '');
-                headerHtml += `
-                    <div class="grid grid-cols-3 gap-3">
-                        <div>
-                            <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Nama Bank</label>
-                            <input type="text" name="items[${i}][nama_bank]" value="${_escAttr(item.nama_bank || '')}"
-                                maxlength="100"
-                                class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">No. Rekening</label>
-                            <input type="text" name="items[${i}][no_rekening]" value="${_escAttr(item.no_rekening || '')}"
-                                maxlength="50"
-                                class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Atas Nama</label>
-                            <input type="text" name="items[${i}][${atasNamaField}]" value="${_escAttr(atasNamaValue)}"
-                                maxlength="150"
-                                class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400">
-                        </div>
-                    </div>`;
-            }
-
-            // Keterangan — hanya untuk service_part (service_incident & service_asuransi tidak)
+            // Keterangan — hanya untuk service_part (service_incident & service_asuransi tidak), HIDDEN
             if (isServicePart) {
                 headerHtml += `
-                <div>
-                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Keterangan</label>
-                    <textarea name="items[${i}][keterangan]" rows="2" maxlength="500"
-                        class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 resize-none">${_escHtml(item.keterangan || '')}</textarea>
-                </div>`;
+                <input type="hidden" name="items[${i}][keterangan]" value="${_escAttr(item.keterangan || '')}">`;
             }
 
             headerHtml += `</div>`; // end grid
@@ -4116,12 +4107,27 @@ function openResubmitPembayaranModal(pembayaranId, sourceType) {
         const container = document.getElementById('rpm-form-fields');
         const record = data.record;
 
-        if (sourceType === 'pajak') {
-            container.innerHTML = renderFormPajak(record);
-        } else if (sourceType === 'kir') {
-            container.innerHTML = renderFormKir(record);
-        } else if (sourceType === 'asuransi_kendaraan') {
-            container.innerHTML = renderFormAsuransi(record);
+        if (['pajak', 'pajak_perpanjang'].includes(sourceType)) {
+            container.innerHTML = renderFormPajak(record, sourceType);
+            // Trigger auto-calculate jatuh tempo setelah DOM ready
+            setTimeout(function() {
+                updateRpmJatuhTempo();
+                console.log('Auto-calc triggered for Pajak');
+            }, 100);
+        } else if (['kir', 'kir_perpanjang'].includes(sourceType)) {
+            container.innerHTML = renderFormKir(record, sourceType);
+            // Trigger auto-calculate masa berlaku setelah DOM ready
+            setTimeout(function() {
+                updateRpmMasaBerlaku();
+                console.log('Auto-calc triggered for KIR');
+            }, 100);
+        } else if (['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'].includes(sourceType)) {
+            container.innerHTML = renderFormAsuransi(record, sourceType);
+            // Trigger auto-calculate tgl berakhir setelah DOM ready
+            setTimeout(function() {
+                updateRpmTglBerakhir();
+                console.log('Auto-calc triggered for Asuransi');
+            }, 100);
         }
 
         // Tampilkan form, sembunyikan loading
@@ -4135,100 +4141,88 @@ function openResubmitPembayaranModal(pembayaranId, sourceType) {
     });
 }
 
-function renderFormPajak(record) {
+function renderFormPajak(record, sourceType = 'pajak') {
     return `
-        <input type="hidden" name="source_type" value="pajak">
+        <input type="hidden" name="source_type" value="${sourceType}">
+        
+        <!-- Hidden fields: data yang tidak boleh diubah saat edit -->
+        <input type="hidden" name="nama_pemilik" value="${_escAttr(record.nama_pemilik || '')}">
+        <input type="hidden" name="nama_bank" value="${_escAttr(record.nama_bank || '')}">
+        <input type="hidden" name="no_rekening" value="${_escAttr(record.no_rekening || '')}">
+        
+        <!-- Info box: Mode Edit -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4">
+            <p class="text-xs text-blue-600 font-semibold mb-1"><i class="fa fa-info-circle"></i> Mode Edit — Ajukan Ulang</p>
+            <p class="text-xs text-gray-600">Hanya <strong>Nominal</strong> dan <strong>Tanggal</strong> yang dapat diubah. Data rekening bank tetap sesuai pengajuan sebelumnya.</p>
+        </div>
         
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Jenis Pajak <span class="text-red-500">*</span></label>
-                <input type="text" name="jenis_pajak" value="${_escAttr(record.jenis_pajak || '')}" required
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Tanggal Ketentuan Bayar <span class="text-red-500">*</span></label>
+                <input type="date" id="rpm_tanggal_bayar" name="tanggal_bayar" value="${record.tanggal_bayar || ''}" required
+                    onchange="updateRpmJatuhTempo()"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
             </div>
             
             <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Nominal (Rp) <span class="text-red-500">*</span></label>
-                <input type="number" name="nominal" value="${record.nominal || 0}" required min="0"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4 mt-4">
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Tanggal Bayar <span class="text-red-500">*</span></label>
-                <input type="date" name="tanggal_bayar" value="${record.tanggal_bayar || ''}" required
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
-            
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Jatuh Tempo <span class="text-red-500">*</span></label>
-                <input type="date" name="jatuh_tempo" value="${record.jatuh_tempo || ''}" required
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
-        </div>
-
-        <div class="grid grid-cols-3 gap-4 mt-4">
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Nama Bank</label>
-                <input type="text" name="nama_bank" value="${_escAttr(record.nama_bank || '')}"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
-            
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">No. Rekening</label>
-                <input type="text" name="no_rekening" value="${_escAttr(record.no_rekening || '')}"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
-            
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Atas Nama</label>
-                <input type="text" name="nama_pemilik" value="${_escAttr(record.nama_pemilik || '')}"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Jatuh Tempo <span class="text-gray-400 font-normal">(auto +1 tahun)</span></label>
+                <input type="date" id="rpm_jatuh_tempo" name="jatuh_tempo" value="${record.jatuh_tempo || ''}" readonly
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
             </div>
         </div>
 
         <div class="mt-4">
-            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Lampiran</label>
-            <input type="file" name="lampiran" accept=".jpg,.jpeg,.png,.pdf"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200
-                    file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
-            ${record.lampiran ? `<p class="text-xs text-gray-500 mt-1">File saat ini: ${_escHtml(record.lampiran)}</p>` : ''}
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Nominal (Rp) <span class="text-red-500">*</span></label>
+            <input type="number" name="nominal" value="${record.nominal || 0}" required min="0"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
         </div>
     `;
 }
 
-function renderFormKir(record) {
+function renderFormKir(record, sourceType = 'kir') {
     return `
-        <input type="hidden" name="source_type" value="kir">
+        <input type="hidden" name="source_type" value="${sourceType}">
         
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">No. KIR <span class="text-red-500">*</span></label>
-                <input type="text" name="no_kir" value="${_escAttr(record.no_kir || '')}" required
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
-            
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Status <span class="text-red-500">*</span></label>
-                <select name="status" required
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-                    <option value="belum_bayar" ${record.status === 'belum_bayar' ? 'selected' : ''}>Belum Bayar</option>
-                    <option value="lunas" ${record.status === 'lunas' ? 'selected' : ''}>Lunas</option>
-                </select>
+        <!-- Hidden fields: data yang tidak boleh diubah saat edit -->
+        <input type="hidden" name="no_uji" value="${_escAttr(record.no_uji || record.no_kir || '')}">
+        <input type="hidden" name="nama_bank" value="${_escAttr(record.nama_bank || '')}">
+        <input type="hidden" name="no_rekening" value="${_escAttr(record.no_rekening || '')}">
+        
+        <!-- Info box: Mode Edit -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4">
+            <p class="text-xs text-blue-600 font-semibold mb-1"><i class="fa fa-info-circle"></i> Mode Edit — Ajukan Ulang</p>
+            <p class="text-xs text-gray-600">Hanya <strong>Biaya</strong> dan <strong>Tanggal</strong> yang dapat diubah. Data rekening bank dan No. Uji tetap sesuai pengajuan sebelumnya.</p>
+        </div>
+        
+        <!-- Info box: Preview Estimasi (akan di-update otomatis saat ubah tanggal) -->
+        <div id="rpm_kir_preview_box" class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4">
+            <p class="text-xs text-amber-700 font-semibold mb-2"><i class="fa fa-calendar-check"></i> Preview Hasil Perhitungan</p>
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                    <span class="text-gray-600">Tanggal Ketentuan Bayar:</span>
+                    <p id="rpm_preview_tanggal_ketentuan" class="font-bold text-gray-800 mt-0.5">—</p>
+                    <p class="text-[10px] text-gray-500 mt-0.5">Tanggal Bayar - 1 bulan</p>
+                </div>
+                <div>
+                    <span class="text-gray-600">Masa Berlaku Baru:</span>
+                    <p id="rpm_preview_masa_berlaku" class="font-bold text-gray-800 mt-0.5">—</p>
+                    <p class="text-[10px] text-gray-500 mt-0.5">Tanggal Bayar + 6 bulan</p>
+                </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 mt-4">
+        <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-xs font-semibold text-gray-700 mb-1.5">Tanggal Bayar <span class="text-red-500">*</span></label>
-                <input type="date" name="tanggal_bayar" value="${record.tanggal_bayar || ''}" required
+                <input type="date" id="rpm_tanggal_bayar_kir" name="tanggal_bayar" value="${record.tanggal_bayar || ''}" required
+                    onchange="updateRpmMasaBerlaku()"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
             </div>
             
             <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Masa Berlaku <span class="text-red-500">*</span></label>
-                <input type="date" name="masa_berlaku" value="${record.masa_berlaku || ''}" required
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Masa Berlaku s/d <span class="text-gray-400 font-normal">(auto +6 bulan)</span></label>
+                <input type="date" id="rpm_masa_berlaku" name="masa_berlaku" value="${record.masa_berlaku || ''}" readonly
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
             </div>
         </div>
 
@@ -4237,95 +4231,44 @@ function renderFormKir(record) {
             <input type="number" name="biaya" value="${record.biaya || 0}" required min="0"
                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
         </div>
-
-        <div class="grid grid-cols-3 gap-4 mt-4">
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Nama Bank</label>
-                <input type="text" name="nama_bank" value="${_escAttr(record.nama_bank || '')}"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
-            
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">No. Rekening</label>
-                <input type="text" name="no_rekening" value="${_escAttr(record.no_rekening || '')}"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
-            
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Atas Nama</label>
-                <input type="text" name="nama_pemilik" value="${_escAttr(record.nama_pemilik || '')}"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
-        </div>
-
-        <div class="mt-4">
-            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Lampiran</label>
-            <input type="file" name="lampiran" accept=".jpg,.jpeg,.png,.pdf"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200
-                    file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
-            ${record.lampiran ? `<p class="text-xs text-gray-500 mt-1">File saat ini: ${_escHtml(record.lampiran)}</p>` : ''}
-        </div>
     `;
 }
 
-function renderFormAsuransi(record) {
+function renderFormAsuransi(record, sourceType = 'asuransi_kendaraan') {
     return `
-        <input type="hidden" name="source_type" value="asuransi_kendaraan">
+        <input type="hidden" name="source_type" value="${sourceType}">
         
-        <div class="mt-0">
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Jenis Asuransi</label>
-                <input type="text" name="jenis_asuransi" value="${_escAttr(record.jenis_asuransi || '')}"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
+        <!-- Hidden fields: data yang tidak boleh diubah saat edit -->
+        <input type="hidden" name="durasi_bulan" value="${record.durasi_bulan || ''}">
+        <input type="hidden" name="nama_bank" value="${_escAttr(record.nama_bank || '')}">
+        <input type="hidden" name="no_rekening" value="${_escAttr(record.no_rekening || '')}">
+        <input type="hidden" name="nama_rekening" value="${_escAttr(record.nama_rekening || record.nama_pemilik || '')}">
+        
+        <!-- Info box: Mode Edit -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4">
+            <p class="text-xs text-blue-600 font-semibold mb-1"><i class="fa fa-info-circle"></i> Mode Edit — Ajukan Ulang</p>
+            <p class="text-xs text-gray-600">Hanya <strong>Biaya</strong> dan <strong>Tanggal</strong> yang dapat diubah. Data rekening bank tetap sesuai pengajuan sebelumnya.</p>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 mt-4">
+        <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-xs font-semibold text-gray-700 mb-1.5">Tgl Mulai <span class="text-red-500">*</span></label>
-                <input type="date" name="tgl_mulai" value="${record.tgl_mulai || ''}" required
+                <input type="date" id="rpm_tgl_mulai" name="tgl_mulai" value="${record.tgl_mulai || ''}" required
+                    onchange="updateRpmTglBerakhir()"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
             </div>
             
             <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Tgl Berakhir <span class="text-red-500">*</span></label>
-                <input type="date" name="tgl_berakhir" value="${record.tgl_berakhir || ''}" required
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Tgl Berakhir <span class="text-gray-400 font-normal">(auto +1 tahun)</span></label>
+                <input type="date" id="rpm_tgl_berakhir" name="tgl_berakhir" value="${record.tgl_berakhir || ''}" readonly
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
             </div>
         </div>
 
         <div class="mt-4">
-            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Premi (Rp) <span class="text-red-500">*</span></label>
-            <input type="number" name="premi" value="${record.premi || 0}" required min="0"
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Biaya (Rp) <span class="text-red-500">*</span></label>
+            <input type="number" name="biaya" value="${record.biaya || record.premi || 0}" required min="0"
                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-        </div>
-
-        <div class="grid grid-cols-3 gap-4 mt-4">
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Nama Bank</label>
-                <input type="text" name="nama_bank" value="${_escAttr(record.nama_bank || '')}"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
-            
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">No. Rekening</label>
-                <input type="text" name="no_rekening" value="${_escAttr(record.no_rekening || '')}"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
-            
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Atas Nama</label>
-                <input type="text" name="nama_pemilik" value="${_escAttr(record.nama_pemilik || '')}"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
-            </div>
-        </div>
-
-        <div class="mt-4">
-            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Lampiran</label>
-            <input type="file" name="lampiran" accept=".jpg,.jpeg,.png,.pdf"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200
-                    file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
-            ${record.lampiran ? `<p class="text-xs text-gray-500 mt-1">File saat ini: ${_escHtml(record.lampiran)}</p>` : ''}
         </div>
     `;
 }
@@ -4336,6 +4279,101 @@ function closeResubmitPembayaranModal() {
     modal.classList.remove('flex');
     _rpmPembayaranId = null;
     _rpmSourceType = null;
+}
+
+// ── AUTO-CALCULATE FUNCTIONS (clone from PO resubmitSimpleModal) ──────────
+// Auto-calculate Jatuh Tempo (Tanggal Bayar + 1 tahun) untuk Pajak
+function updateRpmJatuhTempo() {
+    const tglBayarEl   = document.getElementById('rpm_tanggal_bayar');
+    const jatuhTempoEl = document.getElementById('rpm_jatuh_tempo');
+    if (!tglBayarEl || !jatuhTempoEl) return;
+    
+    const tglBayar = tglBayarEl.value;
+    if (!tglBayar) {
+        jatuhTempoEl.value = '';
+        return;
+    }
+    
+    // Tambah 1 tahun
+    const date = new Date(tglBayar);
+    date.setFullYear(date.getFullYear() + 1);
+    
+    // Format YYYY-MM-DD
+    const yyyy = date.getFullYear();
+    const mm   = String(date.getMonth() + 1).padStart(2, '0');
+    const dd   = String(date.getDate()).padStart(2, '0');
+    jatuhTempoEl.value = yyyy + '-' + mm + '-' + dd;
+}
+
+// Auto-calculate Tgl Berakhir (Tgl Mulai + 1 tahun) untuk Asuransi Kendaraan
+function updateRpmTglBerakhir() {
+    const tglMulaiEl   = document.getElementById('rpm_tgl_mulai');
+    const tglBerakhirEl = document.getElementById('rpm_tgl_berakhir');
+    if (!tglMulaiEl || !tglBerakhirEl) return;
+    
+    const tglMulai = tglMulaiEl.value;
+    if (!tglMulai) {
+        tglBerakhirEl.value = '';
+        return;
+    }
+    
+    // Tambah 1 tahun
+    const date = new Date(tglMulai);
+    date.setFullYear(date.getFullYear() + 1);
+    
+    // Format YYYY-MM-DD
+    const yyyy = date.getFullYear();
+    const mm   = String(date.getMonth() + 1).padStart(2, '0');
+    const dd   = String(date.getDate()).padStart(2, '0');
+    tglBerakhirEl.value = yyyy + '-' + mm + '-' + dd;
+}
+
+// Auto-calculate Masa Berlaku (Tanggal Bayar + 6 bulan) untuk KIR
+// + Update preview Tanggal Ketentuan Bayar dan Masa Berlaku
+function updateRpmMasaBerlaku() {
+    const tglBayarEl     = document.getElementById('rpm_tanggal_bayar_kir');
+    const masaBerlakuEl  = document.getElementById('rpm_masa_berlaku');
+    if (!tglBayarEl || !masaBerlakuEl) return;
+    
+    const tglBayar = tglBayarEl.value;
+    if (!tglBayar) {
+        masaBerlakuEl.value = '';
+        // Clear preview
+        const previewTglKetentuan = document.getElementById('rpm_preview_tanggal_ketentuan');
+        const previewMasaBerlaku = document.getElementById('rpm_preview_masa_berlaku');
+        if (previewTglKetentuan) previewTglKetentuan.textContent = '—';
+        if (previewMasaBerlaku) previewMasaBerlaku.textContent = '—';
+        return;
+    }
+    
+    // Masa Berlaku = Tanggal Bayar + 6 bulan
+    const dateMasaBerlaku = new Date(tglBayar);
+    dateMasaBerlaku.setMonth(dateMasaBerlaku.getMonth() + 6);
+    
+    // Format YYYY-MM-DD for input
+    const mb_yyyy = dateMasaBerlaku.getFullYear();
+    const mb_mm   = String(dateMasaBerlaku.getMonth() + 1).padStart(2, '0');
+    const mb_dd   = String(dateMasaBerlaku.getDate()).padStart(2, '0');
+    masaBerlakuEl.value = mb_yyyy + '-' + mb_mm + '-' + mb_dd;
+    
+    // Tanggal Ketentuan Bayar = Tanggal Bayar - 1 bulan
+    const dateTglKetentuan = new Date(tglBayar);
+    dateTglKetentuan.setMonth(dateTglKetentuan.getMonth() - 1);
+    
+    // Update preview display (format DD/MM/YYYY)
+    const previewTglKetentuan = document.getElementById('rpm_preview_tanggal_ketentuan');
+    const previewMasaBerlaku = document.getElementById('rpm_preview_masa_berlaku');
+    
+    if (previewTglKetentuan) {
+        const tk_dd = String(dateTglKetentuan.getDate()).padStart(2, '0');
+        const tk_mm = String(dateTglKetentuan.getMonth() + 1).padStart(2, '0');
+        const tk_yyyy = dateTglKetentuan.getFullYear();
+        previewTglKetentuan.textContent = `${tk_dd}/${tk_mm}/${tk_yyyy}`;
+    }
+    
+    if (previewMasaBerlaku) {
+        previewMasaBerlaku.textContent = `${mb_dd}/${mb_mm}/${mb_yyyy}`;
+    }
 }
 
 // Handle submit: disable tombol saat loading
@@ -4426,6 +4464,9 @@ window.closeResubmitRejectedModal = closeResubmitRejectedModal;
 window.updateRRMTotal = updateRRMTotal;
 window.openResubmitPembayaranModal = openResubmitPembayaranModal;
 window.closeResubmitPembayaranModal = closeResubmitPembayaranModal;
+window.updateRpmJatuhTempo = updateRpmJatuhTempo;
+window.updateRpmTglBerakhir = updateRpmTglBerakhir;
+window.updateRpmMasaBerlaku = updateRpmMasaBerlaku;
 window.openPerItemApprovalModal = openPerItemApprovalModal;
 window.closePerItemApprovalModal = closePerItemApprovalModal;
 window.setPiaDecision = setPiaDecision;
@@ -4434,6 +4475,7 @@ window.submitPerItemApproval = submitPerItemApproval;
 
 // ══════════════════════════════════════════════════════════════
 // END OF ISOLATED PEMBAYARAN SCRIPTS
+// Version: 1.0.1 - Fixed cache issue, resubmit forms working
 // ══════════════════════════════════════════════════════════════
 })(); // End IIFE
 </script>

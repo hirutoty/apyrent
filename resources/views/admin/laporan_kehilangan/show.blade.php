@@ -258,7 +258,7 @@
                     @if($kehilangan->status !== 'ditemukan')
                         <button onclick="document.getElementById('modalTambahUpdate').classList.remove('hidden')"
                                 class="inline-flex items-center gap-1.5 text-sm px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors font-medium shadow-sm">
-                            <i class="bi bi-plus-lg"></i> Tambah Update
+                            <i class="bi bi-plus-lg"></i> Tambah Laporan
                         </button>
                     @endif
                 </div>
@@ -336,7 +336,7 @@
                                 <i class="bi bi-inbox text-3xl"></i>
                             </div>
                             <p class="text-sm font-medium">Belum ada riwayat laporan perkembangan</p>
-                            <p class="text-xs mt-1">Klik tombol "Tambah Update" untuk menambahkan laporan baru</p>
+                            <p class="text-xs mt-1">Klik tombol "Tambah Laporan" untuk menambahkan laporan baru</p>
                         </div>
                     @endforelse
                 </div>
@@ -391,7 +391,7 @@
                         @endforeach
                     </div>
                     <p class="text-xs text-slate-500 mt-3">
-                        Detail tambahan dapat ditambahkan melalui <span class="font-semibold">"Tambah Update"</span> setelah perubahan status.
+                        Detail tambahan dapat ditambahkan melalui <span class="font-semibold">"Tambah Laporan"</span> setelah perubahan status.
                     </p>
                 </div>
 
@@ -420,7 +420,7 @@
 
         <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
             <h3 class="font-bold text-slate-800 flex items-center gap-2">
-                <i class="bi bi-plus-circle-fill text-indigo-500"></i> Tambah Update Laporan
+                <i class="bi bi-plus-circle-fill text-indigo-500"></i> Tambah Laporan
             </h3>
             <button onclick="document.getElementById('modalTambahUpdate').classList.add('hidden')"
                     class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">

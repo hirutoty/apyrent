@@ -3,15 +3,14 @@
 namespace App\Exports;
 
 use App\Models\Keuangan;
-use Maatwebsite\Excel\Concerns\FromQuery;
+use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Carbon\Carbon;
 
-class KeuanganExport implements FromQuery, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
+class KeuanganExport implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize
 {
     protected $hari, $bulan, $tahun, $jenis, $search;
 
@@ -24,9 +23,9 @@ class KeuanganExport implements FromQuery, WithHeadings, WithMapping, WithStyles
         $this->search = $search;
     }
 
-    public function query()
+    public function collection()
     {
-        return Keuangan::with('user')
+        $data = Keuangan::with('user')
             ->when($this->tahun, fn($q) => $q->whereYear('tanggal', $this->tahun))
             ->when($this->bulan, fn($q) => $q->whereMonth('tanggal', $this->bulan))
             ->when($this->hari,  fn($q) => $q->whereDay('tanggal', $this->hari))
@@ -34,12 +33,42 @@ class KeuanganExport implements FromQuery, WithHeadings, WithMapping, WithStyles
                 $q2->where('kategori', 'like', '%' . $this->search . '%')
                    ->orWhere('keterangan', 'like', '%' . $this->search . '%')
                    ->orWhere('reference', 'like', '%' . $this->search . '%');
-                   
             }))
-            
-            ->orderBy('tanggal');
+            ->orderBy('tanggal')
+            ->get();
 
-            
+        // Map data dengan nomor urut
+        $mapped = $data->map(function ($row, $index) {
+            return [
+                'no' => $index + 1,
+                'tanggal' => Carbon::parse($row->tanggal)->format('d-m-Y'),
+                'reference' => $row->reference ?? '-',
+                'divisi' => $row->divisi ?? '-',
+                'user' => $row->user->name ?? '-',
+                'kategori' => $row->kategori,
+                'keterangan' => $row->keterangan,
+                'pemasukan' => $row->pemasukan > 0 ? $row->pemasukan : '',
+                'pengeluaran' => $row->pengeluaran > 0 ? $row->pengeluaran : '',
+                'saldo' => $row->saldo,
+            ];
+        });
+
+        // Tambahkan baris total di akhir
+        $totalSaldo = $data->last()->saldo ?? 0;
+        $mapped->push([
+            'no' => '',
+            'tanggal' => '',
+            'reference' => '',
+            'divisi' => '',
+            'user' => '',
+            'kategori' => '',
+            'keterangan' => 'TOTAL SALDO AKHIR',
+            'pemasukan' => '',
+            'pengeluaran' => '',
+            'saldo' => $totalSaldo,
+        ]);
+
+        return $mapped;
     }
 
     public function headings(): array
@@ -47,31 +76,27 @@ class KeuanganExport implements FromQuery, WithHeadings, WithMapping, WithStyles
         return ['No', 'Tanggal', 'Reference', 'Divisi', 'User', 'Kategori', 'Keterangan', 'Pemasukan', 'Pengeluaran', 'Saldo'];
     }
 
-    public function map($row): array
-    {
-        static $no = 0;
-        $no++;
-        return [
-            $no,
-            Carbon::parse($row->tanggal)->format('d-m-Y'),
-            $row->reference ?? '-',
-            $row->divisi ?? '-',
-            $row->user->name ?? '-',
-            $row->kategori,
-            $row->keterangan,
-            $row->pemasukan > 0 ? $row->pemasukan : 0,
-            $row->pengeluaran > 0 ? $row->pengeluaran : 0,
-            $row->saldo,
-        ];
-    }
-
     public function styles(Worksheet $sheet)
     {
+        $lastRow = $sheet->getHighestRow();
+        
         return [
-            1 => ['font' => ['bold' => true], 'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                'startColor' => ['rgb' => 'E5E7EB'],
-            ]],
+            // Header row - gray background
+            1 => [
+                'font' => ['bold' => true], 
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'E5E7EB'],
+                ]
+            ],
+            // Total row - yellow background
+            $lastRow => [
+                'font' => ['bold' => true, 'size' => 12],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'FEF3C7'],
+                ]
+            ],
         ];
     }
 }

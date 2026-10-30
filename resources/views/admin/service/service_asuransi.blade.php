@@ -37,7 +37,7 @@
         @include('admin.service._nav_tabs', ['activeTab' => 'asuransi'])
 
         {{-- CHART FILTER --}}
-        <x-chart-filter id="serviceAsuransiChartFilter" defaultFilter="month" :showCustomRange="true"
+        <x-chart-filter id="serviceAsuransiChartFilter" defaultFilter="year" :showCustomRange="true"
             :showCategoryFilter="false" :categories="collect()" />
 
         {{-- CHART CONTAINER --}}

@@ -29,9 +29,12 @@ class PajakHistoryController extends Controller
 
     public function kendaraan($id)
     {
-        $kendaraan = \App\Models\Kendaraan::with(['jenis'])->findOrFail($id);
+        // Gunakan withTrashed untuk menampilkan kendaraan yang sudah dihapus/hilang
+        $kendaraan = \App\Models\Kendaraan::withTrashed()->with(['jenis'])->findOrFail($id);
 
-        $history = PajakHistory::with(['kendaraan', 'attachments'])
+        $history = PajakHistory::with(['kendaraan' => function($q) {
+                $q->withTrashed();
+            }, 'attachments'])
             ->where('kendaraan_id', $id)
             ->latest('diperpanjang_pada')
             ->paginate(20);
@@ -93,7 +96,10 @@ class PajakHistoryController extends Controller
 
     private function filteredQuery($bulan, $tahun, $search = null)
     {
-        $query = PajakHistory::with(['kendaraan', 'attachments']);
+        // Gunakan whereHas dengan withTrashed untuk menampilkan history dari kendaraan yang sudah dihapus/hilang
+        $query = PajakHistory::with(['kendaraan' => function($q) {
+                $q->withTrashed();
+            }, 'attachments']);
 
         if ($bulan !== 'semua') $query->whereMonth('jatuh_tempo', $bulan);
         if ($tahun !== 'semua') $query->whereYear('jatuh_tempo', $tahun);
@@ -101,7 +107,8 @@ class PajakHistoryController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('jenis_pajak', 'like', "%{$search}%")
                   ->orWhereHas('kendaraan', fn($k) =>
-                      $k->where('nopol', 'like', "%{$search}%")
+                      $k->withTrashed()
+                        ->where('nopol', 'like', "%{$search}%")
                         ->orWhere('merk', 'like', "%{$search}%")
                   );
             });

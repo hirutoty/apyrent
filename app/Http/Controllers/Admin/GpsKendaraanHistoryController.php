@@ -12,7 +12,10 @@ class GpsKendaraanHistoryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = GpsKendaraanHistory::with(['kendaraan', 'gps', 'attachments'])
+        // Gunakan whereHas dengan withTrashed untuk menampilkan history dari kendaraan yang sudah dihapus/hilang
+        $query = GpsKendaraanHistory::with(['kendaraan' => function($q) {
+                $q->withTrashed();
+            }, 'gps', 'attachments'])
             ->latest('diperpanjang_pada');
 
         if ($request->filled('search')) {
@@ -20,7 +23,8 @@ class GpsKendaraanHistoryController extends Controller
             $query->where(function ($q) use ($s) {
                 $q->where('type', 'like', "%{$s}%")
                   ->orWhereHas('kendaraan', fn($k) =>
-                      $k->where('merk', 'like', "%{$s}%")
+                      $k->withTrashed()
+                        ->where('merk', 'like', "%{$s}%")
                         ->orWhere('nopol', 'like', "%{$s}%")
                   )
                   ->orWhereHas('gps', fn($g) =>
@@ -42,7 +46,7 @@ class GpsKendaraanHistoryController extends Controller
                             $s = $request->search;
                             $q->where(function ($qq) use ($s) {
                                 $qq->where('type', 'like', "%{$s}%")
-                                   ->orWhereHas('kendaraan', fn($k) => $k->where('merk', 'like', "%{$s}%")->orWhere('nopol', 'like', "%{$s}%"))
+                                   ->orWhereHas('kendaraan', fn($k) => $k->withTrashed()->where('merk', 'like', "%{$s}%")->orWhere('nopol', 'like', "%{$s}%"))
                                    ->orWhereHas('gps', fn($g) => $g->where('nama_gps', 'like', "%{$s}%"));
                             });
                         })
@@ -69,9 +73,12 @@ class GpsKendaraanHistoryController extends Controller
 
     public function kendaraan($id)
     {
-        $kendaraan = \App\Models\Kendaraan::with(['jenis'])->findOrFail($id);
+        // Gunakan withTrashed untuk menampilkan kendaraan yang sudah dihapus/hilang
+        $kendaraan = \App\Models\Kendaraan::withTrashed()->with(['jenis'])->findOrFail($id);
 
-        $history = GpsKendaraanHistory::with(['kendaraan', 'gps', 'attachments'])
+        $history = GpsKendaraanHistory::with(['kendaraan' => function($q) {
+                $q->withTrashed();
+            }, 'gps', 'attachments'])
             ->where('kendaraan_id', $id)
             ->latest('diperpanjang_pada')
             ->paginate(20);
@@ -95,7 +102,10 @@ class GpsKendaraanHistoryController extends Controller
 
     public function exportPdf(Request $request)
     {
-        $query = GpsKendaraanHistory::with(['kendaraan', 'gps', 'attachments']);
+        // Gunakan whereHas dengan withTrashed untuk menampilkan history dari kendaraan yang sudah dihapus/hilang
+        $query = GpsKendaraanHistory::with(['kendaraan' => function($q) {
+                $q->withTrashed();
+            }, 'gps', 'attachments']);
 
         if ($request->filled('bulan')) {
             $query->whereMonth('diperpanjang_pada', $request->bulan);

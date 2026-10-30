@@ -20,7 +20,7 @@
             </div>
 
             {{-- SUMMARY CARDS --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
                 <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
                     <div class="flex items-center justify-between">
@@ -109,8 +109,8 @@
                 id="kendaraanShowChartContainer"
                 layout="bar-top"
                 pieTitle="Status Unit Kendaraan" pieId="kendaraanShowPieChart"
-                barTitle="Biaya Service per Bulan" barId="kendaraanShowBarChart"
-                lineTitle="Trend Unit" lineId="kendaraanShowLineChart"
+                barTitle="Penambahan Unit per Bulan" barId="kendaraanShowBarChart"
+                lineTitle="Trend Total Unit" lineId="kendaraanShowLineChart"
                 :showStats="true" :statsData="[]"
             />
 
@@ -301,40 +301,30 @@
 
                                     <td class="px-4 py-3.5">
                                         @if ($d->status_kendaraan === 'tersedia')
-                                            <button type="button"
-                                                onclick="ubahStatus({{ $d->id }}, '{{ $d->status_kendaraan }}', '', '')"
-                                                class="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-emerald-200 transition-colors">
+                                            <span class="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
                                                 Tersedia
-                                            </button>
+                                            </span>
                                         @elseif($d->status_kendaraan === 'disewa')
-                                            <button type="button"
-                                                onclick="ubahStatus({{ $d->id }}, '{{ $d->status_kendaraan }}', '', '')"
-                                                class="inline-flex items-center gap-1.5 bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-blue-200 transition-colors">
+                                            <span class="inline-flex items-center gap-1.5 bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>
                                                 Disewa
-                                            </button>
+                                            </span>
                                         @elseif($d->status_kendaraan === 'service')
-                                            <button type="button"
-                                                onclick="ubahStatus({{ $d->id }}, '{{ $d->status_kendaraan }}', '', '')"
-                                                class="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-amber-200 transition-colors">
+                                            <span class="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>
                                                 Service
-                                            </button>
+                                            </span>
                                         @elseif($d->status_kendaraan === 'bermasalah')
-                                            <button type="button"
-                                                onclick="ubahStatus({{ $d->id }}, 'bermasalah', '{{ addslashes(json_encode($d->foto_masalah ?? [])) }}', '{{ addslashes($d->catatan_masalah ?? '') }}')"
-                                                class="inline-flex items-center gap-1.5 bg-red-100 text-red-700 text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-red-200 transition-colors">
+                                            <span class="inline-flex items-center gap-1.5 bg-red-100 text-red-700 text-xs font-semibold px-2.5 py-1 rounded-full">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>
                                                 Bermasalah
-                                            </button>
+                                            </span>
                                         @elseif($d->status_kendaraan === 'hilang')
-                                            <button type="button"
-                                                onclick="ubahStatus({{ $d->id }}, '{{ $d->status_kendaraan }}', '', '')"
-                                                class="inline-flex items-center gap-1.5 bg-purple-100 text-purple-700 text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-purple-200 transition-colors">
+                                            <span class="inline-flex items-center gap-1.5 bg-purple-100 text-purple-700 text-xs font-semibold px-2.5 py-1 rounded-full">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block"></span>
                                                 Hilang
-                                            </button>
+                                            </span>
                                         @endif
                                     </td>
 
@@ -349,6 +339,7 @@
                                                 data-nopol="{{ $d->nopol }}" data-foto="{{ $d->foto }}"
                                                 data-harga_jam="{{ $d->harga_sewa_per_jam }}"
                                                 data-harga_hari="{{ $d->harga_sewa_per_hari }}"
+                                                data-harga_bulan="{{ $d->harga_sewa_per_bulan ?? 0 }}"
                                                 data-nama_pemilik="{{ $d->nama_pemilik }}"
                                                 data-alamat="{{ $d->alamat }}" data-merk="{{ $d->merk }}"
                                                 data-tahun_pembuatan="{{ $d->tahun_pembuatan }}"
@@ -557,96 +548,6 @@
 
 
         {{-- ======================================
-        MODAL UBAH STATUS
-    ====================================== --}}
-        <div id="modalStatus" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/30"
-            style="backdrop-filter:blur(2px)">
-            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4" style="animation:slideUp .2s ease">
-
-                <div class="flex items-start justify-between px-6 py-5 border-b border-gray-100">
-                    <div>
-                        <h2 class="text-base font-bold text-gray-800">Ubah Status Kendaraan</h2>
-                        <p class="text-xs text-gray-500 mt-0.5" id="statusModalSubtitle">Pilih status kendaraan baru</p>
-                    </div>
-                    <button onclick="closeModalStatus()"
-                        class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none mt-0.5">
-                        <i class="fa fa-times"></i>
-                    </button>
-                </div>
-
-                <form id="formStatus" method="POST" enctype="multipart/form-data" class="px-6 py-5">
-                    @csrf
-                    @method('PATCH')
-                    <input type="hidden" name="status_kendaraan" id="statusKendaraanInput">
-
-                    <div class="grid grid-cols-2 gap-3 mb-5">
-                        <button type="button" onclick="pilihStatus('bermasalah', this)"
-                            class="status-btn bg-red-50 hover:bg-red-100 text-red-700 rounded-xl py-3 text-sm font-semibold transition-colors">
-                            <i class="fa fa-exclamation-triangle mr-1"></i> Bermasalah
-                        </button>
-                        <button type="button" onclick="pilihStatus('tersedia', this)"
-                            class="status-btn bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl py-3 text-sm font-semibold transition-colors">
-                            <i class="fa fa-check-circle mr-1"></i> Tersedia
-                        </button>
-
-                        {{-- Service: non-interaktif, hanya info --}}
-                        <div class="col-span-2 bg-amber-50 text-amber-400 rounded-xl py-2 px-3 text-xs font-semibold text-center cursor-not-allowed select-none border border-amber-100">
-                            Service &amp; Disewa diatur otomatis dari menu masing-masing
-                        </div>
-                    </div>
-
-                    {{-- Bagian bermasalah: foto multiple + catatan --}}
-                    <div id="sectionBermasalah" class="hidden mb-5 space-y-3 border border-red-100 rounded-xl p-4 bg-red-50/40">
-                        <p class="text-xs font-bold text-red-600 uppercase tracking-wide flex items-center gap-1.5">
-                            <i class="fa fa-camera"></i> Dokumentasi Masalah
-                        </p>
-
-                        {{-- Preview foto yang sudah ada --}}
-                        <div id="existingFotoWrap" class="hidden">
-                            <p class="text-xs text-gray-500 mb-2">Foto tersimpan:</p>
-                            <div id="existingFotoGrid" class="grid grid-cols-3 gap-2"></div>
-                        </div>
-
-                        {{-- Upload foto baru --}}
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">
-                                Foto Masalah <span class="text-gray-400 font-normal">(multiple, maks 5 MB/foto)</span>
-                            </label>
-                            <input id="inputFotoMasalah" name="foto_masalah[]" type="file" multiple
-                                accept="image/jpg,image/jpeg,image/png,image/webp"
-                                onchange="previewFotoMasalah(event)"
-                                class="w-full border border-dashed border-red-300 rounded-lg px-3 py-2 text-xs text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 cursor-pointer">
-                            <p class="text-xs text-gray-400 mt-1">Format: JPG, PNG, WEBP</p>
-                        </div>
-
-                        {{-- Preview foto baru yang dipilih --}}
-                        <div id="previewFotoMasalah" class="hidden grid grid-cols-3 gap-2"></div>
-
-                        {{-- Catatan --}}
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Catatan Masalah</label>
-                            <textarea id="inputCatatanMasalah" name="catatan_masalah" rows="3"
-                                placeholder="Deskripsikan masalah pada kendaraan..."
-                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 resize-none"></textarea>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end gap-2">
-                        <button type="button" onclick="closeModalStatus()"
-                            class="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
-                            Batal
-                        </button>
-                        <button type="submit"
-                            class="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors">
-                            <i class="fa fa-save text-xs"></i> Simpan
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-
-        {{-- ======================================
         MODAL DETAIL
     ====================================== --}}
         {{-- Modal Detail Kendaraan --}}
@@ -738,7 +639,7 @@
 
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Harga /
-                                    Jam</span>
+                                    Bulan</span>
                                 <span id="d_harga_jam" class="text-sm text-gray-800 font-semibold">�</span>
                             </div>
 
@@ -1061,8 +962,9 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Foto <span
                                             class="text-red-500">*</span></label>
-                                    <input name="foto" type="file" required
+                                    <input name="foto" type="file" required accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <p class="text-xs text-gray-400 mt-1">Format: JPG, PNG, GIF, WEBP</p>
                                 </div>
                             </div>
                         </div>
@@ -1302,8 +1204,9 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Foto (baru)</label>
-                                    <input name="foto" type="file"
+                                    <input name="foto" type="file" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                                    <p class="text-xs text-gray-400 mt-1">Format: JPG, PNG, GIF, WEBP</p>
                                 </div>
                             </div>
                         </div>
@@ -1398,7 +1301,7 @@
                         </div>
 
                         {{-- Status --}}
-                        <div>
+                        <div style="display: none;">
                             <p
                                 class="text-xs font-bold uppercase tracking-widest text-gray-400 pb-2 border-b border-gray-100 mb-3">
                                 <i class="fa fa-toggle-on mr-1"></i> Status
@@ -1530,7 +1433,7 @@
             }
 
             function closeAllModals() {
-                ['modalTambah', 'modalEdit', 'modalDetail', 'modalStatus'].forEach(function(id) {
+                ['modalTambah', 'modalEdit', 'modalDetail'].forEach(function(id) {
                     var el = document.getElementById(id);
                     if (el) {
                         el.classList.add('hidden');
@@ -1545,7 +1448,7 @@
             });
 
             // Click-outside to close
-            ['modalTambah', 'modalEdit', 'modalDetail', 'modalStatus'].forEach(function(id) {
+            ['modalTambah', 'modalEdit', 'modalDetail'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (el) el.addEventListener('click', function(e) {
                     if (e.target === el) closeAllModals();
@@ -1742,7 +1645,8 @@
                     document.getElementById('d_no_bpkb').textContent = d.no_bpkb || '�';
 
                     document.getElementById('d_batas_biaya').textContent = fmtRupiah(d.batas_biaya);
-                    document.getElementById('d_masa_berlaku').textContent = d.masa_berlaku || '�';
+                    // Format masa_berlaku to show only date (YYYY-MM-DD) without time
+                    document.getElementById('d_masa_berlaku').textContent = d.masa_berlaku ? d.masa_berlaku.split(' ')[0] : '�';
                     var dokWrap = document.getElementById('d_dokumen_wrap');
                     if (d.dokumen) {
                         let filename = d.dokumen.split('/').pop();
@@ -1860,8 +1764,22 @@
                     var self = this;
                     fields.forEach(function(f) {
                         var el = document.getElementById('e_' + f);
-                        if (!el) return;
-                        var val = self.dataset[f] || '';
+                        if (!el) {
+                            console.warn('Element e_' + f + ' tidak ditemukan');
+                            return;
+                        }
+                        
+                        // Konversi dataset attribute: data-masa_berlaku -> masaBerlaku
+                        var datasetKey = f.replace(/_([a-z])/g, function(match, letter) {
+                            return letter.toUpperCase();
+                        });
+                        var val = self.dataset[datasetKey] || self.dataset[f] || '';
+                        
+                        // Khusus field tanggal: ambil hanya YYYY-MM-DD
+                        if (el.type === 'date' && val) {
+                            val = val.split(' ')[0]; // Ambil bagian tanggal saja
+                        }
+                        
                         if (el.tagName === 'SELECT') {
                             Array.from(el.options).forEach(function(opt) {
                                 opt.selected = opt.value === val;

@@ -143,7 +143,8 @@ class ChartDataService
     public function getBarChartData(Builder $query, array $config)
     {
         $groupBy      = $config['groupBy'] ?? 'month';
-        $valueColumns = $config['valueColumns'] ?? ['amount'];
+        // Support both valueColumn (singular) and valueColumns (plural)
+        $valueColumns = $config['valueColumns'] ?? (isset($config['valueColumn']) ? [$config['valueColumn']] : ['amount']);
         $aggregation  = $config['aggregation'] ?? 'sum';
         $dateColumn   = $config['dateColumn'] ?? 'created_at';
         $limit        = $config['limit'] ?? 12;

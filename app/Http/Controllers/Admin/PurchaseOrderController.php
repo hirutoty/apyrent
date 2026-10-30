@@ -1214,16 +1214,11 @@ class PurchaseOrderController extends Controller
                 'source_data'         => $sourceData,
             ]);
 
-            // Buat Pembayaran otomatis
+            // Buat Pembayaran otomatis (approveWithItems akan buat ServiceHistory draft jika service_part)
             $pembayaran = $this->approvalService->approveWithItems($po, $sourceData, [], $catatan, false);
 
             // Link pembayaran ke PO
             $po->update(['pembayaran_id' => $pembayaran->id]);
-
-            // ── Buat ServiceHistory draft (tidak_aktif) jika tipe service_part ──
-            if ($po->source_type === 'service_part') {
-                $this->createServiceHistoryDraft($pembayaran, $sourceData);
-            }
 
             \DB::commit();
 
@@ -1606,14 +1601,8 @@ class PurchaseOrderController extends Controller
 
         $pembayaran = $this->approvalService->approveWithItems($po, $approvedSourceData, $perItemBukti, $catatan, $hasRejected);
 
-        // ── ServiceIncident dan ServicePart sudah ditangani oleh updateLinkedRecord di approveWithItems ──
-        // Untuk service_incident: updateLinkedRecord membuat record baru (pertama kali) atau
-        // menambah parts ke incident yang sudah ada (partial resubmit berikutnya).
-        // Untuk service_part biasa: buat ServiceHistory draft
-        if ($po->source_type !== 'service_incident') {
-            // Service part biasa: buat ServiceHistory draft
-            $this->createServiceHistoryDraft($pembayaran, $approvedSourceData);
-        }
+        // ServiceHistory draft sudah dibuat dari dalam approveWithItems sebelum updateLinkedRecord
+        // (tidak perlu panggil createServiceHistoryDraft di sini lagi untuk service_part biasa)
 
         \DB::commit();
 
@@ -1806,7 +1795,7 @@ class PurchaseOrderController extends Controller
      * @param \App\Models\Pembayaran $pembayaran  Pembayaran yang baru dibuat dari PO
      * @param array                  $sourceData  source_data PO yang sudah berisi approved parts
      */
-    private function createServiceHistoryDraft(\App\Models\Pembayaran $pembayaran, array $sourceData): void
+    public function createServiceHistoryDraft(\App\Models\Pembayaran $pembayaran, array $sourceData): void
     {
         $kendaraanId    = $sourceData['kendaraan_id'] ?? null;
         $parts          = $sourceData['parts'] ?? [];
@@ -1913,6 +1902,12 @@ class PurchaseOrderController extends Controller
             // Kasus: resubmit round ke-2, part round ke-1 sudah tersimpan — jangan buat ulang.
             $namaPartNorm = strtolower(trim($part['nama_part'] ?? ''));
             if ($namaPartNorm && in_array($namaPartNorm, $existingPartNames)) {
+                \Log::info('ServicePart SKIPPED (duplicate)', [
+                    'nama_part' => $part['nama_part'],
+                    'normalized' => $namaPartNorm,
+                    'existing_names' => $existingPartNames,
+                    'service_history_id' => $serviceHistory->id,
+                ]);
                 continue;
             }
 
@@ -1985,6 +1980,15 @@ class PurchaseOrderController extends Controller
                 'approval_by'        => auth()->id(),
                 'approval_at'        => now(),
                 'persetujuan'        => 'Diajukan ke Pembayaran',
+            ]);
+
+            \Log::info('ServicePart CREATED', [
+                'id' => $newPart->id,
+                'nama_part' => $newPart->nama_part,
+                'service_history_id' => $serviceHistory->id,
+                'pembayaran_id' => $pembayaran->id,
+                'persetujuan' => $newPart->persetujuan,
+                'status' => $newPart->status,
             ]);
 
             // Recalculate keterangan_limit setelah part tersimpan ke DB.
@@ -2475,6 +2479,57 @@ class PurchaseOrderController extends Controller
                 'can_edit'            => false,
                 'terakhir_diajukan'   => now(),
             ]);
+
+            // ── CASCADE UPDATE: Update tabel induk sesuai source_type ─────────────
+            $existingId = $sourceData['existing_record_id'] ?? null;
+            
+            if ($existingId) {
+                if (in_array($po->source_type, ['pajak', 'pajak_perpanjang'])) {
+                    \App\Models\PajakKendaraan::where('id', $existingId)->update([
+                        'persetujuan'   => 'Pending',
+                        'nominal'       => $sourceData['nominal'] ?? 0,
+                        'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? null,
+                        'jatuh_tempo'   => $sourceData['jatuh_tempo']   ?? null,
+                        'nama_bank'     => $sourceData['nama_bank']     ?? null,
+                        'no_rekening'   => $sourceData['no_rekening']   ?? null,
+                        'nama_pemilik'  => $sourceData['nama_pemilik']  ?? null,
+                    ]);
+                } elseif (in_array($po->source_type, ['asuransi_kendaraan', 'asuransi_kendaraan_perpanjang'])) {
+                    \App\Models\AsuransiKendaraan::where('id', $existingId)->update([
+                        'persetujuan'   => 'Pending',
+                        'biaya'         => $sourceData['biaya'] ?? 0,
+                        'tgl_mulai'     => $sourceData['tgl_mulai']    ?? null,
+                        'tgl_berakhir'  => $sourceData['tgl_berakhir'] ?? null,
+                        'durasi_bulan'  => $sourceData['durasi_bulan'] ?? null,
+                        'nama_bank'     => $sourceData['nama_bank']     ?? null,
+                        'no_rekening'   => $sourceData['no_rekening']   ?? null,
+                        'nama_rekening' => $sourceData['nama_rekening'] ?? null,
+                    ]);
+                } elseif (in_array($po->source_type, ['kir', 'kir_perpanjang'])) {
+                    \App\Models\Kir::where('id', $existingId)->update([
+                        'persetujuan'   => 'Pending',
+                        'biaya'         => $sourceData['biaya'] ?? 0,
+                        'tanggal_bayar' => $sourceData['tanggal_bayar'] ?? null,
+                        'masa_berlaku'  => $sourceData['masa_berlaku']  ?? null,
+                        'no_uji'        => $sourceData['no_uji']        ?? null,
+                        'nama_bank'     => $sourceData['nama_bank']     ?? null,
+                        'no_rekening'   => $sourceData['no_rekening']   ?? null,
+                        'nama_rekening' => $sourceData['nama_rekening'] ?? null,
+                    ]);
+                }
+                
+                \Log::info("PO resubmit: Tabel induk updated", [
+                    'po_id'        => $po->id,
+                    'source_type'  => $po->source_type,
+                    'existing_id'  => $existingId,
+                    'new_amount'   => $totalHarga,
+                ]);
+            } else {
+                \Log::warning("PO resubmit: existing_record_id not found", [
+                    'po_id'       => $po->id,
+                    'source_type' => $po->source_type,
+                ]);
+            }
 
             return response()->json([
                 'success'  => true,

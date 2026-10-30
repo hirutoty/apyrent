@@ -191,19 +191,24 @@
 const chartManager = new ChartManager();
 
 document.addEventListener('DOMContentLoaded', function () {
+    // Default ke tahun sekarang
+    const currentYear = new Date().getFullYear();
+    initPajakKendaraanCharts({ 
+        filter_type: 'specific_year', 
+        specific_year: currentYear,
+        kendaraan_id: {{ $kendaraan->id }}
+    });
+
     document.addEventListener('chartFilterChange', function (e) {
         if (e.detail.filterId === 'pajakKendaraanChartFilter') {
             const filters = {
                 filter_type:  e.detail.filterType,
                 start_date:   e.detail.startDate,
                 end_date:     e.detail.endDate,
+                specific_year: e.detail.specificYear,
                 kendaraan_id: {{ $kendaraan->id }},
             };
-            if (!chartManager.hasChart('pajakKendaraanBarChart')) {
-                initPajakKendaraanCharts(filters);
-            } else {
-                updatePajakKendaraanCharts(filters);
-            }
+            updatePajakKendaraanCharts(filters);
         }
     });
 });
