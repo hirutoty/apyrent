@@ -123,7 +123,9 @@ Cara menambahkan kendaraan baru ke sistem:
 
 1. **Klik tombol "Tambah Kendaraan"** di pojok kanan atas tabel
 
-   2. **Akan muncul form seperti berikut:**3. **Isi form dengan data kendaraan:**
+2. **Akan muncul form seperti berikut:**
+
+   ![Modal Tambah Kendaraan](images/26-modal-tambah-kendaraan.png)3. **Isi form dengan data kendaraan:**
 
    **Data Wajib Diisi:**
    - **Nomor Polisi** - Contoh: B 1234 XYZ
@@ -162,7 +164,9 @@ Cara mengubah data kendaraan yang sudah ada:
 
 2. **Klik icon "Edit" (pensil)** pada kolom Aksi
 
-   3. **Akan muncul form edit** dengan data kendaraan yang sudah terisi4. **Ubah data** yang ingin diubah
+3. **Akan muncul form edit** dengan data kendaraan yang sudah terisi
+
+   ![Modal Edit Kendaraan](images/27-modal-edit-kendaraan.png)4. **Ubah data** yang ingin diubah
 
    Contoh:
    - Ubah Status dari "Aktif" menjadi "Service"

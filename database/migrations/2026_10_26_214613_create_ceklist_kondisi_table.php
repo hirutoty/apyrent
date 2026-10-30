@@ -26,7 +26,7 @@ return new class extends Migration
             $table->string('jam');
             $table->enum('fuel', ['E', '1/8', '1/4', '1/2', '3/4', 'F']);
             $table->string('pemeriksa');
-            $table->string('status')->nullable(); // Added missing status field
+            $table->enum('status', ['status', 'leasing', 'gs', 'replace', 'expedisi'])->nullable();
             
             // Data Kendaraan
             $table->unsignedBigInteger('kendaraan_id');
