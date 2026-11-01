@@ -57,6 +57,7 @@ class PembayaranController extends Controller
                 $query->where('departemen', $deptFilter);
             }
         } else {
+            // Filter by role - mapping role ke departemen
             $deptMap = [
                 'keuangan'  => 'Keuangan',
                 'produksi'  => 'Produksi',
@@ -180,6 +181,7 @@ class PembayaranController extends Controller
         // Stats (scope sama dengan query utama tapi tanpa pagination)
         $baseQuery = Pembayaran::query();
         if ($role !== 'superadmin') {
+            // Filter by role - mapping role ke departemen
             $deptMap = [
                 'keuangan'  => 'Keuangan',
                 'produksi'  => 'Produksi',
@@ -846,7 +848,7 @@ class PembayaranController extends Controller
     {
         $role = auth()->user()->role;
 
-        // Departemen mapping
+        // Mapping role ke departemen
         $deptMap = [
             'keuangan'   => 'Keuangan',
             'produksi'   => 'Produksi',

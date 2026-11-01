@@ -30,8 +30,8 @@ class UserController extends Controller
             'password' => 'required|min:6',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
 
-            'role' => 'required|in:superadmin,keuangan,produksi,hrd,purchase,sales,marketing,it',
-            'status' => 'required',
+            'role' => 'nullable|in:superadmin,keuangan,produksi,hrd,purchase,sales,marketing,it',
+            'status' => 'required|in:regis,aktif,blokir',
         ], [
             'username.required' => 'Username wajib diisi',
             'username.unique' => 'Username sudah digunakan, silakan pakai yang lain',
@@ -72,8 +72,8 @@ class UserController extends Controller
 
             'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
 
-            'role' => 'required|in:superadmin,keuangan,produksi,hrd,purchase,sales,marketing,it',
-            'status' => 'required',
+            'role' => 'nullable|in:superadmin,keuangan,produksi,hrd,purchase,sales,marketing,it',
+            'status' => 'required|in:regis,aktif,blokir',
         ], [
             'username.required' => 'Username wajib diisi',
             'username.unique' => 'Username sudah digunakan user lain',

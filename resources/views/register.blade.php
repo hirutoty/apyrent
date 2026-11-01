@@ -126,14 +126,14 @@
                     {{-- Nama --}}
                     <div>
                         <label
-                            class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Nama</label>
+                            class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Nama <span class="text-red-500">*</span></label>
                         <div
                             class="group flex items-center bg-gray-50 border border-gray-200/80 rounded-xl px-3.5 py-2.5
                                     hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20
                                     transition-all duration-300">
                             <i
                                 class="fa-regular fa-user text-gray-300 group-focus-within:text-blue-400 mr-2.5 text-sm transition-colors duration-300"></i>
-                            <input type="text" name="name" value="{{ old('name') }}" placeholder="Nama lengkap"
+                            <input type="text" name="name" value="{{ old('name') }}" placeholder="Nama lengkap" required
                                 class="flex-1 text-sm text-gray-700 placeholder-gray-300 outline-none bg-transparent" />
                         </div>
                     </div>
@@ -141,14 +141,14 @@
                     {{-- Username --}}
                     <div>
                         <label
-                            class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Username</label>
+                            class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Username <span class="text-red-500">*</span></label>
                         <div
                             class="group flex items-center bg-gray-50 border border-gray-200/80 rounded-xl px-3.5 py-2.5
                                     hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20
                                     transition-all duration-300">
                             <i
                                 class="fa-solid fa-at text-gray-300 group-focus-within:text-blue-400 mr-2.5 text-sm transition-colors duration-300"></i>
-                            <input type="text" name="username" value="{{ old('username') }}" placeholder="username"
+                            <input type="text" name="username" value="{{ old('username') }}" placeholder="username" required
                                 class="flex-1 text-sm text-gray-700 placeholder-gray-300 outline-none bg-transparent" />
                         </div>
                     </div>
@@ -157,65 +157,86 @@
                 {{-- Email --}}
                 <div>
                     <label
-                        class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Email</label>
+                        class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Email <span class="text-red-500">*</span></label>
                     <div
                         class="group flex items-center bg-gray-50 border border-gray-200/80 rounded-xl px-3.5 py-2.5
                                 hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20
                                 transition-all duration-300">
                         <i
                             class="fa-regular fa-envelope text-gray-300 group-focus-within:text-blue-400 mr-2.5 text-sm transition-colors duration-300"></i>
-                        <input type="email" name="email" value="{{ old('email') }}" placeholder="nama@email.com"
+                        <input type="email" name="email" value="{{ old('email') }}" placeholder="nama@email.com" required
                             class="flex-1 text-sm text-gray-700 placeholder-gray-300 outline-none bg-transparent" />
                     </div>
                 </div>
 
-                {{-- No Telepon & Foto --}}
-                <div class="grid grid-cols-2 gap-3">
-                    {{-- No Telp --}}
-                    <div>
-                        <label
-                            class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">No.
-                            Telepon</label>
-                        <div
-                            class="group flex items-center bg-gray-50 border border-gray-200/80 rounded-xl px-3.5 py-2.5
-                                    hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20
-                                    transition-all duration-300">
-                            <i
-                                class="fa-solid fa-phone text-gray-300 group-focus-within:text-blue-400 mr-2.5 text-sm transition-colors duration-300"></i>
-                            <input type="number" name="no_telp" value="{{ old('no_telp') }}" placeholder="08xxxxxxxxxx"
-                                class="flex-1 text-sm text-gray-700 placeholder-gray-300 outline-none bg-transparent" />
-                        </div>
+                {{-- No Telepon --}}
+                <div>
+                    <label
+                        class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">No.
+                        Telepon <span class="text-red-500">*</span></label>
+                    <div
+                        class="group flex items-center bg-gray-50 border border-gray-200/80 rounded-xl px-3.5 py-2.5
+                                hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20
+                                transition-all duration-300">
+                        <i
+                            class="fa-solid fa-phone text-gray-300 group-focus-within:text-blue-400 mr-2.5 text-sm transition-colors duration-300"></i>
+                        <input type="text" name="no_telp" value="{{ old('no_telp') }}" placeholder="08xxxxxxxxxx" required
+                            class="flex-1 text-sm text-gray-700 placeholder-gray-300 outline-none bg-transparent" />
                     </div>
+                </div>
 
-                    {{-- Foto --}}
-                    <div>
-                        <label
-                            class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Foto
-                            Profil</label>
-                        <label
-                            class="group flex items-center bg-gray-50 border border-gray-200/80 rounded-xl px-3.5 py-2.5
-                                     hover:border-blue-300 focus-within:border-blue-500
-                                     transition-all duration-300 cursor-pointer">
-                            <i
-                                class="fa-regular fa-image text-gray-300 group-hover:text-blue-400 mr-2.5 text-sm transition-colors duration-300"></i>
-                            <span id="foto-label" class="flex-1 text-sm text-gray-300 truncate">Pilih foto</span>
-                            <input type="file" name="foto" accept="image/*" class="hidden"
-                                onchange="document.getElementById('foto-label').textContent = this.files[0]?.name ?? 'Pilih foto'" />
-                        </label>
+                {{-- Role --}}
+                <div>
+                    <label
+                        class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Role <span class="text-red-500">*</span></label>
+                    <div
+                        class="group flex items-center bg-gray-50 border border-gray-200/80 rounded-xl px-3.5 py-2.5
+                                hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20
+                                transition-all duration-300">
+                        <i
+                            class="fa-solid fa-user-shield text-gray-300 group-focus-within:text-blue-400 mr-2.5 text-sm transition-colors duration-300"></i>
+                        <select name="role" required
+                            class="flex-1 text-sm text-gray-700 outline-none bg-transparent cursor-pointer">
+                            <option value="">Pilih Role</option>
+                            <option value="keuangan" {{ old('role') == 'keuangan' ? 'selected' : '' }}>Keuangan</option>
+                            <option value="produksi" {{ old('role') == 'produksi' ? 'selected' : '' }}>Produksi</option>
+                            <option value="hrd" {{ old('role') == 'hrd' ? 'selected' : '' }}>HRD</option>
+                            <option value="purchase" {{ old('role') == 'purchase' ? 'selected' : '' }}>Purchase</option>
+                            <option value="sales" {{ old('role') == 'sales' ? 'selected' : '' }}>Sales</option>
+                            <option value="marketing" {{ old('role') == 'marketing' ? 'selected' : '' }}>Marketing</option>
+                            <option value="it" {{ old('role') == 'it' ? 'selected' : '' }}>IT</option>
+                        </select>
                     </div>
+                </div>
+
+                {{-- Foto --}}
+                <div>
+                    <label
+                        class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Foto
+                        Profil <span class="text-gray-400 font-normal">(opsional)</span></label>
+                    <label
+                        class="group flex items-center bg-gray-50 border border-gray-200/80 rounded-xl px-3.5 py-2.5
+                                 hover:border-blue-300 focus-within:border-blue-500
+                                 transition-all duration-300 cursor-pointer">
+                        <i
+                            class="fa-regular fa-image text-gray-300 group-hover:text-blue-400 mr-2.5 text-sm transition-colors duration-300"></i>
+                        <span id="foto-label" class="flex-1 text-sm text-gray-300 truncate">Pilih foto</span>
+                        <input type="file" name="foto" accept="image/*" class="hidden"
+                            onchange="document.getElementById('foto-label').textContent = this.files[0]?.name ?? 'Pilih foto'" />
+                    </label>
                 </div>
 
                 {{-- Password --}}
                 <div>
                     <label
-                        class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Password</label>
+                        class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Password <span class="text-red-500">*</span></label>
                     <div
                         class="group flex items-center bg-gray-50 border border-gray-200/80 rounded-xl px-3.5 py-2.5
                                 hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20
                                 transition-all duration-300">
                         <i
                             class="fa-solid fa-lock text-gray-300 group-focus-within:text-blue-400 mr-2.5 text-sm transition-colors duration-300"></i>
-                        <input type="password" name="password" id="password" placeholder="Min. 8 karakter"
+                        <input type="password" name="password" id="password" placeholder="Min. 6 karakter" required
                             class="flex-1 text-sm text-gray-700 placeholder-gray-300 outline-none bg-transparent" />
                         <button type="button" onclick="togglePass('password','eye1')"
                             class="text-gray-300 hover:text-gray-500 transition-colors duration-200 ml-1">
@@ -228,7 +249,7 @@
                 <div>
                     <label
                         class="block text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Konfirmasi
-                        Password</label>
+                        Password <span class="text-red-500">*</span></label>
                     <div
                         class="group flex items-center bg-gray-50 border border-gray-200/80 rounded-xl px-3.5 py-2.5
                                 hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20
@@ -236,7 +257,7 @@
                         <i
                             class="fa-solid fa-shield-halved text-gray-300 group-focus-within:text-blue-400 mr-2.5 text-sm transition-colors duration-300"></i>
                         <input type="password" name="password_confirmation" id="password_confirmation"
-                            placeholder="Ulangi password"
+                            placeholder="Ulangi password" required
                             class="flex-1 text-sm text-gray-700 placeholder-gray-300 outline-none bg-transparent" />
                         <button type="button" onclick="togglePass('password_confirmation','eye2')"
                             class="text-gray-300 hover:text-gray-500 transition-colors duration-200 ml-1">

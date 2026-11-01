@@ -30,7 +30,20 @@ class LoginController extends Controller
 
         if (Auth::attempt($credentials, $remember)) {
 
-            if (Auth::user()->status === 'blokir') {
+            $user = Auth::user();
+
+            // Cek status user - Hanya 'aktif' yang bisa login
+            if ($user->status === 'regis') {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return back()->withErrors([
+                    'email' => 'Akun Anda masih menunggu persetujuan dari admin. Mohon ditunggu.',
+                ])->onlyInput('email');
+            }
+
+            if ($user->status === 'blokir') {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
@@ -40,6 +53,7 @@ class LoginController extends Controller
                 ])->onlyInput('email');
             }
 
+            // Status 'aktif' - boleh login
             $request->session()->regenerate();
 
             return redirect('/admin/dashboard')

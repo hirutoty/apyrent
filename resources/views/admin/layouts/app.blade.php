@@ -677,6 +677,14 @@
                                 </a>
                             @endif
 
+                            {{-- Sub: Serah Terima --}}
+                            @if ($role == 'superadmin' || $role == 'keuangan')
+                                <a href="/admin/serahterima"
+                                    class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-text hover:bg-sidebar-hover hover:text-white transition-all font-medium">
+                                    <i class="bi bi-arrow-left-right w-4 text-center shrink-0"></i> Serah Terima
+                                </a>
+                            @endif
+
                         </div>
                     </div>
                 </div>
@@ -1220,7 +1228,7 @@
 
                 {{-- Avatar: foto jika ada, inisial jika tidak --}}
                 @if (auth()->user()->foto)
-                    <img src="{{ asset(auth()->user()->foto) }}"
+                    <img src="{{ asset('storage/' . auth()->user()->foto) }}"
                         class="w-8 h-8 rounded-lg object-cover shrink-0 border border-white/20">
                 @else
                     <div
@@ -1317,7 +1325,7 @@
 
                             {{-- Avatar: foto jika ada, inisial jika tidak --}}
                             @if (auth()->user()->foto)
-                                <img src="{{ asset(auth()->user()->foto) }}"
+                                <img src="{{ asset('storage/' . auth()->user()->foto) }}"
                                     class="w-7 h-7 rounded-lg object-cover shrink-0 border border-gray-200">
                             @else
                                 <div

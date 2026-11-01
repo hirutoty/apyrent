@@ -779,6 +779,26 @@ Route::middleware(['auth', 'check.status'])->prefix('admin')->group(function () 
   Route::resource('rental', RentalController::class)
     ->except(['create', 'edit']);
 
+  // ── SERAH TERIMA ────────────────────────────────────────
+  Route::get('serahterima', [App\Http\Controllers\Admin\SerahterimaController::class, 'index'])
+    ->name('serahterima.index');
+  
+  // Booking routes
+  Route::post('serahterima/booking', [App\Http\Controllers\Admin\SerahterimaController::class, 'storeBooking'])
+    ->name('serahterima.booking.store');
+  Route::put('serahterima/booking/{id}', [App\Http\Controllers\Admin\SerahterimaController::class, 'updateBooking'])
+    ->name('serahterima.booking.update');
+  Route::delete('serahterima/booking/{id}', [App\Http\Controllers\Admin\SerahterimaController::class, 'destroyBooking'])
+    ->name('serahterima.booking.destroy');
+  
+  // Kontrak routes
+  Route::post('serahterima/kontrak', [App\Http\Controllers\Admin\SerahterimaController::class, 'storeKontrak'])
+    ->name('serahterima.kontrak.store');
+  Route::put('serahterima/kontrak/{id}', [App\Http\Controllers\Admin\SerahterimaController::class, 'updateKontrak'])
+    ->name('serahterima.kontrak.update');
+  Route::delete('serahterima/kontrak/{id}', [App\Http\Controllers\Admin\SerahterimaController::class, 'destroyKontrak'])
+    ->name('serahterima.kontrak.destroy');
+
   Route::resource('hutang-vendor', HutangVendorController::class);
 
   Route::resource('budgeting', BudgetingController::class);

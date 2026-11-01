@@ -61,6 +61,11 @@
             color: #fff;
         }
 
+        select.role-select.role-none {
+            background-color: #e5e7eb;
+            color: #6b7280;
+        }
+
         /* -- Status select colors -- */
         select.status-select {
             appearance: none;
@@ -82,6 +87,13 @@
             color: #16a34a;
             border: 1px solid #bbf7d0;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2316a34a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        }
+
+        select.status-select.status-regis {
+            background-color: #fef3c7;
+            color: #d97706;
+            border: 1px solid #fde68a;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23d97706' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
         }
 
         select.status-select.status-blokir {
@@ -252,12 +264,25 @@
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <div class="flex items-center justify-between">
                     <div>
+                        <p class="text-xs text-gray-500 font-medium uppercase tracking-widest">Menunggu Approval</p>
+                        <h2 class="text-3xl font-bold text-yellow-600 mt-1.5">
+                            {{ $data->where('status', 'regis')->count() }}</h2>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-yellow-50 flex items-center justify-center">
+                        <i class="bi bi-clock-history text-xl text-yellow-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <div class="flex items-center justify-between">
+                    <div>
                         <p class="text-xs text-gray-500 font-medium uppercase tracking-widest">User Blokir</p>
-                        <h2 class="text-3xl font-bold text-gray-600 mt-1.5">{{ $data->where('status', 'blokir')->count() }}
+                        <h2 class="text-3xl font-bold text-red-600 mt-1.5">{{ $data->where('status', 'blokir')->count() }}
                         </h2>
                     </div>
-                    <div class="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center">
-                        <i class="bi bi-slash-circle-fill text-xl text-gray-500"></i>
+                    <div class="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center">
+                        <i class="bi bi-slash-circle-fill text-xl text-red-600"></i>
                     </div>
                 </div>
             </div>
@@ -396,7 +421,8 @@
                                         <input type="hidden" name="status" value="{{ $d->status }}">
 
                                         <select name="role" onchange="updateRoleColor(this); this.form.submit()"
-                                            class="role-select role-{{ $d->role }} text-xs font-semibold px-2.5 py-1.5 rounded-lg border-0 outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-300">
+                                            class="role-select role-{{ $d->role ?: 'none' }} text-xs font-semibold px-2.5 py-1.5 rounded-lg border-0 outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-300">
+                                            <option value="" {{ $d->role == null ? 'selected' : '' }}>Belum Diset</option>
                                             <option value="superadmin" {{ $d->role == 'superadmin' ? 'selected' : '' }}>
                                                 Superadmin</option>
                                             <option value="keuangan" {{ $d->role == 'keuangan' ? 'selected' : '' }}>
@@ -429,9 +455,10 @@
 
                                         <select name="status" onchange="updateStatusColor(this); this.form.submit()"
                                             class="status-select status-{{ $d->status }} text-xs font-semibold px-2.5 py-1.5 rounded-lg outline-none focus:ring-2 focus:ring-offset-1 focus:ring-emerald-300">
-                                            <option value="aktif" {{ $d->status == 'aktif' ? 'selected' : '' }}>? Aktif
+                                            <option value="regis" {{ $d->status == 'regis' ? 'selected' : '' }}>⏳ Menunggu</option>
+                                            <option value="aktif" {{ $d->status == 'aktif' ? 'selected' : '' }}>✓ Aktif
                                             </option>
-                                            <option value="blokir" {{ $d->status == 'blokir' ? 'selected' : '' }}>? Blokir
+                                            <option value="blokir" {{ $d->status == 'blokir' ? 'selected' : '' }}>✗ Blokir
                                             </option>
                                         </select>
                                     </form>
@@ -547,7 +574,7 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">No Telp <span
                                 class="text-red-500">*</span></label>
-                        <input type="number" name="no_telp" id="f_no_telp" required placeholder="08xx-xxxx-xxxx"
+                        <input type="text" name="no_telp" id="f_no_telp" required placeholder="08xx-xxxx-xxxx"
                             class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all" value="{{ old('no_telp') }}">
                     </div>
 
@@ -559,10 +586,10 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Role <span
-                                class="text-red-500">*</span></label>
-                        <select name="role" id="f_role" required
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Role</label>
+                        <select name="role" id="f_role"
                             class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all">
+                            <option value="">Belum Diset</option>
                             <option value="superadmin" {{ old('role') == 'superadmin' ? 'selected' : '' }}>Superadmin</option>
                             <option value="keuangan" {{ old('role') == 'keuangan' ? 'selected' : '' }}>Keuangan</option>
                             <option value="produksi" {{ old('role') == 'produksi' ? 'selected' : '' }}>Produksi</option>
@@ -579,6 +606,7 @@
                                 class="text-red-500">*</span></label>
                         <select name="status" id="f_status"
                             class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all">
+                            <option value="regis" {{ old('status') == 'regis' ? 'selected' : '' }}>Menunggu Approval</option>
                             <option value="aktif" {{ old('status') == 'aktif' ? 'selected' : '' }}>Aktif</option>
                             <option value="blokir" {{ old('status') == 'blokir' ? 'selected' : '' }}>Blokir</option>
                         </select>
@@ -656,9 +684,11 @@
                 purchase: 'role-purchase',
                 sales: 'role-sales',
                 marketing: 'role-marketing',
-                it: 'role-it'
+                it: 'role-it',
+                none: 'role-none'
             };
             var statusClasses = {
+                regis: 'status-regis',
                 aktif: 'status-aktif',
                 blokir: 'status-blokir'
             };
@@ -671,7 +701,8 @@
                 Object.values(roleClasses).forEach(function(c) {
                     sel.classList.remove(c);
                 });
-                sel.classList.add(roleClasses[sel.value] || '');
+                var roleClass = roleClasses[sel.value] || roleClasses['none'];
+                if (roleClass) sel.classList.add(roleClass);
             }
 
             /**
@@ -682,7 +713,8 @@
                 Object.values(statusClasses).forEach(function(c) {
                     sel.classList.remove(c);
                 });
-                sel.classList.add(statusClasses[sel.value] || '');
+                var statusClass = statusClasses[sel.value];
+                if (statusClass) sel.classList.add(statusClass);
             }
 
             // -- On page load: apply correct colors to every row independently --
@@ -691,14 +723,16 @@
                 Object.values(roleClasses).forEach(function(c) {
                     sel.classList.remove(c);
                 });
-                sel.classList.add(roleClasses[sel.value] || '');
+                var roleClass = roleClasses[sel.value] || roleClasses['none'];
+                if (roleClass) sel.classList.add(roleClass);
             });
 
             document.querySelectorAll('select.status-select').forEach(function(sel) {
                 Object.values(statusClasses).forEach(function(c) {
                     sel.classList.remove(c);
                 });
-                sel.classList.add(statusClasses[sel.value] || '');
+                var statusClass = statusClasses[sel.value];
+                if (statusClass) sel.classList.add(statusClass);
             });
 
             // ----------------------------------------------
@@ -739,7 +773,7 @@
                     document.getElementById('f_username').value = this.dataset.username;
                     document.getElementById('f_email').value = this.dataset.email;
                     document.getElementById('f_no_telp').value = this.dataset.no_telp;
-                    document.getElementById('f_role').value = this.dataset.role;
+                    document.getElementById('f_role').value = this.dataset.role || '';
                     document.getElementById('f_status').value = this.dataset.status;
                     document.getElementById('f_password').removeAttribute('required');
                     document.getElementById('f_password').value = '';

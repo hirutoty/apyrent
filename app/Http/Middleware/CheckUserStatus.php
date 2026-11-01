@@ -10,13 +10,21 @@ class CheckUserStatus
 {
     public function handle(Request $request, Closure $next)
     {
-        if (Auth::check() && Auth::user()->status === 'blokir') {
+        // Hanya user dengan status 'aktif' yang boleh mengakses sistem
+        if (Auth::check() && Auth::user()->status !== 'aktif') {
+            
+            $user = Auth::user();
+            
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
+            $message = $user->status === 'regis' 
+                ? 'Akun Anda masih menunggu persetujuan admin.'
+                : 'Akun Anda telah diblokir. Hubungi administrator.';
+
             return redirect('/login')->withErrors([
-                'email' => 'Akun Anda telah diblokir. Hubungi administrator.',
+                'email' => $message,
             ]);
         }
 
