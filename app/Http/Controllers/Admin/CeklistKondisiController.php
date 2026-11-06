@@ -50,15 +50,20 @@ class CeklistKondisiController extends Controller
                 'fuel' => 'required|in:E,1/8,1/4,1/2,3/4,F',
                 'pemeriksa' => 'required|string|max:255',
                 'status' => 'nullable|in:status,leasing,gs,replace,expedisi',
-                'pemakaian_bbm' => 'nullable|string',
                 'ratio' => 'nullable|string',
                 
                 // Foto wajib semua
-                'foto_depan' => 'required|image|mimes:jpeg,png,jpg|max:2048',
-                'foto_atas' => 'required|image|mimes:jpeg,png,jpg|max:2048',
-                'foto_belakang' => 'required|image|mimes:jpeg,png,jpg|max:2048',
-                'foto_sampingkiri' => 'required|image|mimes:jpeg,png,jpg|max:2048',
-                'foto_sampingkanan' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+                'foto_depan' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+                'foto_atas' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+                'foto_belakang' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+                'foto_sampingkiri' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+                'foto_sampingkanan' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+                
+                // Foto tambahan (multiple)
+                'foto_tambahan' => 'required|array|min:1',
+                'foto_tambahan.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+                'ket_tambahan' => 'nullable|array',
+                'ket_tambahan.*' => 'nullable|string|max:255',
                 
                 // Keterangan
                 'ket_depan' => 'nullable|string',
@@ -73,10 +78,24 @@ class CeklistKondisiController extends Controller
                 'kondisi_rem' => 'nullable|in:B,R',
                 'kondisi_kopling' => 'nullable|in:B,R',
                 'kondisi_ban' => 'nullable|in:B,R',
+                'ban_depan_kanan' => 'nullable|in:B,R',
+                'ban_depan_kiri' => 'nullable|in:B,R',
+                'ban_belakang_kanan' => 'nullable|in:B,R',
+                'ban_belakang_kiri' => 'nullable|in:B,R',
+                'ban_ganda_depan_kanan' => 'nullable|in:B,R',
+                'ban_ganda_depan_kiri' => 'nullable|in:B,R',
+                'ban_ganda_belakang_kanan' => 'nullable|in:B,R',
+                'ban_ganda_belakang_kiri' => 'nullable|in:B,R',
                 'kondisi_ac' => 'nullable|in:B,R',
-                'lampu_lampusen' => 'nullable|in:B,R',
-                'lampu_lampubesarkecil' => 'nullable|in:B,R',
-                'lampu_rembikplat' => 'nullable|in:B,R',
+                'kondisi_lampu' => 'nullable|in:B,R',
+                'lampu_sein' => 'nullable|in:B,R',
+                'lampu_bik_plat' => 'nullable|in:B,R',
+                'lampu_hazard' => 'nullable|in:B,R',
+                'lampu_kota' => 'nullable|in:B,R',
+                'lampu_besar_kecil' => 'nullable|in:B,R',
+                'lampu_mundur' => 'nullable|in:B,R',
+                'lampu_rem_belakang' => 'nullable|in:B,R',
+                'lampu_rem_depan' => 'nullable|in:B,R',
                 'accu' => 'nullable|in:B,R',
                 'airradiator' => 'nullable|in:B,R',
                 'olimesin_remkopling' => 'nullable|in:B,R',
@@ -98,10 +117,46 @@ class CeklistKondisiController extends Controller
                 'kuncipintu' => 'nullable|in:B,R',
                 'spedoometer' => 'nullable|in:B,R',
                 
+                // Section B: Pemeriksaan Khusus Truck & Keselamatan (28 items)
+                'wiper_washer' => 'nullable|in:B,R',
+                'kaca_spion_kendaraan' => 'nullable|in:B,R',
+                'sabuk_pengaman' => 'nullable|in:B,R',
+                'ganjal_roda' => 'nullable|in:B,R',
+                'apar' => 'nullable|in:B,R',
+                
+                // Section C: Kelengkapan Dokumen (5 items)
+                'kir_berlaku' => 'nullable|in:B,R',
+                'sim_pengemudi' => 'nullable|in:B,R',
+                'sim_a' => 'nullable|in:B,R',
+                'sim_b1' => 'nullable|in:B,R',
+                'sim_b1_umum' => 'nullable|in:B,R',
+                'sim_b2' => 'nullable|in:B,R',
+                'sim_b2_umum' => 'nullable|in:B,R',
+                'dokumen_surat_jalan' => 'nullable|in:B,R',
+                'kesesuaian_muatan' => 'nullable|in:B,R',
+                
+                // Section B continued: Pemeriksaan Khusus Truck
+                'sistem_rem_angin' => 'nullable|in:B,R',
+                'tekanan_angin_tabung' => 'nullable|in:B,R',
+                'kompresor_angin_saluran' => 'nullable|in:B,R',
+                'brake_chamber_slack_adjuster' => 'nullable|in:B,R',
+                'rem_parkir_tangan' => 'nullable|in:B,R',
+                'transmisi_persneling' => 'nullable|in:B,R',
+                'gardan_kebocoran_oli' => 'nullable|in:B,R',
+                'kopel_propeller_universal' => 'nullable|in:B,R',
+                'suspensi_per_daun' => 'nullable|in:B,R',
+                'shock_absorber' => 'nullable|in:B,R',
+                'chassis_rangka_baut' => 'nullable|in:B,R',
+                'mur_baut_roda_velg' => 'nullable|in:B,R',
+                'bak_box_karoseri_lantai' => 'nullable|in:B,R',
+                'pintu_bak_sistem_pengunci' => 'nullable|in:B,R',
+                'engsel_pengait_pengaman' => 'nullable|in:B,R',
+                'terpal_tali_pengikat' => 'nullable|in:B,R',
+                
                 'sopir' => 'nullable|string',
-                'ttd_supir' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+                'ttd_supir' => 'required|image|mimes:jpeg,png,jpg|max:5120',
                 'mekanis' => 'nullable|string',
-                'ttd_mekanik' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+                'ttd_mekanik' => 'required|image|mimes:jpeg,png,jpg|max:5120',
                 'keterangan' => 'nullable|string',
             ]);
 
@@ -112,6 +167,24 @@ class CeklistKondisiController extends Controller
                     $validated[$field] = $request->file($field)->store('ceklist_kondisi', 'public');
                 }
             }
+
+            // Upload foto tambahan (multiple)
+            $fotoTambahanData = [];
+            if ($request->hasFile('foto_tambahan')) {
+                $fotoFiles = $request->file('foto_tambahan');
+                $ketArray = $request->input('ket_tambahan', []);
+                
+                foreach ($fotoFiles as $index => $file) {
+                    if ($file && $file->isValid()) {
+                        $path = $file->store('ceklist_kondisi/tambahan', 'public');
+                        $fotoTambahanData[] = [
+                            'foto' => $path,
+                            'keterangan' => $ketArray[$index] ?? null
+                        ];
+                    }
+                }
+            }
+            $validated['foto_tambahan'] = $fotoTambahanData;
 
             // Upload TTD
             $ttdFields = ['ttd_supir', 'ttd_mekanik'];
@@ -128,9 +201,10 @@ class CeklistKondisiController extends Controller
                 'message' => 'Ceklist kondisi berhasil disimpan!'
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation errors:', ['errors' => $e->errors()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Validasi gagal',
+                'message' => 'Validasi gagal: ' . implode(', ', array_map(fn($err) => is_array($err) ? implode(', ', $err) : $err, $e->errors())),
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
@@ -208,6 +282,15 @@ class CeklistKondisiController extends Controller
         foreach ($fotoFields as $field) {
             if ($ceklist->$field && Storage::disk('public')->exists($ceklist->$field)) {
                 Storage::disk('public')->delete($ceklist->$field);
+            }
+        }
+        
+        // Hapus foto tambahan
+        if ($ceklist->foto_tambahan && is_array($ceklist->foto_tambahan)) {
+            foreach ($ceklist->foto_tambahan as $fotoData) {
+                if (isset($fotoData['foto']) && Storage::disk('public')->exists($fotoData['foto'])) {
+                    Storage::disk('public')->delete($fotoData['foto']);
+                }
             }
         }
         

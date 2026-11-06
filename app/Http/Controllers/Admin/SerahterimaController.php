@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\SerahterimaBook;
 use App\Models\SerahterimaKontrak;
 use App\Models\Rental;
-use App\Models\DataKontrak;
+use App\Models\InvKontrak;
 use App\Models\Kendaraan;
 use Illuminate\Support\Facades\Storage;
 
@@ -63,7 +63,10 @@ class SerahterimaController extends Controller
 
         // Data untuk dropdown
         $rentals = Rental::with('kendaraan', 'member')->latest()->get();
-        $kontraks = DataKontrak::with('kendaraan')->latest()->get();
+        $kontraks = InvKontrak::with(['penawaran.items.kendaraan'])
+            ->whereIn('status', ['active', 'approved'])
+            ->latest()
+            ->get();
 
         return view('admin.serahterima.index', compact(
             'dataBooking',
@@ -192,7 +195,7 @@ class SerahterimaController extends Controller
     public function storeKontrak(Request $request)
     {
         $request->validate([
-            'idkontrak' => 'nullable|exists:data_kontraks,id',
+            'idkontrak' => 'nullable|exists:inv_kontraks,id',
             'id_rental' => 'required|exists:rentals,id',
             'tanggal' => 'required|date',
             'file_masuk' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
@@ -233,7 +236,7 @@ class SerahterimaController extends Controller
     public function updateKontrak(Request $request, $id)
     {
         $request->validate([
-            'idkontrak' => 'nullable|exists:data_kontraks,id',
+            'idkontrak' => 'nullable|exists:inv_kontraks,id',
             'id_rental' => 'required|exists:rentals,id',
             'tanggal' => 'required|date',
             'file_masuk' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',

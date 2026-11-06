@@ -165,6 +165,33 @@ Route::redirect('/', '/index');
 
 Route::view('/index', 'index');
 
+// ── TEMPORARY: Debug Data Leasing View (DELETE after use) ────────────────────
+Route::get('/debug-data-leasing', function () {
+    // Render view yang sama dengan controller tapi dengan data hardcoded
+    $leasingQuery = \App\Models\DataLeasing::with('dataKontrak')->latest();
+    $leasings = $leasingQuery->paginate(15, ['*'], 'leasing_page')->withQueryString();
+    
+    $dataKontraks = \App\Models\DataKontrak::with('kendaraan')->latest()->get();
+    $kendaraans   = \App\Models\Kendaraan::orderBy('merk')->get();
+    
+    $kontrakQuery = \App\Models\DataKontrak::with(['kendaraan', 'attachments'])->latest();
+    $kontraks = $kontrakQuery->paginate(15, ['*'], 'kontrak_page')->withQueryString();
+    
+    // Debug info
+    echo "<!-- DEBUG INFO -->";
+    echo "<!-- Total Leasings: " . $leasings->total() . " -->";
+    echo "<!-- Leasings Count: " . $leasings->count() . " -->";
+    echo "<!-- First Item: " . ($leasings->first() ? $leasings->first()->no_kontrak : 'NULL') . " -->";
+    echo "<!-- -->";
+    
+    return view('admin.data_leasing.index', compact(
+        'leasings',
+        'dataKontraks',
+        'kendaraans',
+        'kontraks'
+    ));
+});
+
 Route::get('/login', [LoginController::class, 'index'])
   ->name('login');
 

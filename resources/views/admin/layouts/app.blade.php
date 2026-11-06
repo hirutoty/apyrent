@@ -105,6 +105,11 @@
     </script>
 
     <style>
+        /* Alpine.js x-cloak directive - hide elements until Alpine loads */
+        [x-cloak] {
+            display: none !important;
+        }
+
         body {
             font-size: 14px;
         }

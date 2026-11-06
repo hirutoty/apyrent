@@ -97,6 +97,9 @@
         {{-- ═══════════════════════════════════════════
              TAB: DATA LEASING
         ═══════════════════════════════════════════ --}}
+        {{-- DEBUG: Uncomment untuk cek data --}}
+        {{-- <pre class="text-xs bg-gray-100 p-2 rounded">{{ json_encode(['count' => $leasings->count(), 'total' => $leasings->total()], JSON_PRETTY_PRINT) }}</pre> --}}
+        
         <div x-show="activeTab === 'leasing'" x-cloak>
 
             {{-- PAGE HEADER --}}

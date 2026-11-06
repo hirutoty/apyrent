@@ -12,8 +12,8 @@
         }
 
         @page {
-            size: 21.5cm 33cm;
-            margin: 0.3cm;
+            size: A4 portrait;
+            margin: 0.5cm 0.5cm 0.3cm 0.5cm;
         }
 
         @media print {
@@ -25,14 +25,14 @@
 
         body {
             font-family: Arial, sans-serif;
-            font-size: 9pt;
-            line-height: 1.2;
+            font-size: 7pt;
+            line-height: 1.1;
             color: #003366;
         }
 
         .container {
             width: 100%;
-            max-width: 19.5cm;
+            max-width: 20cm;
             margin: 0 auto;
         }
 
@@ -50,9 +50,9 @@
 
         .info-cell {
             display: table-cell;
-            padding: 3px 5px;
+            padding: 2px 4px;
             border: 1px solid #87CEEB;
-            font-size: 8pt;
+            font-size: 6pt;
         }
 
         .info-label {
@@ -62,69 +62,69 @@
 
         /* Photos Section */
         .photos-section {
-            margin: 10px 0;
+            margin: 5px 0;
         }
 
         .photos-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 5px;
-            margin-bottom: 8px;
+            gap: 3px;
+            margin-bottom: 5px;
         }
 
         .photo-item {
             border: 1px solid #87CEEB;
-            padding: 3px;
+            padding: 2px;
             text-align: center;
         }
 
         .photo-item img {
             width: 100%;
-            height: 120px;
+            height: 80px;
             object-fit: contain;
             display: block;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
         }
 
         .photo-label {
-            font-size: 7pt;
+            font-size: 5pt;
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
         }
 
         .photo-note {
-            font-size: 7pt;
-            min-height: 20px;
+            font-size: 5pt;
+            min-height: 12px;
             text-align: left;
-            padding: 2px;
+            padding: 1px;
             word-wrap: break-word;
         }
 
         /* Kondisi Table */
         .kondisi-section {
-            margin: 10px 0;
+            margin: 5px 0;
         }
 
         .kondisi-title {
             background: #ff6600;
             color: white;
             font-weight: bold;
-            padding: 4px;
+            padding: 2px;
             text-align: center;
-            font-size: 10pt;
-            margin-bottom: 5px;
+            font-size: 8pt;
+            margin-bottom: 3px;
         }
 
         table.kondisi-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 7pt;
+            font-size: 6pt;
         }
 
         .kondisi-table th,
         .kondisi-table td {
             border: 1px solid #87CEEB;
-            padding: 2px 3px;
+            padding: 1px 2px;
             text-align: left;
         }
 
@@ -136,13 +136,13 @@
 
         .kondisi-table td.check {
             text-align: center;
-            width: 25px;
+            width: 20px;
             font-weight: bold;
         }
 
         .kondisi-table td.number {
             text-align: center;
-            width: 20px;
+            width: 18px;
             font-weight: bold;
         }
 
@@ -153,7 +153,7 @@
         .ttd-section {
             display: table;
             width: 100%;
-            margin-top: 10px;
+            margin-top: 5px;
             border: 1px solid #87CEEB;
         }
 
@@ -164,7 +164,7 @@
         .ttd-cell {
             display: table-cell;
             border: 1px solid #87CEEB;
-            padding: 5px;
+            padding: 3px;
             vertical-align: top;
             width: 50%;
         }
@@ -172,50 +172,50 @@
         .ttd-title {
             font-weight: bold;
             text-align: center;
-            margin-bottom: 3px;
-            font-size: 9pt;
+            margin-bottom: 2px;
+            font-size: 7pt;
         }
 
         .ttd-img {
             text-align: center;
-            margin: 5px 0;
+            margin: 3px 0;
         }
 
         .ttd-img img {
-            max-width: 150px;
-            max-height: 60px;
+            max-width: 100px;
+            max-height: 40px;
             object-fit: contain;
         }
 
         .ttd-name {
             text-align: center;
-            font-size: 8pt;
-            margin-top: 3px;
+            font-size: 6pt;
+            margin-top: 2px;
         }
 
         /* Keterangan */
         .keterangan-section {
-            margin-top: 8px;
+            margin-top: 5px;
             border: 1px solid #87CEEB;
-            padding: 5px;
+            padding: 3px;
         }
 
         .keterangan-title {
             font-weight: bold;
-            font-size: 8pt;
-            margin-bottom: 3px;
+            font-size: 6pt;
+            margin-bottom: 2px;
         }
 
         .keterangan-text {
-            font-size: 7pt;
-            min-height: 30px;
+            font-size: 6pt;
+            min-height: 20px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         {{-- HEADER dengan Logo dan Info Perusahaan --}}
-        <div style="border: 2px solid #87CEEB; padding: 5px; margin-bottom: 5px;">
+        <div style="border: 2px solid #87CEEB; padding: 3px; margin-bottom: 3px;">
             <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                     <td style="width: 75%; vertical-align: top;">
@@ -224,18 +224,18 @@
                                 <td style="width: 30%; vertical-align: top;">
                                     @if(!empty($logoSrc))
                                         <img src="{{ $logoSrc }}" 
-                                             style="max-width: 150px; max-height: 120px; object-fit: contain;" 
+                                             style="max-width: 100px; max-height: 80px; object-fit: contain;" 
                                              alt="Logo">
                                     @endif
                                 </td>
-                                <td style="width: 70%; vertical-align: middle; padding-left: 10px;">
-                                    <div style="font-size: 10pt; font-weight: bold; margin-bottom: 3px;">
+                                <td style="width: 70%; vertical-align: middle; padding-left: 8px;">
+                                    <div style="font-size: 8pt; font-weight: bold; margin-bottom: 2px;">
                                         {{ $setting->nama_perusahaan ?? 'PT. ANUGERAH PANCA YOGA' }}
                                     </div>
-                                    <div style="font-size: 7pt; line-height: 1.3;">
+                                    <div style="font-size: 5pt; line-height: 1.2;">
                                         @if($setting)
                                             {{-- Baris 1: Head Office & Branch --}}
-                                            <div style="margin-bottom: 2px;">
+                                            <div style="margin-bottom: 1px;">
                                                 <strong>Head Office:</strong> {{ $setting->alamat ?? '' }}
                                                 @if($setting->alamat_cabang)
                                                     | <strong>Branch:</strong> {{ $setting->alamat_cabang }}
@@ -253,21 +253,21 @@
                             </tr>
                         </table>
                     </td>
-                    <td style="width: 25%; vertical-align: top; text-align: right; padding-left: 10px;">
-                        <div style="border: 2px solid #003366; padding: 5px; text-align: center;">
-                            <div style="font-size: 11pt; font-weight: bold; color: #003366;">CHECKLIST</div>
-                            <div style="font-size: 9pt; margin-top: 2px; color: #ff6600;">Pool Kendaraan</div>
+                    <td style="width: 25%; vertical-align: top; text-align: right; padding-left: 8px;">
+                        <div style="border: 2px solid #003366; padding: 3px; text-align: center;">
+                            <div style="font-size: 9pt; font-weight: bold; color: #003366;">CHECKLIST</div>
+                            <div style="font-size: 7pt; margin-top: 1px; color: #ff6600;">Pool Kendaraan</div>
                         </div>
                         
                         {{-- Checkbox Jenis --}}
-                        <div style="margin-top: 5px; font-size: 6pt; text-align: left; display: flex; flex-wrap: nowrap; gap: 3px; align-items: center;">
-                            <span style="font-weight: bold; margin-right: 3px;">Status:</span>
+                        <div style="margin-top: 3px; font-size: 5pt; text-align: left; display: flex; flex-wrap: nowrap; gap: 2px; align-items: center;">
+                            <span style="font-weight: bold; margin-right: 2px;">Status:</span>
                             @php
                             $jenisOptions = ['status', 'Leasing', 'GS', 'Replace', 'Expedisi'];
                             @endphp
                             @foreach($jenisOptions as $jenis)
                             <div style="display: inline-block; white-space: nowrap;">
-                                <span style="display: inline-block; width: 8px; height: 8px; border: 1px solid #87CEEB; margin-right: 2px; text-align: center; line-height: 8px; vertical-align: middle; font-size: 6pt;">
+                                <span style="display: inline-block; width: 8px; height: 8px; border: 1px solid #87CEEB; margin-right: 1px; text-align: center; line-height: 8px; vertical-align: middle; font-size: 5pt;">
                                     @if(strtolower($ceklist->status ?? '') === strtolower($jenis))
                                         ✓
                                     @endif
@@ -285,46 +285,46 @@
         <div class="info-section">
             <div class="info-row">
                 {{-- KOLOM 1 --}}
-                <div class="info-cell" style="width: 50%; vertical-align: top; padding: 5px;">
-                    <div style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid #ddd;">
-                        <div style="font-weight: bold; font-size: 7pt; color: #666; margin-bottom: 2px;">Nama</div>
-                        <div style="font-size: 8pt;">{{ $ceklist->nama }}</div>
+                <div class="info-cell" style="width: 50%; vertical-align: top; padding: 3px;">
+                    <div style="margin-bottom: 3px; padding-bottom: 3px; border-bottom: 1px solid #ddd;">
+                        <div style="font-weight: bold; font-size: 5pt; color: #666; margin-bottom: 1px;">Nama</div>
+                        <div style="font-size: 6pt;">{{ $ceklist->nama }}</div>
                     </div>
-                    <div style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid #ddd;">
-                        <div style="font-weight: bold; font-size: 7pt; color: #666; margin-bottom: 2px;">Perusahaan</div>
-                        <div style="font-size: 8pt;">{{ $ceklist->perusahaan }}</div>
+                    <div style="margin-bottom: 3px; padding-bottom: 3px; border-bottom: 1px solid #ddd;">
+                        <div style="font-weight: bold; font-size: 5pt; color: #666; margin-bottom: 1px;">Perusahaan</div>
+                        <div style="font-size: 6pt;">{{ $ceklist->perusahaan }}</div>
                     </div>
-                    <div style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid #ddd;">
-                        <div style="font-weight: bold; font-size: 7pt; color: #666; margin-bottom: 2px;">Alamat</div>
-                        <div style="font-size: 8pt;">{{ $ceklist->alamat }}</div>
+                    <div style="margin-bottom: 3px; padding-bottom: 3px; border-bottom: 1px solid #ddd;">
+                        <div style="font-weight: bold; font-size: 5pt; color: #666; margin-bottom: 1px;">Alamat</div>
+                        <div style="font-size: 6pt;">{{ $ceklist->alamat }}</div>
                     </div>
                     <div>
-                        <div style="font-weight: bold; font-size: 7pt; color: #666; margin-bottom: 2px;">No Telephone</div>
-                        <div style="font-size: 8pt;">{{ $ceklist->no_telephone }}</div>
+                        <div style="font-weight: bold; font-size: 5pt; color: #666; margin-bottom: 1px;">No Telephone</div>
+                        <div style="font-size: 6pt;">{{ $ceklist->no_telephone }}</div>
                     </div>
                 </div>
                 
                 {{-- KOLOM 2 --}}
-                <div class="info-cell" style="width: 50%; vertical-align: top; padding: 5px; border-left: 1px solid #000;">
-                    <div style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid #ddd;">
-                        <div style="font-weight: bold; font-size: 7pt; color: #666; margin-bottom: 2px;">Tanggal</div>
-                        <div style="font-size: 8pt;">{{ \Carbon\Carbon::parse($ceklist->tanggal)->format('d/m/Y') }}</div>
+                <div class="info-cell" style="width: 50%; vertical-align: top; padding: 3px; border-left: 1px solid #000;">
+                    <div style="margin-bottom: 3px; padding-bottom: 3px; border-bottom: 1px solid #ddd;">
+                        <div style="font-weight: bold; font-size: 5pt; color: #666; margin-bottom: 1px;">Tanggal</div>
+                        <div style="font-size: 6pt;">{{ \Carbon\Carbon::parse($ceklist->tanggal)->format('d/m/Y') }}</div>
                     </div>
-                    <div style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid #ddd;">
-                        <div style="font-weight: bold; font-size: 7pt; color: #666; margin-bottom: 2px;">Kilometer</div>
-                        <div style="font-size: 8pt;">{{ number_format($ceklist->kilometer, 0, ',', '.') }} km</div>
+                    <div style="margin-bottom: 3px; padding-bottom: 3px; border-bottom: 1px solid #ddd;">
+                        <div style="font-weight: bold; font-size: 5pt; color: #666; margin-bottom: 1px;">Kilometer</div>
+                        <div style="font-size: 6pt;">{{ number_format($ceklist->kilometer, 0, ',', '.') }} km</div>
                     </div>
-                    <div style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid #ddd;">
-                        <div style="font-weight: bold; font-size: 7pt; color: #666; margin-bottom: 2px;">Jam</div>
-                        <div style="font-size: 8pt;">{{ $ceklist->jam }}</div>
+                    <div style="margin-bottom: 3px; padding-bottom: 3px; border-bottom: 1px solid #ddd;">
+                        <div style="font-weight: bold; font-size: 5pt; color: #666; margin-bottom: 1px;">Jam</div>
+                        <div style="font-size: 6pt;">{{ $ceklist->jam }}</div>
                     </div>
-                    <div style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid #ddd;">
-                        <div style="font-weight: bold; font-size: 7pt; color: #666; margin-bottom: 2px;">Fuel</div>
-                        <div style="font-size: 8pt;">{{ $ceklist->fuel }}</div>
+                    <div style="margin-bottom: 3px; padding-bottom: 3px; border-bottom: 1px solid #ddd;">
+                        <div style="font-weight: bold; font-size: 5pt; color: #666; margin-bottom: 1px;">Fuel</div>
+                        <div style="font-size: 6pt;">{{ $ceklist->fuel }}</div>
                     </div>
                     <div>
-                        <div style="font-weight: bold; font-size: 7pt; color: #666; margin-bottom: 2px;">Pemeriksa</div>
-                        <div style="font-size: 8pt;">{{ $ceklist->pemeriksa }}</div>
+                        <div style="font-weight: bold; font-size: 5pt; color: #666; margin-bottom: 1px;">Pemeriksa</div>
+                        <div style="font-size: 6pt;">{{ $ceklist->pemeriksa }}</div>
                     </div>
                 </div>
             </div>
@@ -332,9 +332,9 @@
 
         {{-- Info Tambahan (2 baris dengan grouping) --}}
         @if($ceklist->kendaraan->merk || $ceklist->fuel || $ceklist->pemakaian_bbm || $ceklist->ratio || $ceklist->status)
-        <div style="margin-top: 5px; border: 1px solid #87CEEB; font-size: 7pt;">
+        <div style="margin-top: 3px; border: 1px solid #87CEEB; font-size: 5pt;">
             {{-- Baris 1: Info Kendaraan --}}
-            <div style="padding: 5px; display: flex; gap: 15px; flex-wrap: wrap; border-bottom: 1px solid #87CEEB;">
+            <div style="padding: 3px; display: flex; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid #87CEEB;">
                 @if($ceklist->kendaraan->merk || $ceklist->kendaraan->nopol)
                 <div>
                     <strong>Nama Kendaraan:</strong> 
@@ -362,15 +362,15 @@
             </div>
             
             {{-- Baris 2: Info BBM --}}
-            <div style="padding: 5px; display: flex; gap: 15px; flex-wrap: wrap;">
+            <div style="padding: 3px; display: flex; gap: 10px; flex-wrap: wrap;">
+                @if($ceklist->kendaraan->bahan_bakar)
+                <div>
+                    <strong>Bahan Bakar:</strong> {{ $ceklist->kendaraan->bahan_bakar }}
+                </div>
+                @endif
                 @if($ceklist->fuel)
                 <div>
                     <strong>Fuel:</strong> {{ $ceklist->fuel }}
-                </div>
-                @endif
-                @if($ceklist->pemakaian_bbm)
-                <div>
-                    <strong>Pemakaian BBM:</strong> {{ $ceklist->pemakaian_bbm }}
                 </div>
                 @endif
                 @if($ceklist->ratio)
@@ -428,9 +428,9 @@
             
             {{-- Accesoris Tambahan (langsung text tanpa ruang foto) --}}
             @if($ceklist->accecoris_tambahan)
-            <div style="margin-top: 5px; padding: 5px; border: 1px solid #87CEEB; border-radius: 3px;">
-                <div style="font-size: 7pt; font-weight: bold; margin-bottom: 2px;">F. ACCESORIS TAMBAHAN:</div>
-                <div style="font-size: 7pt; color: #333;">{{ $ceklist->accecoris_tambahan }}</div>
+            <div style="margin-top: 3px; padding: 3px; border: 1px solid #87CEEB; border-radius: 2px;">
+                <div style="font-size: 5pt; font-weight: bold; margin-bottom: 1px;">F. ACCESORIS TAMBAHAN:</div>
+                <div style="font-size: 5pt; color: #333;">{{ $ceklist->accecoris_tambahan }}</div>
             </div>
             @endif
         </div>
@@ -453,69 +453,140 @@
                 </thead>
                 <tbody>
                     @php
-                    $kondisiLeft = [
+                    // LAYOUT FINAL:
+                    // KIRI: Section A partial (1-13) = 26 items (sampai karpet lantai)
+                    // KANAN: Section A partial (lanjutan perlengkapan + 14-15) + Section B (16-36) + Section C (37-46) = 40 items
+                    
+                    // SECTION A KIRI: Kondisi Dasar (26 items) - KIRI
+                    $sectionA = [
                         [1, 'Kondisi mesin', 'kondisi_mesin'],
                         [2, 'Kondisi rem', 'kondisi_rem'],
                         [3, 'Kondisi kopling', 'kondisi_kopling'],
                         [4, 'Kondisi ban', 'kondisi_ban'],
+                        [null, '- Ban depan kanan', 'ban_depan_kanan'],
+                        [null, '- Ban depan kiri', 'ban_depan_kiri'],
+                        [null, '- Ban belakang kanan', 'ban_belakang_kanan'],
+                        [null, '- Ban belakang kiri', 'ban_belakang_kiri'],
+                        [null, '- ban ganda depan kanan', 'ban_ganda_depan_kanan'],
+                        [null, '- ban ganda depan kiri', 'ban_ganda_depan_kiri'],
+                        [null, '- ban ganda belakang kanan', 'ban_ganda_belakang_kanan'],
+                        [null, '- ban ganda belakang kiri', 'ban_ganda_belakang_kiri'],
                         [5, 'Kondisi AC', 'kondisi_ac'],
-                        [6, 'Lampu sen', 'lampu_lampusen'],
-                        [7, 'Lampu besar / kecil', 'lampu_lampubesarkecil'],
-                        [8, 'Lampu rem / bik / plat no', 'lampu_rembikplat'],
-                        [9, 'Accu', 'accu'],
-                        [10, 'Air radiator', 'airradiator'],
-                        [11, 'Oli mesin / rem / kopling', 'olimesin_remkopling'],
-                        [12, 'Oli power steering', 'olipower_steering'],
-                        [13, 'Kebersihan interior', 'kebersihan_interior'],
-                        [14, 'Kerapihan body / cat', 'kerapihanbody_cat'],
-                    ];
-                    
-                    $kondisiRight = [
-                        [15, 'Perlengkapan', 'perlengkapan'],
+                        [6, 'Lampu', 'kondisi_lampu'],
+                        [null, '- Lampu sein', 'lampu_sein'],
+                        [null, '- Lampu bik / plat', 'lampu_bik_plat'],
+                        [null, '- Lampu hazard', 'lampu_hazard'],
+                        [null, '- Lampu kota', 'lampu_kota'],
+                        [null, '- Lampu besar / kecil', 'lampu_besar_kecil'],
+                        [null, '- Lampu mundur', 'lampu_mundur'],
+                        [null, '- Lampu rem belakang', 'lampu_rem_belakang'],
+                        [null, '- Lampu rem depan', 'lampu_rem_depan'],
+                        [7, 'Accu', 'accu'],
+                        [8, 'Air radiator', 'airradiator'],
+                        [9, 'Oli mesin / rem / kopling', 'olimesin_remkopling'],
+                        [10, 'Oli power steering', 'olipower_steering'],
+                        [11, 'Kebersihan interior', 'kebersihan_interior'],
+                        [12, 'Kerapihan body / cat', 'kerapihanbody_cat'],
+                        [13, 'Perlengkapan', 'perlengkapan'],
                         [null, '- Ban cadang', 'ban_cadang'],
                         [null, '- Dongkrak', 'dongkrak'],
                         [null, '- Kunci roda', 'kunciroda'],
                         [null, '- Radio / Tape', 'radio_tape'],
                         [null, '- Merk', 'merk'],
                         [null, '- Karpet lantai', 'karpet_lantai'],
+                    ];
+                    
+                    // SECTION A KANAN + B + C: (40 items) - KANAN
+                    $sectionAKanan = [
                         [null, '- Dop roda', 'doproda'],
                         [null, '- Pematik api', 'pematikapi'],
                         [null, '- Segitiga pengaman', 'segitiga_pengaman'],
                         [null, '- Kotak obat', 'kotakobat'],
-                        [null, '- STNK', 'stnk'],
-                        [16, 'Kunci pintu / kontak', 'kuncipintu'],
-                        [17, 'Speedometer', 'spedoometer'],
+                        [14, 'Kunci pintu / kontak', 'kuncipintu'],
+                        [15, 'Speedometer', 'spedoometer'],
                     ];
+                    
+                    // SECTION B: Pemeriksaan Khusus (21 items) - KANAN
+                    $sectionB = [
+                        [16, 'Sistem rem angin', 'sistem_rem_angin'],
+                        [17, 'Tekanan angin tabung', 'tekanan_angin_tabung'],
+                        [18, 'Kompresor angin dan saluran', 'kompresor_angin_saluran'],
+                        [19, 'Brake chamber dan slack adjuster', 'brake_chamber_slack_adjuster'],
+                        [20, 'Rem parkir / tangan', 'rem_parkir_tangan'],
+                        [21, 'Transmisi / persneling', 'transmisi_persneling'],
+                        [22, 'Gardan dan kebocoran oli', 'gardan_kebocoran_oli'],
+                        [23, 'Kopel / propeller / universal joint', 'kopel_propeller_universal'],
+                        [24, 'Suspensi / per daun', 'suspensi_per_daun'],
+                        [25, 'Shock absorber', 'shock_absorber'],
+                        [26, 'Chassis / rangka dan baut', 'chassis_rangka_baut'],
+                        [27, 'Mur / baut roda dan velg', 'mur_baut_roda_velg'],
+                        [28, 'Bak / box / karoseri / lantai', 'bak_box_karoseri_lantai'],
+                        [29, 'Pintu bak dan sistem pengunci', 'pintu_bak_sistem_pengunci'],
+                        [30, 'Engsel / pengait / pengaman', 'engsel_pengait_pengaman'],
+                        [31, 'Terpal / tali pengikat', 'terpal_tali_pengikat'],
+                        [32, 'Wiper dan washer', 'wiper_washer'],
+                        [33, 'Kaca spion dan kaca kendaraan', 'kaca_spion_kendaraan'],
+                        [34, 'Sabuk pengaman', 'sabuk_pengaman'],
+                        [35, 'Ganjal roda', 'ganjal_roda'],
+                        [36, 'APAR (alat pemadam api ringan)', 'apar'],
+                    ];
+                    
+                    // SECTION C: Kelengkapan Dokumen (10 items) - SEMUA DI KANAN
+                    $sectionC = [
+                        [37, 'STNK kendaraan', 'stnk'],
+                        [38, 'Buku / kartu uji berkala (KIR)', 'kir_berlaku'],
+                        [39, 'SIM pengemudi sesuai golongan', 'sim_pengemudi'],
+                        [40, '- SIM A', 'sim_a'],
+                        [41, '- SIM B1', 'sim_b1'],
+                        [42, '- SIM B1 Umum', 'sim_b1_umum'],
+                        [43, '- SIM B2', 'sim_b2'],
+                        [44, '- SIM B2 Umum', 'sim_b2_umum'],
+                        [45, 'Dokumen pengangkutan / surat jalan', 'dokumen_surat_jalan'],
+                        [46, 'Kesesuaian jenis dan kapasitas muatan', 'kesesuaian_muatan'],
+                    ];
+                    
+                    // Merge sections
+                    // KIRI: Section A partial (26 items)
+                    $allLeft = $sectionA;
+                    
+                    // KANAN: Section A partial (6 items) + Section B (21 items) + Section C (10 items) = 37 items
+                    $allRight = array_merge($sectionAKanan, $sectionB, $sectionC);
+                    
+                    $maxRows = max(count($allLeft), count($allRight));
                     @endphp
 
-                    {{-- Baris 1-14: Kolom kiri dengan items, kolom kanan dengan 16, 17, 15, dan sub-items --}}
-                    @for($i = 0; $i < 14; $i++)
+                    {{-- Generate rows --}}
+                    @for($i = 0; $i < $maxRows; $i++)
                         <tr>
                             {{-- Kolom Kiri --}}
-                            <td class="number">{{ $kondisiLeft[$i][0] }}</td>
-                            <td>{{ $kondisiLeft[$i][1] }}</td>
-                            <td class="check">
-                                @if($ceklist->{$kondisiLeft[$i][2]} === 'B')
-                                    <span class="check-b">✓</span>
-                                @endif
-                            </td>
-                            <td class="check">
-                                @if($ceklist->{$kondisiLeft[$i][2]} === 'R')
-                                    <span class="check-r">✗</span>
-                                @endif
-                            </td>
-
-                            {{-- Kolom Kanan --}}
-                            @if($i < count($kondisiRight))
-                                <td class="number">{{ $kondisiRight[$i][0] }}</td>
-                                <td>{{ $kondisiRight[$i][1] }}</td>
+                            @if($i < count($allLeft))
+                                <td class="number">{{ $allLeft[$i][0] }}</td>
+                                <td>{{ $allLeft[$i][1] }}</td>
                                 <td class="check">
-                                    @if($kondisiRight[$i][2] && $ceklist->{$kondisiRight[$i][2]} === 'B')
+                                    @if($allLeft[$i][2] && $ceklist->{$allLeft[$i][2]} === 'B')
                                         <span class="check-b">✓</span>
                                     @endif
                                 </td>
                                 <td class="check">
-                                    @if($kondisiRight[$i][2] && $ceklist->{$kondisiRight[$i][2]} === 'R')
+                                    @if($allLeft[$i][2] && $ceklist->{$allLeft[$i][2]} === 'R')
+                                        <span class="check-r">✗</span>
+                                    @endif
+                                </td>
+                            @else
+                                <td colspan="4"></td>
+                            @endif
+
+                            {{-- Kolom Kanan --}}
+                            @if($i < count($allRight))
+                                <td class="number">{{ $allRight[$i][0] }}</td>
+                                <td>{{ $allRight[$i][1] }}</td>
+                                <td class="check">
+                                    @if($allRight[$i][2] && $ceklist->{$allRight[$i][2]} === 'B')
+                                        <span class="check-b">✓</span>
+                                    @endif
+                                </td>
+                                <td class="check">
+                                    @if($allRight[$i][2] && $ceklist->{$allRight[$i][2]} === 'R')
                                         <span class="check-r">✗</span>
                                     @endif
                                 </td>
@@ -569,6 +640,9 @@
     </div>
 
     <script>
+        // Force cache bust - v2.0
+        console.log('Ceklist Kondisi Print - Version 2.0 - <?php echo time(); ?>');
+        
         // Auto print on load
         window.onload = function() {
             window.print();

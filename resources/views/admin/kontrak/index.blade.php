@@ -533,7 +533,8 @@
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email Pihak Kedua (Optional)</label>
                     <input type="email" name="email_kedua" id="create_email_kedua"
                         placeholder="email@example.com"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                        novalidate>
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua <span class="text-red-500">*</span></label>
@@ -839,7 +840,8 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Email Pihak Kedua (Optional)</label>
                         <input type="email" name="email_kedua" id="edit_email_kedua"
                             placeholder="email@example.com"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                            novalidate>
                     </div>
                     <div class="col-span-2">
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Alamat Pihak Kedua <span class="text-red-500">*</span></label>

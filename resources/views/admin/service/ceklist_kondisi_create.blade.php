@@ -275,6 +275,70 @@
                                         <td></td>
                                     </tr>
                                     <tr>
+                                        <td></td>
+                                        <td>- Ban depan kanan</td>
+                                        <td class="text-center">
+                                            <input type="radio" name="ban_depan_kanan" value="B" 
+                                                {{ old('ban_depan_kanan', $ceklist->ban_depan_kanan ?? '') == 'B' ? 'checked' : '' }}>
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="radio" name="ban_depan_kanan" value="R" 
+                                                {{ old('ban_depan_kanan', $ceklist->ban_depan_kanan ?? '') == 'R' ? 'checked' : '' }}>
+                                        </td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td></td>
+                                        <td>- Ban depan kiri</td>
+                                        <td class="text-center">
+                                            <input type="radio" name="ban_depan_kiri" value="B" 
+                                                {{ old('ban_depan_kiri', $ceklist->ban_depan_kiri ?? '') == 'B' ? 'checked' : '' }}>
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="radio" name="ban_depan_kiri" value="R" 
+                                                {{ old('ban_depan_kiri', $ceklist->ban_depan_kiri ?? '') == 'R' ? 'checked' : '' }}>
+                                        </td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td></td>
+                                        <td>- Ban belakang kanan</td>
+                                        <td class="text-center">
+                                            <input type="radio" name="ban_belakang_kanan" value="B" 
+                                                {{ old('ban_belakang_kanan', $ceklist->ban_belakang_kanan ?? '') == 'B' ? 'checked' : '' }}>
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="radio" name="ban_belakang_kanan" value="R" 
+                                                {{ old('ban_belakang_kanan', $ceklist->ban_belakang_kanan ?? '') == 'R' ? 'checked' : '' }}>
+                                        </td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td></td>
+                                        <td>- Ban belakang kiri</td>
+                                        <td class="text-center">
+                                            <input type="radio" name="ban_belakang_kiri" value="B" 
+                                                {{ old('ban_belakang_kiri', $ceklist->ban_belakang_kiri ?? '') == 'B' ? 'checked' : '' }}>
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="radio" name="ban_belakang_kiri" value="R" 
+                                                {{ old('ban_belakang_kiri', $ceklist->ban_belakang_kiri ?? '') == 'R' ? 'checked' : '' }}>
+                                        </td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
                                         <td>5</td>
                                         <td>Kondisi AC</td>
                                         <td class="text-center">

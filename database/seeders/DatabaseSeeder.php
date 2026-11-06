@@ -36,7 +36,7 @@ class DatabaseSeeder extends Seeder
             // StnkSeeder::class,               // Tambah: butuh Kendaraan
             // StnkHistorySeeder::class,        // Tambah: butuh Stnk & Kendaraan
             // DataKontrakSeeder::class,
-            // DataLeasingSeeder::class,
+            DataLeasingSeeder::class,
             // AnggaranProyekSeeder::class,
             // JenisAsuransiSeeder::class,
             // AsuransiSeeder::class,

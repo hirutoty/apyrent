@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class SerahterimaKontrak extends Model
+class SerahTerimaKontrak extends Model
 {
     use HasFactory;
 
@@ -23,17 +23,11 @@ class SerahterimaKontrak extends Model
         'tanggal' => 'date',
     ];
 
-    /**
-     * Relasi ke DataKontrak
-     */
     public function kontrak()
     {
-        return $this->belongsTo(DataKontrak::class, 'idkontrak');
+        return $this->belongsTo(InvKontrak::class, 'idkontrak');
     }
 
-    /**
-     * Relasi ke Rental
-     */
     public function rental()
     {
         return $this->belongsTo(Rental::class, 'id_rental');

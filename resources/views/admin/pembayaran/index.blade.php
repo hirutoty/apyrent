@@ -12,10 +12,10 @@
             <h1 class="text-2xl font-bold text-gray-800">Pembayaran</h1>
             <p class="text-sm text-gray-500 mt-0.5">Kelola pengajuan permintaan pembelian barang &amp; jasa</p>
         </div>
-        <a href="{{ route('pembayaran.create') }}"
+        <!-- <a href="{{ route('pembayaran.create') }}"
             class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors">
             <i class="fa fa-plus"></i> Tambah Pembayaran
-        </a>
+        </a> -->
     </div>
 
     {{-- STAT CARDS --}}

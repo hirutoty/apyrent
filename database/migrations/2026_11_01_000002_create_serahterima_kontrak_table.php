@@ -21,7 +21,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Foreign keys
-            $table->foreign('idkontrak')->references('id')->on('data_kontraks')->onDelete('set null');
+            $table->foreign('idkontrak')->references('id')->on('inv_kontraks')->onDelete('set null');
             $table->foreign('id_rental')->references('id')->on('rentals')->onDelete('cascade');
         });
     }

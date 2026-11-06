@@ -16,7 +16,7 @@
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">Detail Ceklist Kondisi</h1>
                 <p class="text-sm text-gray-500 mt-0.5">{{ $ceklist->tanggal->format('d F Y') }}</p>
-            </div>
+            </div>  
         </div>
         <a href="{{ route('ceklist-kondisi.print', $ceklist->id) }}" 
             target="_blank"
@@ -104,10 +104,10 @@
                 </span>
             </div>
             @endif
-            @if($ceklist->pemakaian_bbm)
+            @if($ceklist->kendaraan->bahan_bakar)
             <div>
-                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Pemakaian BBM</p>
-                <p class="text-sm font-semibold text-gray-800">{{ $ceklist->pemakaian_bbm }}</p>
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Bahan Bakar</p>
+                <p class="text-sm font-semibold text-gray-800">{{ $ceklist->kendaraan->bahan_bakar }}</p>
             </div>
             @endif
             @if($ceklist->ratio)
@@ -148,59 +148,32 @@
                     </div>
                     @endif
                 @endforeach
-            </div>
-        </div>
-    </div>
-
-    {{-- KONDISI KENDARAAN --}}
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="bg-gray-50 px-6 py-4 border-b border-gray-100">
-            <h3 class="text-lg font-bold text-gray-800">
-                <i class="bi bi-clipboard-check-fill text-orange-500 mr-2"></i>Kondisi Kendaraan
-            </h3>
-        </div>
-        <div class="p-6">
-            @php
-                $kondisiFields = [
-                    'Mesin' => 'kondisi_mesin', 'Rem' => 'kondisi_rem', 'Kopling' => 'kondisi_kopling', 
-                    'Ban' => 'kondisi_ban', 'AC' => 'kondisi_ac', 'Lampu Lampu Sen' => 'lampu_lampusen',
-                    'Lampu Besar/Kecil' => 'lampu_lampubesarkecil', 'Lampu Rem/Bik/Plat' => 'lampu_rembikplat',
-                    'Accu' => 'accu', 'Air Radiator' => 'airradiator', 'Oli Mesin/Rem/Kopling' => 'olimesin_remkopling',
-                    'Oli Power Steering' => 'olipower_steering', 'Kebersihan Interior' => 'kebersihan_interior',
-                    'Kerapihan Body/Cat' => 'kerapihanbody_cat', 'Perlengkapan' => 'perlengkapan',
-                    'Ban Cadang' => 'ban_cadang', 'Dongkrak' => 'dongkrak', 'Kunci Roda' => 'kunciroda',
-                    'Radio/Tape' => 'radio_tape', 'Merk' => 'merk', 'Karpet Lantai' => 'karpet_lantai',
-                    'Dop Roda' => 'doproda', 'Pematik Api' => 'pematikapi', 'Segitiga Pengaman' => 'segitiga_pengaman',
-                    'Kotak Obat' => 'kotakobat', 'STNK' => 'stnk', 'Kunci Pintu' => 'kuncipintu',
-                    'Speedometer' => 'spedoometer'
-                ];
-            @endphp
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                @foreach($kondisiFields as $label => $field)
-                    @php
-                        $nilai = $ceklist->$field;
-                        $isBaik = ($nilai === 'B');
-                        $isRusak = ($nilai === 'R');
-                        $isKosong = (!$nilai || !in_array($nilai, ['B', 'R']));
-                    @endphp
-                    <div class="flex items-center justify-between p-3 rounded-lg border 
-                        {{ $isBaik ? 'bg-green-50 border-green-200' : ($isRusak ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200') }}">
-                        <span class="text-sm font-medium text-gray-700">{{ $label }}</span>
-                        @if($isBaik)
-                            <span class="flex items-center justify-center w-7 h-7 rounded-full bg-green-500 text-white text-sm font-bold">
-                                <i class="bi bi-check-lg"></i>
-                            </span>
-                        @elseif($isRusak)
-                            <span class="flex items-center justify-center w-7 h-7 rounded-full bg-red-500 text-white text-sm font-bold">
-                                <i class="bi bi-x-lg"></i>
-                            </span>
-                        @else
-                            <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-200 border border-gray-300 text-gray-400 text-xs">
-                                <i class="bi bi-dash"></i>
-                            </span>
+                
+                {{-- FOTO TAMBAHAN - Ditampilkan di sisa grid --}}
+                @if($ceklist->foto_tambahan && is_array($ceklist->foto_tambahan))
+                    @foreach($ceklist->foto_tambahan as $index => $fotoData)
+                        @if(isset($fotoData['foto']))
+                        <div class="border border-orange-200 rounded-xl overflow-hidden">
+                            <div class="bg-gradient-to-br from-orange-50 to-amber-50 p-3 border-b border-orange-200">
+                                <p class="text-sm font-bold text-orange-700 uppercase flex items-center gap-2">
+                                    <i class="bi bi-images"></i>
+                                    Foto Tambahan {{ $index + 1 }}
+                                </p>
+                            </div>
+                            <a href="{{ asset('storage/' . $fotoData['foto']) }}" target="_blank" class="block">
+                                <img src="{{ asset('storage/' . $fotoData['foto']) }}" 
+                                    alt="Foto Tambahan {{ $index + 1 }}" 
+                                    class="w-full h-64 object-cover hover:opacity-90 transition-opacity cursor-pointer">
+                            </a>
+                            @if(isset($fotoData['keterangan']) && $fotoData['keterangan'])
+                            <div class="p-3 bg-orange-50 border-t border-orange-200">
+                                <p class="text-xs text-gray-600">{{ $fotoData['keterangan'] }}</p>
+                            </div>
+                            @endif
+                        </div>
                         @endif
-                    </div>
-                @endforeach
+                    @endforeach
+                @endif
             </div>
         </div>
     </div>
@@ -218,6 +191,176 @@
         </div>
     </div>
     @endif
+
+    {{-- KONDISI KENDARAAN --}}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-100">
+            <h3 class="text-lg font-bold text-gray-800">
+                <i class="bi bi-clipboard-check-fill text-orange-500 mr-2"></i>Kondisi Kendaraan
+            </h3>
+        </div>
+        <div class="p-6">
+            @php
+                // Section A: Kondisi Kendaraan & Pemeriksaan Khusus (58 items - merge dari Section A + B lama)
+                $sectionA = [
+                    'Mesin' => 'kondisi_mesin',
+                    'Rem' => 'kondisi_rem',
+                    'Kopling' => 'kondisi_kopling',
+                    'Ban' => 'kondisi_ban',
+                    '- Ban Depan Kanan' => 'ban_depan_kanan',
+                    '- Ban Depan Kiri' => 'ban_depan_kiri',
+                    '- Ban Belakang Kanan' => 'ban_belakang_kanan',
+                    '- Ban Belakang Kiri' => 'ban_belakang_kiri',
+                    '- ban ganda depan kanan' => 'ban_ganda_depan_kanan',
+                    '- ban ganda depan kiri' => 'ban_ganda_depan_kiri',
+                    '- ban ganda belakang kanan' => 'ban_ganda_belakang_kanan',
+                    '- ban ganda belakang kiri' => 'ban_ganda_belakang_kiri',
+                    'AC' => 'kondisi_ac',
+                    '- Lampu Sein' => 'lampu_sein',
+                    '- Lampu Plat Belakang' => 'lampu_bik_plat',
+                    '- Lampu Hazard' => 'lampu_hazard',
+                    '- Lampu Kota' => 'lampu_kota',
+                    '- Lampu Besar/Kecil' => 'lampu_besar_kecil',
+                    '- Lampu Mundur' => 'lampu_mundur',
+                    '- Lampu Rem Belakang' => 'lampu_rem_belakang',
+                    '- Lampu Rem Depan' => 'lampu_rem_depan',
+                    'Accu' => 'accu',
+                    'Air Radiator' => 'airradiator',
+                    'Oli Mesin/Rem' => 'olimesin_remkopling',
+                    'Oli Power Steering' => 'olipower_steering',
+                    'Interior' => 'kebersihan_interior',
+                    'Body/Cat' => 'kerapihanbody_cat',
+                    'Perlengkapan' => 'perlengkapan',
+                    '- Ban Cadang' => 'ban_cadang',
+                    '- Dongkrak' => 'dongkrak',
+                    '- Kunci Roda' => 'kunciroda',
+                    '- Radio/Tape' => 'radio_tape',
+                    '- Merk' => 'merk',
+                    '- Karpet' => 'karpet_lantai',
+                    '- Dop Roda' => 'doproda',
+                    '- Pematik Api' => 'pematikapi',
+                    '- Segitiga Pengaman' => 'segitiga_pengaman',
+                    '- Kotak Obat' => 'kotakobat',
+                    'Kunci Pintu' => 'kuncipintu',
+                    'Speedometer' => 'spedoometer',
+                    // Pemeriksaan Khusus Truck & Keselamatan (23 items)
+                    'Sistem Rem Angin' => 'sistem_rem_angin',
+                    'Tekanan Angin Tabung' => 'tekanan_angin_tabung',
+                    'Kompresor Angin & Saluran' => 'kompresor_angin_saluran',
+                    'Brake Chamber & Slack Adjuster' => 'brake_chamber_slack_adjuster',
+                    'Rem Parkir/Tangan' => 'rem_parkir_tangan',
+                    'Transmisi/Persneling' => 'transmisi_persneling',
+                    'Gardan & Kebocoran Oli' => 'gardan_kebocoran_oli',
+                    'Kopel/Propeller/Universal' => 'kopel_propeller_universal',
+                    'Suspensi/Per Daun' => 'suspensi_per_daun',
+                    'Shock Absorber' => 'shock_absorber',
+                    'Chassis/Rangka/Baut' => 'chassis_rangka_baut',
+                    'Mur/Baut Roda & Velg' => 'mur_baut_roda_velg',
+                    'Bak/Box/Karoseri/Lantai' => 'bak_box_karoseri_lantai',
+                    'Pintu Bak & Sistem Pengunci' => 'pintu_bak_sistem_pengunci',
+                    'Engsel/Pengait/Pengaman' => 'engsel_pengait_pengaman',
+                    'Terpal/Tali Pengikat' => 'terpal_tali_pengikat',
+                    'Wiper & Washer' => 'wiper_washer',
+                    'Kaca Spion & Kendaraan' => 'kaca_spion_kendaraan',
+                    'Sabuk Pengaman' => 'sabuk_pengaman',
+                    'Ganjal Roda' => 'ganjal_roda',
+                    'APAR' => 'apar',
+                ];
+                
+                // Section B: Kelengkapan Dokumen (10 items)
+                $sectionB = [
+                    'STNK Kendaraan' => 'stnk',
+                    'KIR Berlaku' => 'kir_berlaku',
+                    'SIM Pengemudi' => 'sim_pengemudi',
+                    '- SIM A' => 'sim_a',
+                    '- SIM B1' => 'sim_b1',
+                    '- SIM B1 Umum' => 'sim_b1_umum',
+                    '- SIM B2' => 'sim_b2',
+                    '- SIM B2 Umum' => 'sim_b2_umum',
+                    'Dokumen Surat Jalan' => 'dokumen_surat_jalan',
+                    'Kesesuaian Muatan' => 'kesesuaian_muatan',
+                ];
+            @endphp
+            
+            {{-- SECTION A --}}
+            <div class="mb-6">
+                <div class="flex items-center gap-2 mb-3 pb-2 border-b-2 border-blue-200">
+                    <span class="px-3 py-1 bg-blue-500 text-white text-sm font-bold rounded-lg shadow">A</span>
+                    <h5 class="text-base font-bold text-gray-800">Kondisi Kendaraan & Pemeriksaan Khusus</h5>
+                    <span class="text-xs text-gray-500 font-semibold">(57 items)</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    @foreach($sectionA as $label => $field)
+                        @if($field !== 'kondisi_ban')
+                        @php
+                            $nilai = $ceklist->$field;
+                            $isBaik = ($nilai === 'B');
+                            $isRusak = ($nilai === 'R');
+                            $isKosong = (!$nilai || !in_array($nilai, ['B', 'R']));
+                        @endphp
+                        <div class="flex items-center justify-between p-3 rounded-lg border 
+                            {{ $isBaik ? 'bg-green-50 border-green-200' : ($isRusak ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200') }}">
+                            <span class="text-sm font-medium text-gray-700">{{ $label }}</span>
+                            @if($isBaik)
+                                <span class="flex items-center justify-center w-7 h-7 rounded-full bg-green-500 text-white text-sm font-bold">
+                                    <i class="bi bi-check-lg"></i>
+                                </span>
+                            @elseif($isRusak)
+                                <span class="flex items-center justify-center w-7 h-7 rounded-full bg-red-500 text-white text-sm font-bold">
+                                    <i class="bi bi-x-lg"></i>
+                                </span>
+                            @else
+                                <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-200 border border-gray-300 text-gray-400 text-xs">
+                                    <i class="bi bi-dash"></i>
+                                </span>
+                            @endif
+                        </div>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- SECTION B --}}
+            <div class="mb-6">
+                <div class="flex items-center gap-2 mb-3 pb-2 border-b-2 border-green-200">
+                    <span class="px-3 py-1 bg-green-500 text-white text-sm font-bold rounded-lg shadow">B</span>
+                    <h5 class="text-base font-bold text-gray-800">Kelengkapan Dokumen</h5>
+                    <span class="text-xs text-gray-500 font-semibold">(9 items)</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    @foreach($sectionB as $label => $field)
+                        @if($field !== 'sim_pengemudi')
+                        @php
+                            $nilai = $ceklist->$field;
+                            $isBaik = ($nilai === 'B');
+                            $isRusak = ($nilai === 'R');
+                            $isKosong = (!$nilai || !in_array($nilai, ['B', 'R']));
+                        @endphp
+                        <div class="flex items-center justify-between p-3 rounded-lg border 
+                            {{ $isBaik ? 'bg-green-50 border-green-200' : ($isRusak ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200') }}">
+                            <span class="text-sm font-medium text-gray-700">{{ $label }}</span>
+                            @if($isBaik)
+                                <span class="flex items-center justify-center w-7 h-7 rounded-full bg-green-500 text-white text-sm font-bold">
+                                    <i class="bi bi-check-lg"></i>
+                                </span>
+                            @elseif($isRusak)
+                                <span class="flex items-center justify-center w-7 h-7 rounded-full bg-red-500 text-white text-sm font-bold">
+                                    <i class="bi bi-x-lg"></i>
+                                </span>
+                            @else
+                                <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-200 border border-gray-300 text-gray-400 text-xs">
+                                    <i class="bi bi-dash"></i>
+                                </span>
+                            @endif
+                        </div>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
 
     {{-- PENANGGUNG JAWAB & TANDA TANGAN --}}
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

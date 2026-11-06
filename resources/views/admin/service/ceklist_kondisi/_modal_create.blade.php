@@ -100,11 +100,7 @@
                                 <option value="expedisi">Expedisi</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Pemakaian BBM</label>
-                            <input type="text" name="pemakaian_bbm"
-                                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        </div>
+
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 mb-1.5">Ratio</label>
                             <input type="text" name="ratio"
@@ -112,6 +108,8 @@
                         </div>
                     </div>
                 </div>
+
+                
 
                 {{-- FOTO KENDARAAN --}}
                 <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
@@ -137,48 +135,48 @@
                     </div>
                 </div>
 
-                {{-- KONDISI KENDARAAN --}}
-                <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                    <h4 class="text-base font-bold text-gray-800 mb-3">
-                        <i class="bi bi-clipboard-check-fill text-orange-500 mr-2"></i>Kondisi Kendaraan
-                        <span class="text-xs font-normal text-gray-600">(Pilih <i class="bi bi-check-lg text-green-600"></i> Baik atau <i class="bi bi-x-lg text-red-600"></i> Rusak)</span>
-                    </h4>
-                    @php
-                        $kondisiFields = [
-                            'Mesin' => 'kondisi_mesin', 'Rem' => 'kondisi_rem', 'Kopling' => 'kondisi_kopling', 
-                            'Ban' => 'kondisi_ban', 'AC' => 'kondisi_ac', 'Lampu Sen' => 'lampu_lampusen',
-                            'Lampu Besar/Kecil' => 'lampu_lampubesarkecil', 'Lampu Rem/Bik/Plat' => 'lampu_rembikplat',
-                            'Accu' => 'accu', 'Air Radiator' => 'airradiator', 'Oli Mesin/Rem' => 'olimesin_remkopling',
-                            'Oli Power Steering' => 'olipower_steering', 'Interior' => 'kebersihan_interior',
-                            'Body/Cat' => 'kerapihanbody_cat', 'Perlengkapan' => 'perlengkapan',
-                            'Ban Cadang' => 'ban_cadang', 'Dongkrak' => 'dongkrak', 'Kunci Roda' => 'kunciroda',
-                            'Radio/Tape' => 'radio_tape', 'Merk' => 'merk', 'Karpet' => 'karpet_lantai',
-                            'Dop Roda' => 'doproda', 'Pematik Api' => 'pematikapi', 'Segitiga' => 'segitiga_pengaman',
-                            'Kotak Obat' => 'kotakobat', 'STNK' => 'stnk', 'Kunci Pintu' => 'kuncipintu',
-                            'Speedometer' => 'spedoometer'
-                        ];
-                    @endphp
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                        @foreach($kondisiFields as $label => $field)
-                        <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-200">
-                            <span class="text-xs font-medium text-gray-700">{{ $label }}</span>
-                            <div class="flex gap-1.5">
-                                <label class="flex items-center cursor-pointer">
-                                    <input type="radio" name="{{ $field }}" value="B" class="hidden kondisi-radio">
-                                    <span class="kondisi-btn w-7 h-7 flex items-center justify-center rounded-lg border-2 border-gray-300 text-gray-400 hover:border-green-500 hover:bg-green-50 hover:text-green-600 transition">
-                                        <i class="bi bi-check-lg font-bold text-sm"></i>
-                                    </span>
-                                </label>
-                                <label class="flex items-center cursor-pointer">
-                                    <input type="radio" name="{{ $field }}" value="R" class="hidden kondisi-radio">
-                                    <span class="kondisi-btn w-7 h-7 flex items-center justify-center rounded-lg border-2 border-gray-300 text-gray-400 hover:border-red-500 hover:bg-red-50 hover:text-red-600 transition">
-                                        <i class="bi bi-x-lg font-bold text-sm"></i>
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-                        @endforeach
+                {{-- FOTO TAMBAHAN (Multiple Upload) --}}
+                <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border-2 border-orange-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-base font-bold text-gray-800">
+                            <i class="bi bi-images text-orange-500 mr-2"></i>Foto Tambahan <span class="text-xs font-normal text-orange-600">(Min. 1 foto wajib)</span>
+                        </h4>
+                        <button type="button" onclick="addFotoTambahan()" 
+                            class="px-3 py-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-xs font-semibold flex items-center gap-1.5">
+                            <i class="bi bi-plus-circle"></i> Tambah Foto
+                        </button>
                     </div>
+                    
+                    <div id="fotoTambahanContainer" class="space-y-3">
+                        {{-- First foto tambahan (wajib) --}}
+                        <div class="foto-tambahan-item bg-white rounded-lg p-3 border border-orange-200 relative">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+                                        Foto <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="file" name="foto_tambahan[]" required accept="image/*"
+                                        class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+                                        Keterangan
+                                    </label>
+                                    <input type="text" name="ket_tambahan[]" placeholder="Keterangan foto..."
+                                        class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-orange-500">
+                                </div>
+                            </div>
+                            <button type="button" onclick="removeFotoTambahan(this)" 
+                                class="absolute top-2 right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-colors flex items-center justify-center remove-foto-btn hidden">
+                                <i class="bi bi-x text-sm font-bold"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <p class="text-[10px] text-orange-600 mt-2 flex items-center gap-1">
+                        <i class="bi bi-info-circle-fill"></i>
+                        <span>Minimal 1 foto tambahan wajib diisi. Klik "Tambah Foto" untuk menambah lebih banyak foto.</span>
+                    </p>
                 </div>
 
                 {{-- ACCESORIS TAMBAHAN --}}
@@ -189,6 +187,163 @@
                     <textarea name="accecoris_tambahan" rows="2" placeholder="Tuliskan accesoris tambahan..."
                         class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
                 </div>
+
+                {{-- KONDISI KENDARAAN --}}
+                <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <h4 class="text-base font-bold text-gray-800 mb-3">
+                        <i class="bi bi-clipboard-check-fill text-orange-500 mr-2"></i>Kondisi Kendaraan
+                        <span class="text-xs font-normal text-gray-600">(Pilih <i class="bi bi-check-lg text-green-600"></i> Baik atau <i class="bi bi-x-lg text-red-600"></i> Rusak)</span>
+                    </h4>
+                    
+                    @php
+                        // Section A: Kondisi Kendaraan & Pemeriksaan Khusus (58 items - merge dari Section A + B lama)
+                        $sectionA = [
+                            'Mesin' => 'kondisi_mesin', 
+                            'Rem' => 'kondisi_rem', 
+                            'Kopling' => 'kondisi_kopling', 
+                            'Ban' => 'kondisi_ban',
+                            '- Ban Depan Kanan' => 'ban_depan_kanan',
+                            '- Ban Depan Kiri' => 'ban_depan_kiri',
+                            '- Ban Belakang Kanan' => 'ban_belakang_kanan',
+                            '- Ban Belakang Kiri' => 'ban_belakang_kiri',
+                            '- ban ganda depan kanan' => 'ban_ganda_depan_kanan',
+                            '- ban ganda depan kiri' => 'ban_ganda_depan_kiri',
+                            '- ban ganda belakang kanan' => 'ban_ganda_belakang_kanan',
+                            '- ban ganda belakang kiri' => 'ban_ganda_belakang_kiri',
+                            'AC' => 'kondisi_ac',
+                            '- Lampu Sein' => 'lampu_sein',
+                            '- Lampu Plat Belakang' => 'lampu_bik_plat',
+                            '- Lampu Hazard' => 'lampu_hazard',
+                            '- Lampu Kota' => 'lampu_kota',
+                            '- Lampu Besar/Kecil' => 'lampu_besar_kecil',
+                            '- Lampu Mundur' => 'lampu_mundur',
+                            '- Lampu Rem Belakang' => 'lampu_rem_belakang',
+                            '- Lampu Rem Depan' => 'lampu_rem_depan',
+                            'Accu' => 'accu', 
+                            'Air Radiator' => 'airradiator', 
+                            'Oli Mesin/Rem' => 'olimesin_remkopling',
+                            'Oli Power Steering' => 'olipower_steering', 
+                            'Interior' => 'kebersihan_interior',
+                            'Body/Cat' => 'kerapihanbody_cat', 
+                            'Perlengkapan' => 'perlengkapan',
+                            '- Ban Cadang' => 'ban_cadang', 
+                            '- Dongkrak' => 'dongkrak', 
+                            '- Kunci Roda' => 'kunciroda',
+                            '- Radio/Tape' => 'radio_tape', 
+                            '- Merk' => 'merk', 
+                            '- Karpet' => 'karpet_lantai',
+                            '- Dop Roda' => 'doproda',
+                            '- Pematik Api' => 'pematikapi',
+                            '- Segitiga Pengaman' => 'segitiga_pengaman',
+                            '- Kotak Obat' => 'kotakobat',
+                            'Kunci Pintu' => 'kuncipintu',
+                            'Speedometer' => 'spedoometer',
+                            // Pemeriksaan Khusus Truck & Keselamatan (23 items)
+                            'Sistem Rem Angin' => 'sistem_rem_angin',
+                            'Tekanan Angin Tabung' => 'tekanan_angin_tabung',
+                            'Kompresor Angin & Saluran' => 'kompresor_angin_saluran',
+                            'Brake Chamber & Slack Adjuster' => 'brake_chamber_slack_adjuster',
+                            'Rem Parkir/Tangan' => 'rem_parkir_tangan',
+                            'Transmisi/Persneling' => 'transmisi_persneling',
+                            'Gardan & Kebocoran Oli' => 'gardan_kebocoran_oli',
+                            'Kopel/Propeller/Universal' => 'kopel_propeller_universal',
+                            'Suspensi/Per Daun' => 'suspensi_per_daun',
+                            'Shock Absorber' => 'shock_absorber',
+                            'Chassis/Rangka/Baut' => 'chassis_rangka_baut',
+                            'Mur/Baut Roda & Velg' => 'mur_baut_roda_velg',
+                            'Bak/Box/Karoseri/Lantai' => 'bak_box_karoseri_lantai',
+                            'Pintu Bak & Sistem Pengunci' => 'pintu_bak_sistem_pengunci',
+                            'Engsel/Pengait/Pengaman' => 'engsel_pengait_pengaman',
+                            'Terpal/Tali Pengikat' => 'terpal_tali_pengikat',
+                            'Wiper & Washer' => 'wiper_washer',
+                            'Kaca Spion & Kendaraan' => 'kaca_spion_kendaraan',
+                            'Sabuk Pengaman' => 'sabuk_pengaman',
+                            'Ganjal Roda' => 'ganjal_roda',
+                            'APAR' => 'apar',
+                        ];
+                        
+                        // Section B: Kelengkapan Dokumen (10 items)
+                        $sectionB = [
+                            'STNK Kendaraan' => 'stnk',
+                            'KIR Berlaku' => 'kir_berlaku',
+                            'SIM Pengemudi' => 'sim_pengemudi',
+                            '- SIM A' => 'sim_a',
+                            '- SIM B1' => 'sim_b1',
+                            '- SIM B1 Umum' => 'sim_b1_umum',
+                            '- SIM B2' => 'sim_b2',
+                            '- SIM B2 Umum' => 'sim_b2_umum',
+                            'Dokumen Surat Jalan' => 'dokumen_surat_jalan',
+                            'Kesesuaian Muatan' => 'kesesuaian_muatan',
+                        ];
+                    @endphp
+                    
+                    {{-- SECTION A: KONDISI KENDARAAN & PEMERIKSAAN KHUSUS --}}
+                    <div class="mb-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded">A</span>
+                            <h5 class="text-sm font-bold text-gray-700">Kondisi Kendaraan & Pemeriksaan Khusus</h5>
+                            <span class="text-xs text-gray-500">(57 items)</span>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                            @foreach($sectionA as $label => $field)
+                            @if($field !== 'kondisi_ban')
+                            <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-200">
+                                <span class="text-xs font-medium text-gray-700">{{ $label }}</span>
+                                <div class="flex gap-1.5">
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="radio" name="{{ $field }}" value="B" class="hidden kondisi-radio">
+                                        <span class="kondisi-btn w-7 h-7 flex items-center justify-center rounded-lg border-2 border-gray-300 text-gray-400 hover:border-green-500 hover:bg-green-50 hover:text-green-600 transition">
+                                            <i class="bi bi-check-lg font-bold text-sm"></i>
+                                        </span>
+                                    </label>
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="radio" name="{{ $field }}" value="R" class="hidden kondisi-radio">
+                                        <span class="kondisi-btn w-7 h-7 flex items-center justify-center rounded-lg border-2 border-gray-300 text-gray-400 hover:border-red-500 hover:bg-red-50 hover:text-red-600 transition">
+                                            <i class="bi bi-x-lg font-bold text-sm"></i>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                            @endif
+                            @endforeach
+                        </div>
+                    </div>
+
+                    {{-- SECTION B: KELENGKAPAN DOKUMEN --}}
+                    <div class="mb-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded">B</span>
+                            <h5 class="text-sm font-bold text-gray-700">Kelengkapan Dokumen</h5>
+                            <span class="text-xs text-gray-500">(9 items)</span>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                            @foreach($sectionB as $label => $field)
+                            @if($field !== 'sim_pengemudi')
+                            <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-200">
+                                <span class="text-xs font-medium text-gray-700">{{ $label }}</span>
+                                <div class="flex gap-1.5">
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="radio" name="{{ $field }}" value="B" class="hidden kondisi-radio">
+                                        <span class="kondisi-btn w-7 h-7 flex items-center justify-center rounded-lg border-2 border-gray-300 text-gray-400 hover:border-green-500 hover:bg-green-50 hover:text-green-600 transition">
+                                            <i class="bi bi-check-lg font-bold text-sm"></i>
+                                        </span>
+                                    </label>
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="radio" name="{{ $field }}" value="R" class="hidden kondisi-radio">
+                                        <span class="kondisi-btn w-7 h-7 flex items-center justify-center rounded-lg border-2 border-gray-300 text-gray-400 hover:border-red-500 hover:bg-red-50 hover:text-red-600 transition">
+                                            <i class="bi bi-x-lg font-bold text-sm"></i>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                            @endif
+                            @endforeach
+                        </div>
+                    </div>
+
+                </div>
+
+                
 
                 {{-- PENANGGUNG JAWAB --}}
                 <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
@@ -241,6 +396,79 @@
 </div>
 
 <script>
+// Counter untuk unique ID foto tambahan
+let fotoTambahanCount = 1;
+
+// Add Foto Tambahan
+function addFotoTambahan() {
+    fotoTambahanCount++;
+    const container = document.getElementById('fotoTambahanContainer');
+    
+    const newItem = document.createElement('div');
+    newItem.className = 'foto-tambahan-item bg-white rounded-lg p-3 border border-orange-200 relative';
+    newItem.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+                    Foto
+                </label>
+                <input type="file" name="foto_tambahan[]" accept="image/*"
+                    class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+                    Keterangan
+                </label>
+                <input type="text" name="ket_tambahan[]" placeholder="Keterangan foto..."
+                    class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-orange-500">
+            </div>
+        </div>
+        <button type="button" onclick="removeFotoTambahan(this)" 
+            class="absolute top-2 right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-colors flex items-center justify-center">
+            <i class="bi bi-x text-sm font-bold"></i>
+        </button>
+    `;
+    
+    container.appendChild(newItem);
+    updateRemoveButtons();
+}
+
+// Remove Foto Tambahan
+function removeFotoTambahan(button) {
+    const item = button.closest('.foto-tambahan-item');
+    item.remove();
+    fotoTambahanCount--;
+    updateRemoveButtons();
+}
+
+// Update visibility of remove buttons
+function updateRemoveButtons() {
+    const items = document.querySelectorAll('.foto-tambahan-item');
+    items.forEach((item, index) => {
+        const removeBtn = item.querySelector('.remove-foto-btn');
+        if (removeBtn) {
+            if (items.length > 1) {
+                removeBtn.classList.remove('hidden');
+            } else {
+                removeBtn.classList.add('hidden');
+            }
+        }
+        
+        // Update tombol remove yang bukan first item
+        const allRemoveBtns = item.querySelectorAll('button[onclick^="removeFotoTambahan"]');
+        allRemoveBtns.forEach(btn => {
+            if (!btn.classList.contains('remove-foto-btn')) {
+                // Ini button yang baru ditambah
+                if (items.length === 1) {
+                    btn.classList.add('hidden');
+                } else {
+                    btn.classList.remove('hidden');
+                }
+            }
+        });
+    });
+}
+
 // Open Modal
 function openCeklistModal(kendaraanId) {
     document.getElementById('ceklistKendaraanId').value = kendaraanId;

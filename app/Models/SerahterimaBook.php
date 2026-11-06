@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class SerahterimaBook extends Model
+class SerahTerimaBook extends Model
 {
     use HasFactory;
 
@@ -22,9 +22,6 @@ class SerahterimaBook extends Model
         'tanggal' => 'date',
     ];
 
-    /**
-     * Relasi ke Rental
-     */
     public function rental()
     {
         return $this->belongsTo(Rental::class, 'id_rental');

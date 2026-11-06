@@ -2,105 +2,133 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\DataLeasing;
 use App\Models\DataKontrak;
-use App\Models\Kendaraan;
-use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class DataLeasingSeeder extends Seeder
 {
-    public function run(): void
+    public function run()
     {
-        $kendaraanIds = Kendaraan::pluck('id')->toArray();
-        $kontrakIds   = DataKontrak::pluck('id')->toArray();
-
-        if (empty($kendaraanIds)) {
-            $this->command->warn('Tidak ada data kendaraan. Jalankan KendaraanSeeder terlebih dahulu.');
+        // Cek apakah sudah ada data
+        if (DataLeasing::count() > 0) {
+            $this->command->info('Data Leasing sudah ada, skip seeding.');
             return;
         }
 
-        $caraBayar   = ['Auto Debit', 'Transfer', 'Tunai'];
-        $sumberDana  = ['BCA', 'BRI', 'BNI', 'Mandiri', 'BSI', 'Bank Jateng'];
-        $asuransi    = ['Jasindo', 'Sinar Mas', 'Adira', 'ACA', 'Wahana Tata', 'Bumi Putera'];
-        $userLeasing = [
-            'Budi Hartono', 'Siti Rahayu', 'Ahmad Fauzi', 'Dewi Permatasari',
-            'Eko Purnomo', 'Fatimah Zahra', 'Gunawan Wibowo', 'Heni Susanti',
-            'Irwan Setiawan', 'Joko Widodo', 'Kurniawan', 'Linda Sari',
-            'Muhammad Rizki', 'Nanda Pratiwi', 'Oci Marlina', 'Pandu Wijaya',
-        ];
+        // Ambil beberapa data kontrak untuk referensi
+        $kontraks = DataKontrak::limit(5)->get();
 
-        // 10 data per bulan × 12 bulan = 120 data
-        $perBulan   = 10;
-        $totalBulan = 12;
-        $idx        = 1;
-        $count      = 0;
+        if ($kontraks->isEmpty()) {
+            $this->command->warn('Tidak ada Data Kontrak, membuat data leasing tanpa referensi kontrak.');
+            
+            // Buat 5 data leasing dummy tanpa referensi
+            $data = [
+                [
+                    'no_kontrak' => 'LES/2026/001',
+                    'mobil' => 'Toyota Avanza',
+                    'tahun' => '2024',
+                    'nopol' => 'B 1234 ABC',
+                    'user_leasing' => 'PT. ABC Finance',
+                    'angsuran_per_bulan' => 5000000,
+                    'jatuh_tempo' => 10,
+                    'periode_mulai' => '2024-01-01',
+                    'periode_selesai' => '2026-12-01',
+                    'personal_account' => 'Bank BCA',
+                    'sumber_dana_debit' => 'BCA 1234567890',
+                    'cara_bayar' => 'Auto Debit',
+                    'asuransi_leasing' => 'Asuransi Astra',
+                ],
+                [
+                    'no_kontrak' => 'LES/2026/002',
+                    'mobil' => 'Honda Jazz',
+                    'tahun' => '2023',
+                    'nopol' => 'B 5678 XYZ',
+                    'user_leasing' => 'PT. XYZ Leasing',
+                    'angsuran_per_bulan' => 6500000,
+                    'jatuh_tempo' => 15,
+                    'periode_mulai' => '2024-06-01',
+                    'periode_selesai' => '2027-05-01',
+                    'personal_account' => 'Bank Mandiri',
+                    'sumber_dana_debit' => 'Mandiri 9876543210',
+                    'cara_bayar' => 'Transfer Manual',
+                    'asuransi_leasing' => 'Jasindo',
+                ],
+                [
+                    'no_kontrak' => 'LES/2026/003',
+                    'mobil' => 'Mitsubishi Xpander',
+                    'tahun' => '2025',
+                    'nopol' => 'B 9012 DEF',
+                    'user_leasing' => 'PT. DEF Finance',
+                    'angsuran_per_bulan' => 7000000,
+                    'jatuh_tempo' => 20,
+                    'periode_mulai' => '2025-01-01',
+                    'periode_selesai' => '2028-12-01',
+                    'personal_account' => 'Bank BRI',
+                    'sumber_dana_debit' => 'BRI 1122334455',
+                    'cara_bayar' => 'Auto Debit',
+                    'asuransi_leasing' => 'Allianz',
+                ],
+                [
+                    'no_kontrak' => 'LES/2026/004',
+                    'mobil' => 'Suzuki Ertiga',
+                    'tahun' => '2024',
+                    'nopol' => 'B 3456 GHI',
+                    'user_leasing' => 'PT. GHI Leasing',
+                    'angsuran_per_bulan' => 4500000,
+                    'jatuh_tempo' => 5,
+                    'periode_mulai' => '2024-03-01',
+                    'periode_selesai' => '2027-02-01',
+                    'personal_account' => 'Bank BNI',
+                    'sumber_dana_debit' => 'BNI 5566778899',
+                    'cara_bayar' => 'Transfer Manual',
+                    'asuransi_leasing' => 'Sinarmas',
+                ],
+                [
+                    'no_kontrak' => 'LES/2026/005',
+                    'mobil' => 'Daihatsu Terios',
+                    'tahun' => '2023',
+                    'nopol' => 'B 7890 JKL',
+                    'user_leasing' => 'PT. JKL Finance',
+                    'angsuran_per_bulan' => 5500000,
+                    'jatuh_tempo' => 25,
+                    'periode_mulai' => '2023-10-01',
+                    'periode_selesai' => '2026-09-01',
+                    'personal_account' => 'Bank CIMB',
+                    'sumber_dana_debit' => 'CIMB 6677889900',
+                    'cara_bayar' => 'Auto Debit',
+                    'asuransi_leasing' => 'Jasa Raharja',
+                ],
+            ];
 
-        for ($bulan = $totalBulan - 1; $bulan >= 0; $bulan--) {
-            $bulanIni = Carbon::now()->subMonths($bulan)->startOfMonth();
-
-            for ($j = 0; $j < $perBulan; $j++, $idx++) {
-                $kendaraanId = $kendaraanIds[($idx - 1) % count($kendaraanIds)];
-                $kendaraan   = Kendaraan::find($kendaraanId);
-
-                // ~2/3 terhubung ke DataKontrak
-                $dataKontrakId = null;
-                $noKontrak     = null;
-
-                if (!empty($kontrakIds) && $idx % 3 !== 0) {
-                    $kontrak       = DataKontrak::find($kontrakIds[($idx - 1) % count($kontrakIds)]);
-                    $dataKontrakId = $kontrak->id;
-                    $noKontrak     = $kontrak->no_kontrak;
-                    $angsuran      = $kontrak->angsuran_per_bulan;
-                    $jatuhTempo    = $kontrak->jatuh_tempo ?? rand(1, 28);
-                    $caraBayarV    = $kontrak->cara_bayar ?? $caraBayar[$idx % count($caraBayar)];
-                    $sumber        = $kontrak->sumber_dana_debit ?? $sumberDana[$idx % count($sumberDana)];
-                    $mobil         = $kontrak->mobil;
-                    $nopol         = $kontrak->nopol;
-                    $tahun         = $kontrak->tahun;
-                    $periodeM      = $bulanIni->copy();
-                    $periodeS      = $periodeM->copy()->addMonths(rand(12, 48));
-                } else {
-                    // Mandiri
-                    $noKontrak  = 'LSG/' . $bulanIni->format('Y') . '/' . str_pad($idx, 4, '0', STR_PAD_LEFT);
-                    $angsuran   = rand(2, 20) * 500000;
-                    $jatuhTempo = rand(1, 28);
-                    $caraBayarV = $caraBayar[$idx % count($caraBayar)];
-                    $sumber     = $sumberDana[$idx % count($sumberDana)];
-                    $mobil      = $kendaraan->merk ?? 'Kendaraan ' . $idx;
-                    $nopol      = $kendaraan->nopol ?? 'AA ' . str_pad($idx * 77 % 9999, 4, '0') . ' CD';
-                    $tahun      = $kendaraan->tahun_pembuatan ?? rand(2018, 2024);
-                    $periodeM   = $bulanIni->copy();
-                    $periodeS   = $periodeM->copy()->addMonths(rand(12, 36));
-                }
-
-                // jumlah_cicilan: kadang manual, kadang null
-                $jumlahCicilan = ($idx % 4 === 0)
-                    ? Carbon::parse($periodeM)->diffInMonths(Carbon::parse($periodeS))
-                    : null;
-
-                DataLeasing::create([
-                    'data_kontrak_id'    => $dataKontrakId,
-                    'no_kontrak'         => $noKontrak,
-                    'mobil'              => $mobil,
-                    'tahun'              => (string) $tahun,
-                    'nopol'              => $nopol,
-                    'user_leasing'       => $userLeasing[($idx - 1) % count($userLeasing)],
-                    'angsuran_per_bulan' => $angsuran,
-                    'jatuh_tempo'        => $jatuhTempo,
-                    'periode_mulai'      => Carbon::parse($periodeM)->toDateString(),
-                    'periode_selesai'    => Carbon::parse($periodeS)->toDateString(),
-                    'jumlah_cicilan'     => $jumlahCicilan,
-                    'personal_account'   => $sumber . ' - ' . str_pad(rand(1000000000, 9999999999), 10, '0'),
-                    'sumber_dana_debit'  => $sumber,
-                    'cara_bayar'         => $caraBayarV,
-                    'asuransi_leasing'   => $asuransi[$idx % count($asuransi)],
-                ]);
-
-                $count++;
+            foreach ($data as $item) {
+                DataLeasing::create($item);
             }
+
+            $this->command->info('5 data leasing dummy berhasil ditambahkan.');
+            return;
         }
 
-        $this->command->info("DataLeasingSeeder: {$count} data leasing berhasil dibuat ({$perBulan}/bulan × {$totalBulan} bulan).");
+        // Jika ada data kontrak, gunakan untuk referensi
+        foreach ($kontraks as $kontrak) {
+            DataLeasing::create([
+                'data_kontrak_id' => $kontrak->id,
+                'no_kontrak' => $kontrak->no_kontrak,
+                'mobil' => $kontrak->mobil,
+                'tahun' => $kontrak->tahun,
+                'nopol' => $kontrak->nopol,
+                'user_leasing' => $kontrak->user_kontrak,
+                'angsuran_per_bulan' => $kontrak->angsuran_per_bulan,
+                'jatuh_tempo' => $kontrak->jatuh_tempo ?? 10,
+                'periode_mulai' => $kontrak->periode_mulai,
+                'periode_selesai' => $kontrak->periode_selesai,
+                'personal_account' => $kontrak->personal_account,
+                'sumber_dana_debit' => $kontrak->sumber_dana_debit,
+                'cara_bayar' => $kontrak->cara_bayar,
+                'asuransi_leasing' => $kontrak->nama_asuransi,
+            ]);
+        }
+
+        $this->command->info(count($kontraks) . ' data leasing berhasil ditambahkan dari data kontrak.');
     }
 }
